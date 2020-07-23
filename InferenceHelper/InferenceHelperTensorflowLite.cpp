@@ -56,7 +56,7 @@ int InferenceHelperTensorflowLite::initialize(const char *modelFilename, int num
 		CHECK(num_devices > 0);
 		const auto& device = devices.get()[0];
 		m_delegate = edgetpu_create_delegate(device.type, device.path, nullptr, 0);
-		m_interpreter->ModifyGraphWithDelegate({ m_delegate, edgetpu_free_delegate });
+		m_interpreter->ModifyGraphWithDelegate(m_delegate);
 	}
 #endif
 #ifdef TFLITE_DELEGATE_GPU
@@ -87,7 +87,10 @@ int InferenceHelperTensorflowLite::initialize(const char *modelFilename, int num
 
 int InferenceHelperTensorflowLite::finalize(void)
 {
-	
+	m_model.reset();
+	m_resolver.reset();
+	m_interpreter.reset();
+
 #ifdef TFLITE_DELEGATE_EDGETPU
 	if (m_helperType == TENSORFLOW_LITE_EDGETPU) {
 		edgetpu_free_delegate(m_delegate);
@@ -103,10 +106,6 @@ int InferenceHelperTensorflowLite::finalize(void)
 		TfLiteXNNPackDelegateDelete(m_delegate);
 	}
 #endif
-
-	m_model.reset();
-	m_resolver.reset();
-	m_interpreter.reset();
 	return 0;
 }
 

@@ -25,6 +25,20 @@ Sample projects to use Tensorflow Lite for multi-platform
 	- GPU
 		- Tested in Jetson NX
 
+- Projects
+	- pj_tflite_cls_mobilenet_v2
+		- Classification using MobileNet v2
+	- pj_tflite_det_mobilenetssd_v1
+		- Detection using MobileNetSSD v1
+	- pj_tflite_ss_deeplabv3_mnv2
+		- Semantic Segmentation using DeepLab v3
+	- temp_pj_tflite_simple_cls_mobilenet_v2
+		- Basic project without using InferenceHelper
+	- temp_pj_tflite_edgetpuapi_cls_mobilenet_v2
+		- Basic project using API from coral
+	- temp_pj_tflite_edgetpupipeline_cls_inception_v3
+		- Basic project for Edge TPU Pipeline
+
 ## How to build application
 ### Common 
 - Get source code
