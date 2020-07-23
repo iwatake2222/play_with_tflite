@@ -1,0 +1,2 @@
+glog and abseil-cpp are needed just only for a project with EdgeTPU pipeline. Otherwise, you don't need them.
+
