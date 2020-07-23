@@ -26,20 +26,22 @@ Sample projects to use Tensorflow Lite for multi-platform
 		- Tested in Jetson NX
 
 ## How to build application
-### Common (Get source code)
-```sh
-git clone https://github.com/iwatake2222/play_with_tflite.git
-cd play_with_tflite
+### Common 
+- Get source code
+	```sh
+	git clone https://github.com/iwatake2222/play_with_tflite.git
+	cd play_with_tflite
 
-git submodule init
-git submodule update
-cd third_party/tensorflow
-chmod +x tensorflow/lite/tools/make/download_dependencies.sh
-tensorflow/lite/tools/make/download_dependencies.sh
-```
+	git submodule init
+	git submodule update
+	cd third_party/tensorflow
+	chmod +x tensorflow/lite/tools/make/download_dependencies.sh
+	tensorflow/lite/tools/make/download_dependencies.sh
+	```
 
-Download prebuilt libraries (third_party.zip) and models (resource) from https://github.com/iwatake2222/play_with_tflite/releases/ .
-Extract them to `play_with_tflite/third_party` and `resource`
+- Download prebuilt libraries and models
+	- Download prebuilt libraries (third_party.zip) and models (resource.zip) from https://github.com/iwatake2222/play_with_tflite/releases/ .
+Extract them to `third_party` and `resource`
 
 ### Windows (Visual Studio)
 - Configure and Generate a new project using cmake-gui for Visual Studio 2017 64-bit

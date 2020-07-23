@@ -1,5 +1,5 @@
 .vscode
 build/
-resource/
+resource/model/
 third_party/tensorflow_prebuilt/
 third_party/edgetpu_prebuilt/
