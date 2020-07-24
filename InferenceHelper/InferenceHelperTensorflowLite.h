@@ -11,9 +11,10 @@
 
 class InferenceHelperTensorflowLite : public InferenceHelper {
 public:
-	InferenceHelperTensorflowLite() {};
+	InferenceHelperTensorflowLite();
 	~InferenceHelperTensorflowLite() override {};
 	int initialize(const char *modelFilename, int numThreads) override;
+	int initialize(const char *modelFilename, const int numThreads, std::vector<std::pair<const char*, const void*>> customOps) override;
 	int finalize(void) override;
 	int inference(void) override;
 	int getTensorByName(const char *name, TensorInfo *tensorInfo) override;
