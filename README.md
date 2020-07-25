@@ -32,6 +32,8 @@ Sample projects to use Tensorflow Lite for multi-platform
 		- Detection using MobileNetSSD v1
 	- pj_tflite_ss_deeplabv3_mnv2
 		- Semantic Segmentation using DeepLab v3
+	- pj_tflite_hand_mediapipe
+		- Palm Detection + Hand Landmark (mediapipe)
 	- temp_pj_tflite_simple_cls_mobilenet_v2
 		- Basic project without using InferenceHelper
 	- temp_pj_tflite_edgetpuapi_cls_mobilenet_v2
@@ -373,9 +375,12 @@ DOCKER_CPUS="k8 armv7a aarch64" DOCKER_TARGETS=libedgetpu make docker-build
 	- https://qiita.com/terryky/items/fa18bd10cfead076b39f
 	- https://github.com/terryky/tflite_gles_app
 
-- This project includes output files (such as `libtensorflowlite.so`) of the following project:
+- This project includes generated files (such as `libtensorflowlite.so`) from the following projects:
 	- https://github.com/tensorflow/tensorflow
-- This project includes models:
+	- https://github.com/google-coral/edgetpu
+- This project includes source code from the following projects:
+	- https://github.com/google/mediapipe (Apache-2.0 License)
+- This project includes models from the following projects:
 	- mobilenetv2-1.0
 		- https://storage.googleapis.com/download.tensorflow.org/models/tflite_11_05_08/mobilenet_v2_1.0_224.tgz
 		- https://dl.google.com/coral/canned_models/mobilenet_v2_1.0_224_quant_edgetpu.tflite
@@ -389,3 +394,6 @@ DOCKER_CPUS="k8 armv7a aarch64" DOCKER_TARGETS=libedgetpu make docker-build
 		- https://github.com/google-coral/edgetpu/tree/master/test_data
 		- https://github.com/google-coral/edgetpu/blob/master/test_data/deeplabv3_mnv2_dm05_pascal_quant.tflite
 		- https://github.com/google-coral/edgetpu/blob/master/test_data/deeplabv3_mnv2_dm05_pascal_quant_edgetpu.tflite
+	- hand tracking
+		- https://github.com/google/mediapipe/tree/master/mediapipe/models/palm_detection.tflite
+		- https://github.com/google/mediapipe/tree/master/mediapipe/models/hand_landmark.tflite
