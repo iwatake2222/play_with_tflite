@@ -36,13 +36,26 @@
 
 
 /*** Function ***/
+InferenceHelperTensorflowLite::InferenceHelperTensorflowLite()
+{
+	m_resolver.reset(new tflite::ops::builtin::BuiltinOpResolver());
+}
+
+int InferenceHelperTensorflowLite::initialize(const char *modelFilename, int numThreads, std::vector<std::pair<const char*, const void*>> customOps)
+{
+	for (auto op : customOps) {
+		m_resolver->AddCustom(op.first, (const TfLiteRegistration*)op.second);
+	}
+
+	return initialize(modelFilename, numThreads);
+}
+
 int InferenceHelperTensorflowLite::initialize(const char *modelFilename, int numThreads)
 {
 	/* Create interpreter */
 	m_model = tflite::FlatBufferModel::BuildFromFile((std::string(modelFilename) + ".tflite").c_str());
 	CHECK(m_model != nullptr);
 
-	m_resolver.reset(new tflite::ops::builtin::BuiltinOpResolver());
 	tflite::InterpreterBuilder builder(*m_model, *m_resolver);
 	builder(&m_interpreter);
 	CHECK(m_interpreter != nullptr);
