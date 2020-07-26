@@ -124,7 +124,7 @@ int PalmDetection::PalmDetection::invoke(cv::Mat &originalMat, std::vector<PALM>
 #endif
 
 	/*** Inference ***/
-	m_inferenceHelper->inference();
+	m_inferenceHelper->invoke();
 
 	/*** PostProcess ***/
 	/* Call TfLiteTensorsToDetectionsCalculator::DecodeBoxes as described in hand_detection_gpu.pbtxt */

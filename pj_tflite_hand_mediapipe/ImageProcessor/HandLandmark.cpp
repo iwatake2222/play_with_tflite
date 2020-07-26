@@ -64,7 +64,8 @@ int HandLandmark::finalize()
 	return 0;
 }
 
-int HandLandmark::invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark)
+
+int HandLandmark::invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark, float rotation)
 {
 	/*** PreProcess ***/
 	int modelInputWidth = m_inputTensor->dims[2];
@@ -94,20 +95,32 @@ int HandLandmark::invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark)
 #endif
 
 	/*** Inference ***/
-	m_inferenceHelper->inference();
+	m_inferenceHelper->invoke();
 
 	/*** PostProcess ***/
 	/* Retrieve the result */
 	handLandmark.handflag = m_outputTensorHandflag->getDataAsFloat()[0];
 	handLandmark.handedness = m_outputTensorHandedness->getDataAsFloat()[0];
 	//printf("%f  %f\n", m_outputTensorHandflag->getDataAsFloat()[0], m_outputTensorHandedness->getDataAsFloat()[0]);
+
 	for (int i = 0; i < 21; i++) {
-		handLandmark.pos[i].x = m_outputTensorLd21->getDataAsFloat()[i * 3 + 0] / modelInputWidth;
-		handLandmark.pos[i].y = m_outputTensorLd21->getDataAsFloat()[i * 3 + 1] / modelInputHeight;
-		handLandmark.pos[i].z = m_outputTensorLd21->getDataAsFloat()[i * 3 + 2] / modelInputWidth;		// ?? todo
+		handLandmark.pos[i].x = m_outputTensorLd21->getDataAsFloat()[i * 3 + 0] / modelInputWidth;	// 0.0 - 1.0
+		handLandmark.pos[i].y = m_outputTensorLd21->getDataAsFloat()[i * 3 + 1] / modelInputHeight;	// 0.0 - 1.0
+		handLandmark.pos[i].z = m_outputTensorLd21->getDataAsFloat()[i * 3 + 2] * 1;	 // Scale Z coordinate as X. (-100 - 100???) todo
 		//printf("%f\n", m_outputTensorLd21->getDataAsFloat()[i]);
 		//cv::circle(originalMat, cv::Point(m_outputTensorLd21->getDataAsFloat()[i * 3 + 0], m_outputTensorLd21->getDataAsFloat()[i * 3 + 1]), 5, cv::Scalar(255, 255, 0), 1);
 	}
+
+	/* Fix landmark rotation */
+	for (int i = 0; i < 21; i++) {
+		handLandmark.pos[i].x *= originalMat.cols;
+		handLandmark.pos[i].y *= originalMat.rows;
+	}
+	rotateLandmark(handLandmark, rotation, originalMat.cols, originalMat.rows);
+
+	/* Calculate palm rectangle from Landmark */
+	transformLandmarkToRect(handLandmark);
+	handLandmark.rect.rotation = calculateRotation(handLandmark);
 	
 	return 0;
 }
@@ -116,11 +129,11 @@ int HandLandmark::invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark)
 int HandLandmark::rotateLandmark(HAND_LANDMARK& handLandmark, float rotationRad, int imageWidth, int imageHeight)
 {
 	for (int i = 0; i < 21; i++) {
-		float x = handLandmark.pos[i].x - imageWidth / 2;
-		float y = handLandmark.pos[i].y - imageHeight / 2;
+		float x = handLandmark.pos[i].x - imageWidth / 2.f;
+		float y = handLandmark.pos[i].y - imageHeight / 2.f;
 
-		handLandmark.pos[i].x = x * std::cos(rotationRad) - y * std::sin(rotationRad) + imageWidth / 2;
-		handLandmark.pos[i].y = x * std::sin(rotationRad) + y * std::cos(rotationRad) + imageHeight / 2;
+		handLandmark.pos[i].x = x * std::cos(rotationRad) - y * std::sin(rotationRad) + imageWidth / 2.f;
+		handLandmark.pos[i].y = x * std::sin(rotationRad) + y * std::cos(rotationRad) + imageHeight / 2.f;
 		//handLandmark.pos[i].x = std::min(handLandmark.pos[i].x, 1.f);
 		//handLandmark.pos[i].y = std::min(handLandmark.pos[i].y, 1.f);
 	};
@@ -149,4 +162,44 @@ float HandLandmark::calculateRotation(HAND_LANDMARK& handLandmark)
 	rotation = rotation - 2 * M_PI * std::floor((rotation - (-M_PI)) / (2 * M_PI));
 
 	return rotation;
+}
+
+int HandLandmark::transformLandmarkToRect(HAND_LANDMARK &handLandmark)
+{
+	const float shift_x = 0.0f;
+	const float shift_y = -0.0f;
+	const float scale_x = 1.8f;
+	const float scale_y = 1.8f;
+
+	float width = 0;
+	float height = 0;
+	float x_center = 0;
+	float y_center = 0;
+
+	float xmin = handLandmark.pos[0].x;
+	float xmax = handLandmark.pos[0].x;
+	float ymin = handLandmark.pos[0].y;
+	float ymax = handLandmark.pos[0].y;
+
+	for (int i = 0; i < 21; i++) {
+		if (handLandmark.pos[i].x < xmin) xmin = handLandmark.pos[i].x;
+		if (handLandmark.pos[i].x > xmax) xmax = handLandmark.pos[i].x;
+		if (handLandmark.pos[i].y < ymin) ymin = handLandmark.pos[i].y;
+		if (handLandmark.pos[i].y > ymax) ymax = handLandmark.pos[i].y;
+	}
+	width = xmax - xmin;
+	height = ymax - ymin;
+	x_center = (xmax + xmin) / 2.f;
+	y_center = (ymax + ymin) / 2.f;
+
+	width *= scale_x;
+	height *= scale_y;
+
+	const float long_side = std::max(width, height);
+	handLandmark.rect.width = (long_side * 1);
+	handLandmark.rect.height = (long_side * 1);
+	handLandmark.rect.x = (x_center - handLandmark.rect.width / 2);
+	handLandmark.rect.y = (y_center - handLandmark.rect.height / 2);
+
+	return 0;
 }

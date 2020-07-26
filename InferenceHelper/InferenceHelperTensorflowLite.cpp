@@ -122,7 +122,7 @@ int InferenceHelperTensorflowLite::finalize(void)
 	return 0;
 }
 
-int InferenceHelperTensorflowLite::inference(void)
+int InferenceHelperTensorflowLite::invoke(void)
 {
 	CHECK(m_interpreter->Invoke() == kTfLiteOk)
 	return 0;

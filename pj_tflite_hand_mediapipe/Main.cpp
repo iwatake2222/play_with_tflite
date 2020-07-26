@@ -19,6 +19,8 @@
 /* Settings */
 #define LOOP_NUM_FOR_TIME_MEASUREMENT 0
 
+#undef SPEED_TEST_ONLY
+
 int main()
 {
 	/*** Initialize ***/

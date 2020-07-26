@@ -123,7 +123,7 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 #endif
 	
 	/*** Inference ***/
-	s_inferenceHelper->inference();
+	s_inferenceHelper->invoke();
 
 	/*** PostProcess ***/
 	/* Retrieve the result */

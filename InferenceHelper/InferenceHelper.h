@@ -55,7 +55,7 @@ public:
 	virtual int initialize(const char *modelFilename, const int numThreads) = 0;
 	virtual int initialize(const char *modelFilename, const int numThreads, std::vector<std::pair<const char*, const void*>> customOps) = 0;
 	virtual int finalize(void) = 0;
-	virtual int inference(void) = 0;
+	virtual int invoke(void) = 0;
 	virtual int getTensorByName(const char *name, TensorInfo *tensorInfo) = 0;
 	virtual int getTensorByIndex(const int index, TensorInfo *tensorInfo) = 0;
 	virtual int setBufferToTensorByName(const char *name, const char *data, const unsigned int dataSize) = 0;
