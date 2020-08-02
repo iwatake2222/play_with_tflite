@@ -11,12 +11,12 @@ public:
 		float handflag;
 		float handedness;
 		struct {
-			float x;	// pixel coordinate in model input image
-			float y;	// pixel coordinate in model input image
+			float x;	// coordinate on the input image
+			float y;	// coordinate on the input image
 			float z;
 		} pos[21];
 		struct {
-			float x;	// pixel coordinate in model input image
+			float x;	// coordinate on the input image
 			float y;
 			float width;
 			float height;
@@ -29,7 +29,7 @@ public:
 	~HandLandmark() {}
 	int initialize(const char *workDir, const int numThreads);
 	int finalize(void);
-	int invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark, float rotation);
+	int invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark, int palmX, int palmY, int palmW, int palmH, float palmRotation);
 	int rotateLandmark(HAND_LANDMARK& handLandmark, float rotationRa, int imageWidth, int imageHeight);
 	float calculateRotation(HAND_LANDMARK& handLandmark);
 	int transformLandmarkToRect(HAND_LANDMARK &handLandmark);

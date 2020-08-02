@@ -90,10 +90,10 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		palmDetection.invoke(*mat, palmList);
 		for (const auto detPalm : palmList) {
 			s_palmByLm.width = 0;	// reset 
-			palm.x = (int)(detPalm.x * mat->cols);
-			palm.y = (int)(detPalm.y * mat->rows);
-			palm.width = (int)(detPalm.width * mat->cols);
-			palm.height = (int)(detPalm.height * mat->rows);
+			palm.x = (int)(detPalm.x * 1);
+			palm.y = (int)(detPalm.y * 1);
+			palm.width = (int)(detPalm.width * 1);
+			palm.height = (int)(detPalm.height * 1);
 			palm.rotation = detPalm.rotation;
 			isPalmValid = true;
 			break;	// use only one palm
@@ -106,25 +106,11 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		cv::Scalar colorRect = (s_isPalmByLmValid) ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
 		cv::rectangle(*mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), colorRect, 3);
 
-		/* Rotate palm image */
-		cv::Mat matForLM;
-		cv::RotatedRect rect(cv::Point(palm.x + palm.width / 2, palm.y + palm.height / 2), cv::Size(palm.width, palm.height), palm.rotation * 180.f / 3.141592654f);
-		cv::Mat trans = cv::getRotationMatrix2D(rect.center, rect.angle, 1.0);
-		cv::Mat srcRot;
-		cv::warpAffine(*mat, srcRot, trans, mat->size());
-		cv::getRectSubPix(srcRot, rect.size, rect.center, matForLM);
-
 		/* Get landmark */
 		HandLandmark::HAND_LANDMARK landmark;
-		handLandmark.invoke(matForLM, landmark, palm.rotation);
+		handLandmark.invoke(*mat, landmark, palm.x, palm.y, palm.width, palm.height, palm.rotation);
 
 		if (landmark.handflag > 0.5) {
-			for (int i = 0; i < 21; i++) {
-				landmark.pos[i].x += palm.x;
-				landmark.pos[i].y += palm.y;
-			}
-			landmark.rect.x += palm.x;
-			landmark.rect.y += palm.y;
 			calcAverageRect(s_palmByLm, landmark, 0.4f);
 			cv::rectangle(*mat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), cv::Scalar(255, 0, 0), 3);
 

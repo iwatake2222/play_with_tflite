@@ -42,7 +42,7 @@ static std::vector<Anchor> s_anchors;
 
 static void nms(std::vector<Detection> &detectionList, std::vector<Detection> &detectionListNMS, bool useWeight = false);
 static float calculateIoU(Detection& det0, Detection& det1);
-static float calculateRotation(Detection& det, int imageWidth, int imageHeight);
+static float calculateRotation(Detection& det);
 static void RectTransformationCalculator(Detection& det, float rotation, float *x, float *y, float *width, float *height);
 
 
@@ -136,46 +136,41 @@ int PalmDetection::PalmDetection::invoke(cv::Mat &originalMat, std::vector<PALM>
 	const float* raw_boxes = m_outputTensorBoxes->getDataAsFloat();
 	const float* raw_scores = m_outputTensorScores->getDataAsFloat();
 	mediapipe::Process(options, raw_boxes, raw_scores, s_anchors, detectionList);
-	//for (auto hand : detectionList) {
-	//	cv::rectangle(originalMat, cv::Rect(hand.x * imageWidth, hand.y * imageHeight, hand.w * imageWidth, hand.h * imageHeight), cv::Scalar(0, 255, 0), 1);
-	//	for (auto kp : hand.keypoints) {
-	//		cv::circle(originalMat, cv::Point(kp.first * imageWidth, kp.second * imageHeight), 5, cv::Scalar(255, 255, 0), 1);
-	//	}
-	//}
 
 	/* Call NonMaxSuppressionCalculator as described in hand_detection_gpu.pbtxt */
 	/*  -> use my own NMS */
 	std::vector<Detection> detectionListNMS;
 	nms(detectionList, detectionListNMS, false);
-	//for (auto hand : detectionListNMS) {
-	//	cv::rectangle(originalMat, cv::Rect(hand.x * imageWidth, hand.y * imageHeight, hand.w * imageWidth, hand.h * imageHeight), cv::Scalar(0, 255, 0), 1);
-	//	for (auto kp : hand.keypoints) {
-	//		cv::circle(originalMat, cv::Point(kp.first * imageWidth, kp.second * imageHeight), 5, cv::Scalar(255, 255, 0), 1);
-	//	}
-	//}
 
-	for (auto det : detectionListNMS) {
+	for (auto palm : detectionListNMS) {
+		/* Convert the coordinate from on (0.0 - 1.0) to on the input image */
+		palm.x *= imageWidth;
+		palm.y *= imageHeight;
+		palm.w *= imageWidth;
+		palm.h *= imageHeight;
+		for (auto kp : palm.keypoints) {
+			kp.first *= imageWidth;
+			kp.second *= imageHeight;
+		}
+
 		/* Call DetectionsToRectsCalculator as described in hand_detection_gpu.pbtxt */
 		/*  -> use my own calculator */
-		float rotation = calculateRotation(det, imageWidth, imageHeight);
-		//float rotation = calculateRotation(det, modelInputWidth, modelInputHeight);
+		float rotation = calculateRotation(palm);
 		//printf("%f  %f\n", rotation, rotation * 180 / 3.14);
 
 		/* Call RectTransformationCalculator as described in hand_landmark_cpu.pbtxt */
 		/*  -> use my own calculator */
 		float x, y, width, height;
-		RectTransformationCalculator(det, rotation, &x, &y, &width, &height);
+		RectTransformationCalculator(palm, rotation, &x, &y, &width, &height);
 
 		PALM palm;
-		palm.score = det.score;
-		palm.x = std::min(1.f, std::max(x, 0.f));
-		palm.y = std::min(1.f, std::max(y, 0.f));
-		palm.width = std::min(1.f - palm.x, std::max(width, 0.f));
-		palm.height = std::min(1.f - palm.y, std::max(height, 0.f));
+		palm.score = palm.score;
+		palm.x = std::min(imageWidth * 1.f, std::max(x, 0.f));
+		palm.y = std::min(imageHeight * 1.f, std::max(y, 0.f));
+		palm.width = std::min(imageWidth * 1.f - palm.x, std::max(width, 0.f));
+		palm.height = std::min(imageHeight * 1.f  - palm.y, std::max(height, 0.f));
 		palm.rotation = rotation;
 		palmList.push_back(palm);
-
-		//cv::rectangle(originalMat, cv::Rect(x * imageWidth, y * imageHeight, width * imageWidth, height * imageHeight), cv::Scalar(0, 255, 0), 3);
 	}
 
 	return 0;
@@ -211,7 +206,7 @@ static void RectTransformationCalculator(Detection& det, float rotation, float *
 }
 
 
-static float calculateRotation(Detection& det, int imageWidth, int imageHeight)
+static float calculateRotation(Detection& det)
 {
 	/* Reference: ::mediapipe::Status DetectionsToRectsCalculator::ComputeRotation (detections_to_rects_calculator.cc) */
 	#define M_PI       3.14159265358979323846   // pi
@@ -219,10 +214,10 @@ static float calculateRotation(Detection& det, int imageWidth, int imageHeight)
 	const int rotation_vector_end_keypoint_index = 2;	// # MCP of middle finger.
 	const float rotation_vector_target_angle_degrees = M_PI * 0.5f;
 
-	const float x0 = det.keypoints[rotation_vector_start_keypoint_index].first * imageWidth;
-	const float y0 = det.keypoints[rotation_vector_start_keypoint_index].second * imageHeight;
-	const float x1 = det.keypoints[rotation_vector_end_keypoint_index].first * imageWidth;
-	const float y1 = det.keypoints[rotation_vector_end_keypoint_index].second * imageHeight;
+	const float x0 = det.keypoints[rotation_vector_start_keypoint_index].first;
+	const float y0 = det.keypoints[rotation_vector_start_keypoint_index].second;
+	const float x1 = det.keypoints[rotation_vector_end_keypoint_index].first;
+	const float y1 = det.keypoints[rotation_vector_end_keypoint_index].second;
 
 	float rotation;
 	rotation = rotation_vector_target_angle_degrees - std::atan2(-(y1 - y0), x1 - x0);

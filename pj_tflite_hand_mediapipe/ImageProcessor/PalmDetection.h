@@ -10,7 +10,7 @@ public:
 	typedef struct {
 		float score;
 		float rotation;
-		float x;
+		float x;			// coordinate on the input image
 		float y;
 		float width;
 		float height;
