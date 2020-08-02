@@ -163,14 +163,14 @@ int PalmDetection::PalmDetection::invoke(cv::Mat &originalMat, std::vector<PALM>
 		float x, y, width, height;
 		RectTransformationCalculator(palm, rotation, &x, &y, &width, &height);
 
-		PALM palm;
-		palm.score = palm.score;
-		palm.x = std::min(imageWidth * 1.f, std::max(x, 0.f));
-		palm.y = std::min(imageHeight * 1.f, std::max(y, 0.f));
-		palm.width = std::min(imageWidth * 1.f - palm.x, std::max(width, 0.f));
-		palm.height = std::min(imageHeight * 1.f  - palm.y, std::max(height, 0.f));
-		palm.rotation = rotation;
-		palmList.push_back(palm);
+		PALM result;
+		result.score = palm.score;
+		result.x = std::min(imageWidth * 1.f, std::max(x, 0.f));
+		result.y = std::min(imageHeight * 1.f, std::max(y, 0.f));
+		result.width = std::min(imageWidth * 1.f - result.x, std::max(width, 0.f));
+		result.height = std::min(imageHeight * 1.f  - result.y, std::max(height, 0.f));
+		result.rotation = rotation;
+		palmList.push_back(result);
 	}
 
 	return 0;
@@ -242,7 +242,7 @@ static float calculateIoU(Detection& det0, Detection& det1)
 
 static void nms(std::vector<Detection> &detectionList, std::vector<Detection> &detectionListNMS, bool useWeight)
 {
-	std::sort(detectionList.begin(), detectionList.end(), [](auto const& lhs, auto const& rhs) {
+	std::sort(detectionList.begin(), detectionList.end(), [](Detection const& lhs, Detection const& rhs) {
 		if (lhs.score > rhs.score) return true;
 		return false;
 	});

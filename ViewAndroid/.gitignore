@@ -12,3 +12,7 @@
 /captures
 .externalNativeBuild
 .cxx
+
+sdk/
+jniLibs/
+

@@ -143,7 +143,9 @@ int HandLandmark::rotateLandmark(HAND_LANDMARK& handLandmark, float rotationRad,
 float HandLandmark::calculateRotation(HAND_LANDMARK& handLandmark)
 {
 	// Reference: mediapipe\graphs\hand_tracking\calculators\hand_detections_to_rects_calculator.cc
+#ifndef M_PI
 #define M_PI       3.14159265358979323846f   // pi
+#endif
 	constexpr int kWristJoint = 0;
 	constexpr int kMiddleFingerPIPJoint = 12;
 	constexpr int kIndexFingerPIPJoint = 8;

@@ -247,7 +247,7 @@ static float calculateIoU(Detection& det0, Detection& det1)
 
 static void nms(std::vector<Detection> &detectionList, std::vector<Detection> &detectionListNMS, bool useWeight)
 {
-	std::sort(detectionList.begin(), detectionList.end(), [](auto const& lhs, auto const& rhs) {
+	std::sort(detectionList.begin(), detectionList.end(), [](Detection const& lhs, Detection const& rhs) {
 		if (lhs.score > rhs.score) return true;
 		return false;
 	});

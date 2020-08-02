@@ -9,13 +9,10 @@ Sample projects to use Tensorflow Lite for multi-platform
 		- Tested in Raspberry Pi4 (Raspbian 32-bit)
 	- Linux (aarch64)
 		- Tested in Jetson Nano (JetPack 4.3) and Jetson NX (JetPack 4.4)
-	- Android (armv7)
-		- not tested yet
-	- Android (aarch64)
-		- not tested yet
+	- Android (armv7, aarch64)
+		- Tested in Galaxy S7
 	- Windows (x64). Visual Studio 2017
 		- Tested in Windows10 64-bit
-	- (Only native build is supported)
 
 - Delegate
 	- Edge TPU
@@ -23,7 +20,7 @@ Sample projects to use Tensorflow Lite for multi-platform
 	- XNNPACK
 		- Tested in Jetson NX
 	- GPU
-		- Tested in Jetson NX
+		- Tested in Jetson NX and Android
 
 - Projects
 	- pj_tflite_cls_mobilenet_v2
@@ -77,6 +74,7 @@ cmake ..
 make
 ./main
 ```
+
 ### Option (Camera input)
 ```sh
 cmake .. -DSPEED_TEST_ONLY=off
@@ -97,6 +95,41 @@ cmake .. -DTFLITE_DELEGATE_EDGETPU=off -DTFLITE_DELEGATE_GPU=on  -DTFLITE_DELEGA
 # XNNPACK
 cmake .. -DTFLITE_DELEGATE_EDGETPU=off -DTFLITE_DELEGATE_GPU=off -DTFLITE_DELEGATE_XNNPACK=on
 ```
+
+### Android
+- Requirements
+	- Android Studio
+		- Compile Sdk Version
+			- 30
+		- Build Tools version
+			- 30.0.0
+		- Target SDK Version
+			- 30
+		- Min SDK Version
+			- 24
+			- With 23, I got the following error
+				- `bionic/libc/include/bits/fortify/unistd.h:174: undefined reference to `__write_chk'`
+				- https://github.com/android/ndk/issues/1179
+	- Android NDK
+		- 21.3.6528147
+	- OpenCV
+		- opencv-4.4.0-android-sdk.zip
+	- *The version is just the version I used
+
+
+- Configure NDK
+	- File -> Project Structure -> SDK Location -> Android NDK location
+		- C:\Users\abc\AppData\Local\Android\Sdk\ndk\21.3.6528147
+- Import OpenCV
+	- Download and extract OpenCV android-sdk (https://github.com/opencv/opencv/releases )
+	- File -> New -> Import Module
+		- path-to-opencv\opencv-4.3.0-android-sdk\OpenCV-android-sdk\sdk
+	- FIle -> Project Structure -> Dependencies -> app -> Declared Dependencies -> + -> Module Dependencies
+		- select sdk
+	- In case you cannot import OpenCV module, remove sdk module and dependency of app to sdk in Project Structure
+- Modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to call image processor function you want to use.
+	- `set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_arprobe/ImageProcessor")`
+
 
 ## How to create pre-built TensorflowLite library
 Pre-built TensorflowLite libraries are stored in `third_party/tensorflow_prebuilt` . If you want to build them by yourself, please use the following commands.
