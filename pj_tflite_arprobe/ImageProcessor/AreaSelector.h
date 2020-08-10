@@ -35,6 +35,7 @@ public:
 	STATUS m_status;
 	cv::Point m_startPoint;
 	cv::Rect m_selectedArea;
+	int m_cntHandIsUntrusted;
 
 };
 

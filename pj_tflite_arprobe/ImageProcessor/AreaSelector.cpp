@@ -21,10 +21,11 @@
 	exit(1);                                                 \
   }
 
-
+/*** Function ***/
 AreaSelector::AreaSelector()
 {
 	m_status = STATUS_AREA_SELECT_INIT;
+	m_cntHandIsUntrusted = 0;
 }
 
 AreaSelector::~AreaSelector()
@@ -33,48 +34,55 @@ AreaSelector::~AreaSelector()
 
 void AreaSelector::run(HandLandmark::HAND_LANDMARK &handLandmark)
 {
-	int fingerStatus = checkIfClosed(handLandmark);
-	if (fingerStatus == -1) m_status = STATUS_AREA_SELECT_INIT;
-	switch (m_status) {
-	case STATUS_AREA_SELECT_INIT:
-		if (fingerStatus == 1) {	/* Open -> Closed */
-			m_status = STATUS_AREA_SELECT_START;
+	if (handLandmark.handflag > 0.9) {
+		m_cntHandIsUntrusted = 0;	 //clear counter
+		int fingerStatus = checkIfClosed(handLandmark);
+		if (fingerStatus == -1) m_status = STATUS_AREA_SELECT_INIT;
+		switch (m_status) {
+		case STATUS_AREA_SELECT_INIT:
+			if (fingerStatus == 1) {	/* Open -> Closed */
+				m_status = STATUS_AREA_SELECT_START;
+				m_startPoint.x = (int)(handLandmark.pos[4].x + handLandmark.pos[8].x) / 2;
+				m_startPoint.y = (int)(handLandmark.pos[4].y + handLandmark.pos[8].y) / 2;
+			}
+			break;
+		case STATUS_AREA_SELECT_START:
+			/* update start position */
 			m_startPoint.x = (int)(handLandmark.pos[4].x + handLandmark.pos[8].x) / 2;
 			m_startPoint.y = (int)(handLandmark.pos[4].y + handLandmark.pos[8].y) / 2;
+			if (fingerStatus == 1) {
+				m_status = STATUS_AREA_SELECT_START;
+			} else if (fingerStatus == 0) {
+				m_status = STATUS_AREA_SELECT_DRAG;
+			}
+			break;
+		case STATUS_AREA_SELECT_DRAG:
+			m_selectedArea.x = std::min(m_startPoint.x, (int)((handLandmark.pos[4].x + handLandmark.pos[8].x) / 2));
+			m_selectedArea.y = std::min(m_startPoint.y, (int)((handLandmark.pos[4].y + handLandmark.pos[8].y) / 2));
+			m_selectedArea.width = (int)std::abs(m_startPoint.x - (handLandmark.pos[4].x + handLandmark.pos[8].x) / 2);
+			m_selectedArea.height = (int)std::abs(m_startPoint.y - (handLandmark.pos[4].y + handLandmark.pos[8].y) / 2);
+			if (fingerStatus == 1) {
+				m_status = STATUS_AREA_SELECT_SELECTED;
+			} else if (fingerStatus == 0) {
+				m_status = STATUS_AREA_SELECT_DRAG;
+			}
+			break;
+		case STATUS_AREA_SELECT_SELECTED:
+			m_status = STATUS_AREA_SELECT_END;
+			break;
+		case STATUS_AREA_SELECT_END:
+			if (fingerStatus == 0) {	/* Closed -> Open */
+				m_status = STATUS_AREA_SELECT_INIT;
+			}
+			break;
+		default:
+			break;
 		}
-		break;
-	case STATUS_AREA_SELECT_START:
-		/* update start position */
-		m_startPoint.x = (int)(handLandmark.pos[4].x + handLandmark.pos[8].x) / 2;
-		m_startPoint.y = (int)(handLandmark.pos[4].y + handLandmark.pos[8].y) / 2;
-		if (fingerStatus == 1) {
-			m_status = STATUS_AREA_SELECT_START;
-		} else if (fingerStatus == 0) {
-			m_status = STATUS_AREA_SELECT_DRAG;
-		}
-		break;
-	case STATUS_AREA_SELECT_DRAG:
-		m_selectedArea.x = std::min(m_startPoint.x, (int)((handLandmark.pos[4].x + handLandmark.pos[8].x) / 2));
-		m_selectedArea.y = std::min(m_startPoint.y, (int)((handLandmark.pos[4].y + handLandmark.pos[8].y) / 2));
-		m_selectedArea.width = (int)std::abs(m_startPoint.x - (handLandmark.pos[4].x + handLandmark.pos[8].x) / 2);
-		m_selectedArea.height = (int)std::abs(m_startPoint.y - (handLandmark.pos[4].y + handLandmark.pos[8].y) / 2);
-
-		if (fingerStatus == 1) {
-			m_status = STATUS_AREA_SELECT_SELECTED;
-		} else if (fingerStatus == 0) {
-			m_status = STATUS_AREA_SELECT_DRAG;
-		}
-		break;
-	case STATUS_AREA_SELECT_SELECTED:
-		m_status = STATUS_AREA_SELECT_END;
-		break;
-	case STATUS_AREA_SELECT_END:
-		if (fingerStatus == 0) {	/* Closed -> Open */
+	} else {
+		m_cntHandIsUntrusted++;
+		if (m_cntHandIsUntrusted > 20) {
 			m_status = STATUS_AREA_SELECT_INIT;
 		}
-		break;
-	default:
-		break;
 	}
 }
 

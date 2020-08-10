@@ -45,7 +45,7 @@ static float calculateIoU(Detection& det0, Detection& det1);
 static float calculateRotation(Detection& det);
 static void RectTransformationCalculator(Detection& det, float rotation, float *x, float *y, float *width, float *height);
 
-
+/*** Function ***/
 int PalmDetection::PalmDetection::initialize(const char *workDir, const int numThreads)
 {
 #if defined(TFLITE_DELEGATE_EDGETPU)

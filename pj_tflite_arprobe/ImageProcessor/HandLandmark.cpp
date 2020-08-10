@@ -27,7 +27,7 @@ static const float PIXEL_STD[3] = { 1.0f,  1.0f, 1.0f };
 //static const float PIXEL_MEAN[3] = { 0.5f, 0.5f, 0.5f };
 //static const float PIXEL_STD[3] = { 0.5f,  0.5f, 0.5f };
 
-
+/*** Function ***/
 int HandLandmark::initialize(const char *workDir, const int numThreads)
 {
 #if defined(TFLITE_DELEGATE_EDGETPU)

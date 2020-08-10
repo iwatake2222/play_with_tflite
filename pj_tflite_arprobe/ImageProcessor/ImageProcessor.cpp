@@ -12,6 +12,7 @@
 
 #include "PalmDetection.h"
 #include "HandLandmark.h"
+#include "Classify.h"
 #include "AreaSelector.h"
 #include "ImageProcessor.h"
 
@@ -52,12 +53,14 @@ public:
 typedef struct {
 	cv::Ptr<cv::Tracker> tracker;
 	int numLost;
+	std::string labelName;
 	RECT rectFirst;
 } OBJECT_TRACKER;
 
 /*** Global variable ***/
-static PalmDetection palmDetection;
-static HandLandmark handLandmark;
+static PalmDetection s_palmDetection;
+static HandLandmark s_handLandmark;
+static Classify s_classify;
 static RECT s_palmByLm;
 static bool s_isPalmByLmValid = false;
 static std::vector<OBJECT_TRACKER> s_objectList;
@@ -163,20 +166,50 @@ static void drawText(cv::Mat &mat, RECT rect, cv::Scalar color, std::string str,
 	cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, color, 2);
 }
 
+static std::string classify(cv::Mat &originalMat, const cv::Rect &selectedArea)
+{
+	/* Classify the selected area */
+	cv::Rect targetArea = s_areaSelector.m_selectedArea;
+	const int centerX = targetArea.x + targetArea.width / 2;
+	const int centerY = targetArea.y + targetArea.height / 2;
+	int width = (int)(targetArea.width * 1.2); // expand
+	int height = (int)(targetArea.height * 1.2); // expand
+	targetArea.x = std::max(centerX - width / 2, 0);
+	targetArea.y = std::max(centerY - height / 2, 0);
+	targetArea.width = std::min(width, originalMat.cols - targetArea.x);
+	targetArea.height = std::min(height, originalMat.rows - targetArea.y);
+	cv::Mat targetImage = originalMat(targetArea);
+	Classify::RESULT resultWithoutPadding;
+	s_classify.invoke(targetImage, resultWithoutPadding);
 
+	width = std::max(targetArea.width, targetArea.height);
+	height = std::max(targetArea.width, targetArea.height);
+	targetArea.x = std::max(centerX - width / 2, 0);
+	targetArea.y = std::max(centerY - height / 2, 0);
+	targetArea.width = std::min(width, originalMat.cols - targetArea.x);
+	targetArea.height = std::min(height, originalMat.rows - targetArea.y);
+	cv::Mat targetImageWithPadding = originalMat(targetArea);
+	
+	Classify::RESULT resultWithPadding;
+	s_classify.invoke(targetImageWithPadding, resultWithPadding);
+
+	return (resultWithoutPadding.score > resultWithPadding.score) ? resultWithoutPadding.labelName : resultWithPadding.labelName;
+}
 
 int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
 {
-	palmDetection.initialize(inputParam->workDir, inputParam->numThreads);
-	handLandmark.initialize(inputParam->workDir, inputParam->numThreads);
+	s_palmDetection.initialize(inputParam->workDir, inputParam->numThreads);
+	s_handLandmark.initialize(inputParam->workDir, inputParam->numThreads);
+	s_classify.initialize(inputParam->workDir, inputParam->numThreads);
 
 	return 0;
 }
 
 int ImageProcessor_finalize(void)
 {
-	palmDetection.finalize();
-	handLandmark.finalize();
+	s_palmDetection.finalize();
+	s_handLandmark.finalize();
+	s_classify.finalize();
 	return 0;
 }
 
@@ -196,7 +229,7 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 	} else {
 		/*** Get Palms ***/
 		std::vector<PalmDetection::PALM> palmList;
-		palmDetection.invoke(*mat, palmList);
+		s_palmDetection.invoke(*mat, palmList);
 		for (const auto detPalm : palmList) {
 			s_palmByLm.width = 0;	// reset 
 			palm.x = (int)(detPalm.x * 1);
@@ -211,13 +244,13 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 	palm = palm.fix(mat->cols, mat->rows);
 
 	/*** Get landmark ***/
+	HandLandmark::HAND_LANDMARK landmark = { 0 };
 	if (isPalmValid) {
 		cv::Scalar colorRect = (s_isPalmByLmValid) ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
 		cv::rectangle(*mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), colorRect, 3);
 
 		/* Get landmark */
-		HandLandmark::HAND_LANDMARK landmark;
-		handLandmark.invoke(*mat, landmark, palm.x, palm.y, palm.width, palm.height, palm.rotation);
+		s_handLandmark.invoke(*mat, landmark, palm.x, palm.y, palm.width, palm.height, palm.rotation);
 
 		if (landmark.handflag >= 0.8) {
 			calcAverageRect(s_palmByLm, landmark, 0.5f, 0.2f);
@@ -237,21 +270,6 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 				}
 			}
 
-			/* Select area according to finger pose and position */
-			s_areaSelector.run(landmark);
-			PRINT("status = %d\n", s_areaSelector.m_status);
-			if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_DRAG) {
-				cv::rectangle(*mat, s_areaSelector.m_selectedArea, cv::Scalar(255, 0, 0));
-			} else if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_SELECTED) {
-				/* Add a new tracker for the selected area */
-				OBJECT_TRACKER object;
-				object.tracker = createTrackerByName("KCF");
-				object.tracker->init(*mat, cv::Rect(s_areaSelector.m_selectedArea));
-				object.numLost = 0;
-				//object.rectFirst = s_selectedArea;
-				s_objectList.push_back(object);
-			}
-
 			if (landmark.handflag >= 0.99) {
 				s_isPalmByLmValid = true;
 			} else {
@@ -262,6 +280,32 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		}
 	}
 
+
+	/* Select area according to finger pose and position */
+	s_areaSelector.run(landmark);
+	s_areaSelector.m_selectedArea.x = std::min(std::max(0, s_areaSelector.m_selectedArea.x), mat->cols);
+	s_areaSelector.m_selectedArea.y = std::min(std::max(0, s_areaSelector.m_selectedArea.y), mat->rows);
+	s_areaSelector.m_selectedArea.width = std::min(std::max(1, s_areaSelector.m_selectedArea.width), mat->cols - s_areaSelector.m_selectedArea.x);
+	s_areaSelector.m_selectedArea.height = std::min(std::max(1, s_areaSelector.m_selectedArea.height), mat->rows - s_areaSelector.m_selectedArea.y);
+	PRINT("status = %d\n", s_areaSelector.m_status);
+	if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_START) {
+		cv::putText(*mat, "Selecting area0", cv::Point(10, 20), cv::FONT_HERSHEY_DUPLEX, 2, cv::Scalar(0, 255, 0), 2);
+	}
+	if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_DRAG) {
+		cv::putText(*mat, "Selecting area1", cv::Point(10, 20), cv::FONT_HERSHEY_DUPLEX, 2, cv::Scalar(0, 255, 0), 2);
+		cv::rectangle(*mat, s_areaSelector.m_selectedArea, cv::Scalar(255, 0, 0));
+	} else if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_SELECTED) {
+		std::string labelName = classify(*mat, s_areaSelector.m_selectedArea);
+
+		/* Add a new tracker for the selected area */
+		OBJECT_TRACKER object;
+		object.tracker = createTrackerByName("KCF");
+		object.tracker->init(*mat, cv::Rect(s_areaSelector.m_selectedArea));
+		object.numLost = 0;
+		object.labelName = labelName;
+		//object.rectFirst = s_selectedArea;
+		s_objectList.push_back(object);
+	}
 
 	/* Track and display tracked objects */
 	static int animCount = 0;;
@@ -277,7 +321,7 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 			rect.width = (int)trackedRect.width;
 			rect.height = (int)trackedRect.height;
 			drawRing(*mat, rect, cv::Scalar(255, 255, 205), animCount);
-			drawText(*mat, rect, cv::Scalar(207, 161, 69), "Target", animCount);
+			drawText(*mat, rect, cv::Scalar(207, 161, 69), it->labelName, animCount);
 			it->numLost = 0;
 			it++;
 		} else {
