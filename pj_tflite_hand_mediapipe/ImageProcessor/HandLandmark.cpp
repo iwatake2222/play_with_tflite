@@ -24,6 +24,8 @@ not supported
 //normalized to[0.f, 1.f]
 static const float PIXEL_MEAN[3] = { 0.0f, 0.0f, 0.0f };
 static const float PIXEL_STD[3] = { 1.0f,  1.0f, 1.0f };
+//static const float PIXEL_MEAN[3] = { 0.5f, 0.5f, 0.5f };
+//static const float PIXEL_STD[3] = { 0.5f,  0.5f, 0.5f };
 
 
 int HandLandmark::initialize(const char *workDir, const int numThreads)
@@ -187,7 +189,7 @@ int HandLandmark::transformLandmarkToRect(HAND_LANDMARK &handLandmark)
 {
 	const float shift_x = 0.0f;
 	const float shift_y = -0.0f;
-	const float scale_x = 1.8f;
+	const float scale_x = 1.8f;		// tuned parameter by looking
 	const float scale_y = 1.8f;
 
 	float width = 0;

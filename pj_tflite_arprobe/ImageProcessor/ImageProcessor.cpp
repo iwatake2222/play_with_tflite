@@ -12,16 +12,18 @@
 
 #include "PalmDetection.h"
 #include "HandLandmark.h"
+#include "AreaSelector.h"
 #include "ImageProcessor.h"
 
 /*** Macro ***/
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+#define PRINT(fmt, ...) __android_log_print(ANDROID_LOG_INFO, TAG, "[ImageProcessor] " fmt, __VA_ARGS__)
 #else
-#define PRINT(...) printf(__VA_ARGS__)
+#define PRINT(fmt, ...) printf("[ImageProcessor] " fmt, __VA_ARGS__)
 #endif
+
 
 #define CHECK(x)                              \
   if (!(x)) {                                                \
@@ -59,83 +61,25 @@ static HandLandmark handLandmark;
 static RECT s_palmByLm;
 static bool s_isPalmByLmValid = false;
 static std::vector<OBJECT_TRACKER> s_objectList;
+static AreaSelector s_areaSelector;
+
 
 /*** Function ***/
-static void calcAverageRect(RECT &rectOrg, HandLandmark::HAND_LANDMARK &rectNew, float ratio);
-
-
-int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
+static void calcAverageRect(RECT &rectOrg, HandLandmark::HAND_LANDMARK &rectNew, float ratioPos, float ratioSize)
 {
-	palmDetection.initialize(inputParam->workDir, inputParam->numThreads);
-	handLandmark.initialize(inputParam->workDir, inputParam->numThreads);
-
-	return 0;
-}
-
-int ImageProcessor_finalize(void)
-{
-	palmDetection.finalize();
-	handLandmark.finalize();
-	return 0;
-}
-
-// 0: open, 1: close, -1 invalid
-int isClose(const HandLandmark::HAND_LANDMARK &landmark)
-{
-	const int OPEN = 0;
-	const int CLOSE = 1;
-	const int INVALID = -11;
-	const int indexThumbFinger = 4;
-	const int indexIndexFinger = 8;
-	static int s_status = OPEN;
-	double thresholdOpen2Close = 0.2;
-	double thresholdClose2Open = 0.4;
-
-	//printf("%f %f\n", landmark.pos[indexThumbFinger].z, landmark.pos[indexIndexFinger].z);
-	///* check z pos (z pos should be plus) */
-	//if (landmark.pos[indexThumbFinger].z > 0 || landmark.pos[indexIndexFinger].z > 0) {
-	//	printf("invalid 1\n");
-	//	return INVALID;
-	//}
-
-	/* check y pos (Thumb must be lower than index finger) */
-	//for (int i = 1; i <= indexThumbFinger; i++) {
-	//	for (int j = indexThumbFinger + 1; j <= indexIndexFinger; j++) {
-	//		if (landmark.pos[i].y < landmark.pos[j].y) {
-	//			printf("invalid2 \n");
-	//			return INVALID;
-	//		}
-	//	}
-	//}
-
-	/* check shape (shape must be horizontally long) */
-	int thumbW = std::abs(landmark.pos[1].x - landmark.pos[4].x);
-	int thumbH = std::abs(landmark.pos[1].y - landmark.pos[4].y);
-	double thumbLong = std::sqrt(thumbW * thumbW + thumbH * thumbH);
-	if ((double)thumbH / thumbW > 0.7) {
-		printf("invalid 3\n");
-		return INVALID;
+	if (rectOrg.width == 0) {
+		// for the first time
+		ratioPos = 1;
+		ratioSize = 1;
 	}
-
-	/* check if close */
-	int distW = landmark.pos[indexThumbFinger].x - landmark.pos[indexIndexFinger].x;
-	int distH = landmark.pos[indexThumbFinger].y - landmark.pos[indexIndexFinger].y;
-	double dist = std::sqrt(distW * distW + distH * distH);
-	
-	double threshold = (s_status == CLOSE) ? thresholdClose2Open : thresholdOpen2Close;
-	if (dist < thumbLong * threshold) {
-		printf("close\n");
-		s_status = CLOSE;
-	} else {
-		printf("open\n");
-		s_status = OPEN;
-	}
-	return s_status;
-
+	rectOrg.x = (int)(rectNew.rect.x * ratioPos + rectOrg.x * (1 - ratioPos));
+	rectOrg.y = (int)(rectNew.rect.y * ratioPos + rectOrg.y * (1 - ratioPos));
+	rectOrg.width = (int)(rectNew.rect.width * ratioSize + rectOrg.width * (1 - ratioSize));
+	rectOrg.height = (int)(rectNew.rect.height * ratioSize + rectOrg.height * (1 - ratioSize));
+	rectOrg.rotation = rectNew.rect.rotation * ratioSize + rectOrg.rotation * (1 - ratioSize);
 }
 
-
-inline cv::Ptr<cv::Tracker> createTrackerByName(cv::String name)
+static inline cv::Ptr<cv::Tracker> createTrackerByName(cv::String name)
 {
 	cv::Ptr<cv::Tracker> tracker;
 
@@ -159,7 +103,7 @@ inline cv::Ptr<cv::Tracker> createTrackerByName(cv::String name)
 	return tracker;
 }
 
-void drawRing(cv::Mat &mat, RECT rect, cv::Scalar color, int animCount)
+static void drawRing(cv::Mat &mat, RECT rect, cv::Scalar color, int animCount)
 {
 	/* Reference: https://github.com/Kazuhito00/object-detection-bbox-art */
 	animCount *= int(135 / 30.0);
@@ -198,7 +142,7 @@ void drawRing(cv::Mat &mat, RECT rect, cv::Scalar color, int animCount)
 	cv::ellipse(mat, cv::Point(center), radius, 0 + animCount, 0, 50, color, ring_thickness);
 }
 
-void drawText(cv::Mat &mat, RECT rect, cv::Scalar color, std::string str, int animCount)
+static void drawText(cv::Mat &mat, RECT rect, cv::Scalar color, std::string str, int animCount)
 {
 	/* Reference: https://github.com/Kazuhito00/object-detection-bbox-art */
 	double font_size = std::min((rect.width + rect.height) / 2 * 0.1, 1.0);
@@ -220,6 +164,23 @@ void drawText(cv::Mat &mat, RECT rect, cv::Scalar color, std::string str, int an
 }
 
 
+
+int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
+{
+	palmDetection.initialize(inputParam->workDir, inputParam->numThreads);
+	handLandmark.initialize(inputParam->workDir, inputParam->numThreads);
+
+	return 0;
+}
+
+int ImageProcessor_finalize(void)
+{
+	palmDetection.finalize();
+	handLandmark.finalize();
+	return 0;
+}
+
+
 int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 {
 	bool isPalmValid = false;
@@ -234,20 +195,17 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		palm.rotation = s_palmByLm.rotation;
 	} else {
 		/*** Get Palms ***/
-		static int skipFrame = 0;
-		if (skipFrame++ % 10 == 0) {
-			std::vector<PalmDetection::PALM> palmList;
-			palmDetection.invoke(*mat, palmList);
-			for (const auto detPalm : palmList) {
-				s_palmByLm.width = 0;	// reset 
-				palm.x = (int)(detPalm.x * mat->cols);
-				palm.y = (int)(detPalm.y * mat->rows);
-				palm.width = (int)(detPalm.width * mat->cols);
-				palm.height = (int)(detPalm.height * mat->rows);
-				palm.rotation = detPalm.rotation;
-				isPalmValid = true;
-				break;	// use only one palm
-			}
+		std::vector<PalmDetection::PALM> palmList;
+		palmDetection.invoke(*mat, palmList);
+		for (const auto detPalm : palmList) {
+			s_palmByLm.width = 0;	// reset 
+			palm.x = (int)(detPalm.x * 1);
+			palm.y = (int)(detPalm.y * 1);
+			palm.width = (int)(detPalm.width * 1);
+			palm.height = (int)(detPalm.height * 1);
+			palm.rotation = detPalm.rotation;
+			isPalmValid = true;
+			break;	// use only one palm
 		}
 	}
 	palm = palm.fix(mat->cols, mat->rows);
@@ -257,109 +215,55 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		cv::Scalar colorRect = (s_isPalmByLmValid) ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
 		cv::rectangle(*mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), colorRect, 3);
 
-		/* Rotate palm image */
-		cv::Mat matForLM;
-		cv::RotatedRect rect(cv::Point(palm.x + palm.width / 2, palm.y + palm.height / 2), cv::Size(palm.width, palm.height), palm.rotation * 180.f / 3.141592654f);
-		cv::Mat trans = cv::getRotationMatrix2D(rect.center, rect.angle, 1.0);
-		cv::Mat srcRot;
-		cv::warpAffine(*mat, srcRot, trans, mat->size());
-		cv::getRectSubPix(srcRot, rect.size, rect.center, matForLM);
-
 		/* Get landmark */
 		HandLandmark::HAND_LANDMARK landmark;
-		handLandmark.invoke(matForLM, landmark, palm.rotation);
+		handLandmark.invoke(*mat, landmark, palm.x, palm.y, palm.width, palm.height, palm.rotation);
 
-		if (landmark.handflag > 0.5) {
-			for (int i = 0; i < 21; i++) {
-				landmark.pos[i].x += palm.x;
-				landmark.pos[i].y += palm.y;
-			}
-			landmark.rect.x += palm.x;
-			landmark.rect.y += palm.y;
-			calcAverageRect(s_palmByLm, landmark, 0.7f);
+		if (landmark.handflag >= 0.8) {
+			calcAverageRect(s_palmByLm, landmark, 0.5f, 0.2f);
 			cv::rectangle(*mat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), cv::Scalar(255, 0, 0), 3);
 
 			/* Display hand landmark */
 			for (int i = 0; i < 21; i++) {
-				cv::circle(*mat, cv::Point(landmark.pos[i].x, landmark.pos[i].y), 3, cv::Scalar(255, 255, 0), 1);
-				cv::putText(*mat, std::to_string(i), cv::Point(landmark.pos[i].x - 10, landmark.pos[i].y - 10), 1, 1, cv::Scalar(255, 255, 0));
+				cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, cv::Scalar(255, 255, 0), 1);
+				cv::putText(*mat, std::to_string(i), cv::Point((int)landmark.pos[i].x - 10, (int)landmark.pos[i].y - 10), 1, 1, cv::Scalar(255, 255, 0));
 			}
 			for (int i = 0; i < 5; i++) {
 				for (int j = 0; j < 3; j++) {
 					int indexStart = 4 * i + 1 + j;
 					int indexEnd = indexStart + 1;
 					int color = std::min((int)std::max((landmark.pos[indexStart].z + landmark.pos[indexEnd].z) / 2.0f * -4, 0.f), 255);
-					cv::line(*mat, cv::Point(landmark.pos[indexStart].x, landmark.pos[indexStart].y), cv::Point(landmark.pos[indexEnd].x, landmark.pos[indexEnd].y), cv::Scalar(color, color, color), 3);
+					cv::line(*mat, cv::Point((int)landmark.pos[indexStart].x, (int)landmark.pos[indexStart].y), cv::Point((int)landmark.pos[indexEnd].x, (int)landmark.pos[indexEnd].y), cv::Scalar(color, color, color), 3);
 				}
 			}
 
-			static cv::Point s_startPoint;
-			typedef enum {
-				STATUS_NONE,
-				STATUS_AREA_SELECT_START,
-				STATUS_AREA_SELECT_DRAG,
-				STATUS_AREA_SELECT_END,
-			} STATUS;
-			static STATUS s_status;
-			printf("status - %d\n", s_status);
-			int fingerStatus = isClose(landmark);
-			if (fingerStatus == -1) s_status = STATUS_NONE;
-			cv::Rect rect;
-			switch (s_status) {
-			case STATUS_NONE:
-				if (fingerStatus == 1) {
-					s_status = STATUS_AREA_SELECT_START;
-					s_startPoint.x = (landmark.pos[4].x + landmark.pos[8].x) / 2;
-					s_startPoint.y = (landmark.pos[4].y + landmark.pos[8].y) / 2;
-				}
-				break;
-			case STATUS_AREA_SELECT_START:
-				cv::putText(*mat, "STATUS_AREA_SELECT_START", cv::Point(50, 50), 0, 2, cv::Scalar(255, 0, 0));
-				s_startPoint.x = (landmark.pos[4].x + landmark.pos[8].x) / 2;
-				s_startPoint.y = (landmark.pos[4].y + landmark.pos[8].y) / 2;
-				if (fingerStatus == 1) {
-					s_status = STATUS_AREA_SELECT_START;
-				} else if (fingerStatus == 0) {
-					s_status = STATUS_AREA_SELECT_DRAG;
-				}
-				break;
-			case STATUS_AREA_SELECT_DRAG:
-				cv::putText(*mat, "STATUS_AREA_SELECT_DRAG", cv::Point(50, 50), 0, 2, cv::Scalar(255, 0, 0));
-				rect.x = std::min(s_startPoint.x, (int)((landmark.pos[4].x + landmark.pos[8].x) / 2));
-				rect.y = std::min(s_startPoint.y, (int)((landmark.pos[4].y + landmark.pos[8].y) / 2));
-				rect.width = std::abs(s_startPoint.x - (landmark.pos[4].x + landmark.pos[8].x) / 2);
-				rect.height = std::abs(s_startPoint.y - (landmark.pos[4].y + landmark.pos[8].y) / 2);
-				cv::rectangle(*mat, rect, cv::Scalar(255, 0, 0));
-				if (fingerStatus == 1) {
-					s_status = STATUS_AREA_SELECT_END;
-					/* Add a new tracker for the selected area */
-					OBJECT_TRACKER object;
-					object.tracker = createTrackerByName("KCF");
-					object.tracker->init(*mat, cv::Rect(rect));
-					object.numLost = 0;
-					//object.rectFirst = s_selectedArea;
-					s_objectList.push_back(object);
-				} else if (fingerStatus == 0) {
-					s_status = STATUS_AREA_SELECT_DRAG;
-				}
-				break;
-			case STATUS_AREA_SELECT_END:
-				if (fingerStatus == 0) {
-					s_status = STATUS_NONE;
-				}
-				break;
-			default:
-				break;
+			/* Select area according to finger pose and position */
+			s_areaSelector.run(landmark);
+			PRINT("status = %d\n", s_areaSelector.m_status);
+			if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_DRAG) {
+				cv::rectangle(*mat, s_areaSelector.m_selectedArea, cv::Scalar(255, 0, 0));
+			} else if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_SELECTED) {
+				/* Add a new tracker for the selected area */
+				OBJECT_TRACKER object;
+				object.tracker = createTrackerByName("KCF");
+				object.tracker->init(*mat, cv::Rect(s_areaSelector.m_selectedArea));
+				object.numLost = 0;
+				//object.rectFirst = s_selectedArea;
+				s_objectList.push_back(object);
 			}
 
-
-			s_isPalmByLmValid = true;
+			if (landmark.handflag >= 0.99) {
+				s_isPalmByLmValid = true;
+			} else {
+				s_isPalmByLmValid = false;
+			}
 		} else {
 			s_isPalmByLmValid = false;
 		}
 	}
 
 
+	/* Track and display tracked objects */
 	static int animCount = 0;;
 	animCount++;
 	for (auto it = s_objectList.begin(); it != s_objectList.end();) {
@@ -368,20 +272,18 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		if (tracker->update(*mat, trackedRect)) {
 			//cv::rectangle(mat, trackedRect, cv::Scalar(255, 0, 0), 2, 1);
 			RECT rect;
-			rect.x = trackedRect.x;
-			rect.y = trackedRect.y;
-			rect.width = trackedRect.width;
-			rect.height = trackedRect.height;
+			rect.x = (int)trackedRect.x;
+			rect.y = (int)trackedRect.y;
+			rect.width = (int)trackedRect.width;
+			rect.height = (int)trackedRect.height;
 			drawRing(*mat, rect, cv::Scalar(255, 255, 205), animCount);
 			drawText(*mat, rect, cv::Scalar(207, 161, 69), "Target", animCount);
-
-
 			it->numLost = 0;
 			it++;
 		} else {
-			printf("lost\n");
+			PRINT("lost\n");
 			if (++(it->numLost) > 100) {
-				printf("delete\n");
+				PRINT("delete\n");
 				it = s_objectList.erase(it);
 				tracker.release();
 			} else {
@@ -391,16 +293,5 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 	}
 
 	return 0;
-}
-
-
-static void calcAverageRect(RECT &rectOrg, HandLandmark::HAND_LANDMARK &rectNew, float ratio)
-{
-	if (rectOrg.width == 0) ratio = 1;	// for the first time
-	rectOrg.x = (int)(rectNew.rect.x * ratio + rectOrg.x * (1 - ratio));
-	rectOrg.y = (int)(rectNew.rect.y * ratio + rectOrg.y * (1 - ratio));
-	rectOrg.width = (int)(rectNew.rect.width * ratio + rectOrg.width * (1 - ratio));
-	rectOrg.height = (int)(rectNew.rect.height * ratio + rectOrg.height * (1 - ratio));
-	rectOrg.rotation = rectNew.rect.rotation * ratio + rectOrg.rotation * (1 - ratio);
 }
 

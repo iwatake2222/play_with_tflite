@@ -10,6 +10,8 @@ add_library (${LibraryName}
 	PalmDetection.h
 	HandLandmark.cpp
 	HandLandmark.h
+	AreaSelector.cpp
+	AreaSelector.h
 	meidapipe/transpose_conv_bias.cc
 	meidapipe/transpose_conv_bias.h
 	meidapipe/ssd_anchors_calculator.cc

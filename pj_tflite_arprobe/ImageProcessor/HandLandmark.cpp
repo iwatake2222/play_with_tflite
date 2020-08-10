@@ -9,9 +9,9 @@
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+#define PRINT(fmt, ...) __android_log_print(ANDROID_LOG_INFO, TAG, "[HandLandmark] " fmt, __VA_ARGS__)
 #else
-#define PRINT(...) printf(__VA_ARGS__)
+#define PRINT(fmt, ...) printf("[HandLandmark] " fmt, __VA_ARGS__)
 #endif
 
 /* Model parameters */
@@ -24,6 +24,8 @@ not supported
 //normalized to[0.f, 1.f]
 static const float PIXEL_MEAN[3] = { 0.0f, 0.0f, 0.0f };
 static const float PIXEL_STD[3] = { 1.0f,  1.0f, 1.0f };
+//static const float PIXEL_MEAN[3] = { 0.5f, 0.5f, 0.5f };
+//static const float PIXEL_STD[3] = { 0.5f,  0.5f, 0.5f };
 
 
 int HandLandmark::initialize(const char *workDir, const int numThreads)
@@ -65,15 +67,25 @@ int HandLandmark::finalize()
 }
 
 
-int HandLandmark::invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark, float rotation)
+int HandLandmark::invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark, int palmX, int palmY, int palmW, int palmH, float palmRotation)
 {
 	/*** PreProcess ***/
 	int modelInputWidth = m_inputTensor->dims[2];
 	int modelInputHeight = m_inputTensor->dims[1];
 	int modelInputChannel = m_inputTensor->dims[3];
 
+	/* Rotate palm image */
+	cv::Mat rotatedImage;
+	cv::RotatedRect rect(cv::Point(palmX + palmW / 2, palmY + palmH / 2), cv::Size(palmW, palmH), palmRotation * 180.f / 3.141592654f);
+	cv::Mat trans = cv::getRotationMatrix2D(rect.center, rect.angle, 1.0);
+	cv::Mat srcRot;
+	cv::warpAffine(originalMat, srcRot, trans, originalMat.size());
+	cv::getRectSubPix(srcRot, rect.size, rect.center, rotatedImage);
+	//cv::imshow("rotatedImage", rotatedImage);
+
+	/* Resize image */
 	cv::Mat inputImage;
-	cv::resize(originalMat, inputImage, cv::Size(modelInputWidth, modelInputHeight));
+	cv::resize(rotatedImage, inputImage, cv::Size(modelInputWidth, modelInputHeight));
 	cv::cvtColor(inputImage, inputImage, cv::COLOR_BGR2RGB);
 	if (m_inputTensor->type == TensorInfo::TENSOR_TYPE_UINT8) {
 		inputImage.convertTo(inputImage, CV_8UC3);
@@ -113,15 +125,22 @@ int HandLandmark::invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark, floa
 
 	/* Fix landmark rotation */
 	for (int i = 0; i < 21; i++) {
-		handLandmark.pos[i].x *= originalMat.cols;
-		handLandmark.pos[i].y *= originalMat.rows;
+		handLandmark.pos[i].x *= rotatedImage.cols;	// coordinate on rotatedImage
+		handLandmark.pos[i].y *= rotatedImage.rows;
 	}
-	rotateLandmark(handLandmark, rotation, originalMat.cols, originalMat.rows);
+	rotateLandmark(handLandmark, palmRotation, rotatedImage.cols, rotatedImage.rows);	// coordinate on thei nput image
 
 	/* Calculate palm rectangle from Landmark */
 	transformLandmarkToRect(handLandmark);
 	handLandmark.rect.rotation = calculateRotation(handLandmark);
-	
+
+	for (int i = 0; i < 21; i++) {
+		handLandmark.pos[i].x += palmX;
+		handLandmark.pos[i].y += palmY;
+	}
+	handLandmark.rect.x += palmX;
+	handLandmark.rect.y += palmY;
+
 	return 0;
 }
 
@@ -170,7 +189,7 @@ int HandLandmark::transformLandmarkToRect(HAND_LANDMARK &handLandmark)
 {
 	const float shift_x = 0.0f;
 	const float shift_y = -0.0f;
-	const float scale_x = 1.8f;
+	const float scale_x = 1.8f;		// tuned parameter by looking
 	const float scale_y = 1.8f;
 
 	float width = 0;
@@ -197,11 +216,16 @@ int HandLandmark::transformLandmarkToRect(HAND_LANDMARK &handLandmark)
 	width *= scale_x;
 	height *= scale_y;
 
-	const float long_side = std::max(width, height);
+	float long_side = std::max(width, height);
+
+	/* for hand is closed */
+	//float palmDistance = powf(handLandmark.pos[0].x - handLandmark.pos[9].x, 2) + powf(handLandmark.pos[0].y - handLandmark.pos[9].y, 2);
+	//palmDistance = sqrtf(palmDistance);
+	//long_side = std::max(long_side, palmDistance);
+
 	handLandmark.rect.width = (long_side * 1);
 	handLandmark.rect.height = (long_side * 1);
 	handLandmark.rect.x = (x_center - handLandmark.rect.width / 2);
 	handLandmark.rect.y = (y_center - handLandmark.rect.height / 2);
-
 	return 0;
 }

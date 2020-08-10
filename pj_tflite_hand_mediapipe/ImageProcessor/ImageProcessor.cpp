@@ -53,7 +53,7 @@ static RECT s_palmByLm;
 static bool s_isPalmByLmValid = false;
 
 /*** Function ***/
-static void calcAverageRect(RECT &rectOrg, HandLandmark::HAND_LANDMARK &rectNew, float ratio);
+static void calcAverageRect(RECT &rectOrg, HandLandmark::HAND_LANDMARK &rectNew, float ratioPos, float ratioSize);
 
 
 int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
@@ -109,9 +109,8 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		/* Get landmark */
 		HandLandmark::HAND_LANDMARK landmark;
 		handLandmark.invoke(*mat, landmark, palm.x, palm.y, palm.width, palm.height, palm.rotation);
-
-		if (landmark.handflag > 0.5) {
-			calcAverageRect(s_palmByLm, landmark, 0.4f);
+		if (landmark.handflag >= 0.8) {
+			calcAverageRect(s_palmByLm, landmark, 0.5f, 0.2f);
 			cv::rectangle(*mat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), cv::Scalar(255, 0, 0), 3);
 
 			/* Display hand landmark */
@@ -127,8 +126,11 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 					cv::line(*mat, cv::Point(landmark.pos[indexStart].x, landmark.pos[indexStart].y), cv::Point(landmark.pos[indexEnd].x, landmark.pos[indexEnd].y), cv::Scalar(color, color, color), 3);
 				}
 			}
-
-			s_isPalmByLmValid = true;
+			if (landmark.handflag >= 0.99) {
+				s_isPalmByLmValid = true;
+			} else {
+				s_isPalmByLmValid = false;
+			}
 		} else {
 			s_isPalmByLmValid = false;
 		}
@@ -138,13 +140,17 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 }
 
 
-static void calcAverageRect(RECT &rectOrg, HandLandmark::HAND_LANDMARK &rectNew, float ratio)
+static void calcAverageRect(RECT &rectOrg, HandLandmark::HAND_LANDMARK &rectNew, float ratioPos, float ratioSize)
 {
-	if (rectOrg.width == 0) ratio = 1;	// for the first time
-	rectOrg.x = (int)(rectNew.rect.x * ratio + rectOrg.x * (1 - ratio));
-	rectOrg.y = (int)(rectNew.rect.y * ratio + rectOrg.y * (1 - ratio));
-	rectOrg.width = (int)(rectNew.rect.width * ratio + rectOrg.width * (1 - ratio));
-	rectOrg.height = (int)(rectNew.rect.height * ratio + rectOrg.height * (1 - ratio));
-	rectOrg.rotation = rectNew.rect.rotation * ratio + rectOrg.rotation * (1 - ratio);
+	if (rectOrg.width == 0) {
+		// for the first time
+		ratioPos = 1;
+		ratioSize = 1;
+	}
+	rectOrg.x = (int)(rectNew.rect.x * ratioPos + rectOrg.x * (1 - ratioPos));
+	rectOrg.y = (int)(rectNew.rect.y * ratioPos + rectOrg.y * (1 - ratioPos));
+	rectOrg.width = (int)(rectNew.rect.width * ratioSize + rectOrg.width * (1 - ratioSize));
+	rectOrg.height = (int)(rectNew.rect.height * ratioSize + rectOrg.height * (1 - ratioSize));
+	rectOrg.rotation = rectNew.rect.rotation * ratioSize + rectOrg.rotation * (1 - ratioSize);
 }
 
