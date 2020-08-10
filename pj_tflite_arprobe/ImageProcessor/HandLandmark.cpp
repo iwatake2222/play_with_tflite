@@ -9,7 +9,7 @@
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(fmt, ...) __android_log_print(ANDROID_LOG_INFO, TAG, "[HandLandmark] " fmt, __VA_ARGS__)
+#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[HandLandmark] " __VA_ARGS__)
 #else
 #define PRINT(fmt, ...) printf("[HandLandmark] " fmt, __VA_ARGS__)
 #endif

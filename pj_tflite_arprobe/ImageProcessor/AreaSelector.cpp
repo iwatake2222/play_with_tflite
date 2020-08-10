@@ -10,7 +10,7 @@
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(fmt, ...) __android_log_print(ANDROID_LOG_INFO, TAG, "[AreaSelector] " fmt, __VA_ARGS__)
+#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[AreaSelector] " __VA_ARGS__)
 #else
 #define PRINT(fmt, ...) printf("[AreaSelector] " fmt, __VA_ARGS__)
 #endif

@@ -10,7 +10,7 @@
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(fmt, ...) __android_log_print(ANDROID_LOG_INFO, TAG, "[Classify] " fmt, __VA_ARGS__)
+#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[Classify] " __VA_ARGS__)
 #else
 #define PRINT(fmt, ...) printf("[Classify] " fmt, __VA_ARGS__)
 #endif
@@ -49,7 +49,7 @@ int Classify::initialize(const char *workDir, const int numThreads)
 
 	m_inferenceHelper->getTensorByName("input", m_inputTensor);
 #if defined(TFLITE_DELEGATE_GPU) || defined(TFLITE_DELEGATE_XNNPACK)
-	m_inferenceHelper->getTensorByName("MobilenetV2/Predictions/Reshape_1", s_outputTensor);
+	m_inferenceHelper->getTensorByName("MobilenetV2/Predictions/Reshape_1", m_outputTensor);
 #else
 	m_inferenceHelper->getTensorByName("MobilenetV2/Predictions/Softmax", m_outputTensor);
 #endif
