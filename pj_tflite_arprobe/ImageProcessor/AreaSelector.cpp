@@ -32,48 +32,58 @@ AreaSelector::~AreaSelector()
 {
 }
 
+static int chattering(int value)
+{
+	static int s_finalValue = -1;
+	static int cnt = 0;
+
+	if (value == -1) return s_finalValue;
+
+	if (s_finalValue != value) {
+		cnt++;
+		if (cnt > 10) {
+			cnt = 0;
+			s_finalValue = value;
+		}
+	} else {
+		//cnt = 0;
+	}
+
+	return s_finalValue;
+}
+
 void AreaSelector::run(HandLandmark::HAND_LANDMARK &handLandmark)
 {
+	int fingerStatus = -1;
 	if (handLandmark.handflag > 0.9) {
+		fingerStatus = checkIfPointing(handLandmark);
+		fingerStatus = chattering(fingerStatus);
+		PRINT("fingerStatus = %d\n", fingerStatus);
+	}
+	
+	if (fingerStatus != -1) {
 		m_cntHandIsUntrusted = 0;	 //clear counter
-		int fingerStatus = checkIfClosed(handLandmark);
-		if (fingerStatus == -1) m_status = STATUS_AREA_SELECT_INIT;
 		switch (m_status) {
 		case STATUS_AREA_SELECT_INIT:
 			if (fingerStatus == 1) {	/* Open -> Closed */
-				m_status = STATUS_AREA_SELECT_START;
-				m_startPoint.x = (int)(handLandmark.pos[4].x + handLandmark.pos[8].x) / 2;
-				m_startPoint.y = (int)(handLandmark.pos[4].y + handLandmark.pos[8].y) / 2;
-			}
-			break;
-		case STATUS_AREA_SELECT_START:
-			/* update start position */
-			m_startPoint.x = (int)(handLandmark.pos[4].x + handLandmark.pos[8].x) / 2;
-			m_startPoint.y = (int)(handLandmark.pos[4].y + handLandmark.pos[8].y) / 2;
-			if (fingerStatus == 1) {
-				m_status = STATUS_AREA_SELECT_START;
-			} else if (fingerStatus == 0) {
 				m_status = STATUS_AREA_SELECT_DRAG;
+				m_startPoint.x = (int)handLandmark.pos[8].x;
+				m_startPoint.y = (int)handLandmark.pos[8].y;
 			}
 			break;
 		case STATUS_AREA_SELECT_DRAG:
-			m_selectedArea.x = std::min(m_startPoint.x, (int)((handLandmark.pos[4].x + handLandmark.pos[8].x) / 2));
-			m_selectedArea.y = std::min(m_startPoint.y, (int)((handLandmark.pos[4].y + handLandmark.pos[8].y) / 2));
-			m_selectedArea.width = (int)std::abs(m_startPoint.x - (handLandmark.pos[4].x + handLandmark.pos[8].x) / 2);
-			m_selectedArea.height = (int)std::abs(m_startPoint.y - (handLandmark.pos[4].y + handLandmark.pos[8].y) / 2);
-			if (fingerStatus == 1) {
+			m_selectedArea.x = std::min(m_startPoint.x, (int)(handLandmark.pos[8].x));
+			m_selectedArea.y = std::min(m_startPoint.y, (int)(handLandmark.pos[8].y));
+			m_selectedArea.width = (int)std::abs(m_startPoint.x - handLandmark.pos[8].x);
+			m_selectedArea.height = (int)std::abs(m_startPoint.y - handLandmark.pos[8].y);
+			if (fingerStatus == 0) {
 				m_status = STATUS_AREA_SELECT_SELECTED;
-			} else if (fingerStatus == 0) {
+			} else if (fingerStatus == 1) {
 				m_status = STATUS_AREA_SELECT_DRAG;
 			}
 			break;
 		case STATUS_AREA_SELECT_SELECTED:
-			m_status = STATUS_AREA_SELECT_END;
-			break;
-		case STATUS_AREA_SELECT_END:
-			if (fingerStatus == 0) {	/* Closed -> Open */
-				m_status = STATUS_AREA_SELECT_INIT;
-			}
+			m_status = STATUS_AREA_SELECT_INIT;
 			break;
 		default:
 			break;
@@ -84,6 +94,65 @@ void AreaSelector::run(HandLandmark::HAND_LANDMARK &handLandmark)
 			m_status = STATUS_AREA_SELECT_INIT;
 		}
 	}
+}
+
+int AreaSelector::checkIfPointing(HandLandmark::HAND_LANDMARK &handLandmark)
+{
+	const int POINTED_INDEX = 0;
+	const int POINTED_INDEX_MIDDLE = 1;
+	const int INVALID = -1;
+	const int indexIndexFingerStart = 5;
+	const int indexIndexFingerEnd = 8;
+	const int indexMiddleFingerStart = 9;
+	const int indexMiddleFingerEnd = 12;
+
+	std::vector<double> gradientIndexFingers;
+	for (int i = indexIndexFingerStart; i < indexIndexFingerEnd; i++) {
+		double dx = handLandmark.pos[i + 1].x - handLandmark.pos[i].x;
+		double dy = handLandmark.pos[i + 1].y - handLandmark.pos[i].y;
+		double gradient = 99;
+		if (dx != 0) gradient = dy / dx;
+		gradientIndexFingers.push_back(gradient);
+		PRINT("index = %5.3lf\n", gradient);
+	}
+
+	std::vector<double> gradientMiddleFingers;
+	for (int i = indexMiddleFingerStart; i < indexMiddleFingerEnd; i++) {
+		double dx = handLandmark.pos[i + 1].x - handLandmark.pos[i].x;
+		double dy = handLandmark.pos[i + 1].y - handLandmark.pos[i].y;
+		double gradient = 99;
+		if (dx != 0) gradient = dy / dx;
+		gradientMiddleFingers.push_back(gradient);
+		PRINT("middle = %5.3lf\n", gradient);
+	}
+
+	/* check if the index finger is straight */
+	for (int i = 0; i < gradientIndexFingers.size() - 1; i++) {
+		if (std::abs((gradientIndexFingers[i] - gradientIndexFingers[i + 1]) / gradientIndexFingers[i]) > 0.5) return INVALID;
+		if (gradientIndexFingers[i] * gradientIndexFingers[i + 1] < 0)  return INVALID;
+	}
+
+	/* check if the middle finger is straight */
+	for (int i = 0; i < gradientIndexFingers.size() - 1; i++) {
+		if (std::abs((gradientMiddleFingers[i] - gradientMiddleFingers[i + 1]) / gradientMiddleFingers[i]) > 0.5) return POINTED_INDEX;
+		if (gradientMiddleFingers[i] * gradientMiddleFingers[i + 1] < 0)  return POINTED_INDEX;
+	}
+
+	/*  check if teh middle finger has the same gradient as index finger */
+	double gradientIndexFinger = (double)(handLandmark.pos[indexIndexFingerEnd].y - handLandmark.pos[indexIndexFingerStart].y) / (handLandmark.pos[indexIndexFingerEnd].x - handLandmark.pos[indexIndexFingerStart].x);
+	double gradientMiddleFinger = (double)(handLandmark.pos[indexMiddleFingerEnd].y - handLandmark.pos[indexMiddleFingerStart].y) / (handLandmark.pos[indexMiddleFingerEnd].x - handLandmark.pos[indexMiddleFingerStart].x);
+	PRINT("index = %5.3lf,  middle = %5.3lf\n", gradientIndexFinger, gradientMiddleFinger);
+	if (std::abs((gradientIndexFinger - gradientMiddleFinger) / gradientIndexFinger) > 0.5) return POINTED_INDEX;
+	if (gradientIndexFinger * gradientMiddleFinger < 0)  return POINTED_INDEX;
+
+	/*  chec the distance b/w index and middle finger */
+	double distance = pow(handLandmark.pos[indexIndexFingerEnd].x - handLandmark.pos[indexMiddleFingerEnd].x, 2) + pow(handLandmark.pos[indexIndexFingerEnd].y - handLandmark.pos[indexMiddleFingerEnd].y, 2);
+	distance = sqrt(distance);
+	double baseDistance = pow(handLandmark.pos[indexIndexFingerStart].x - handLandmark.pos[indexIndexFingerEnd].x, 2) + pow(handLandmark.pos[indexIndexFingerStart].y - handLandmark.pos[indexIndexFingerEnd].y, 2);
+	baseDistance = sqrt(baseDistance);
+	if (distance > baseDistance * 0.25) return POINTED_INDEX;
+
+	return POINTED_INDEX_MIDDLE;
 }
 
 int AreaSelector::checkIfClosed(HandLandmark::HAND_LANDMARK &handLandmark)

@@ -202,6 +202,8 @@ int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
 	s_handLandmark.initialize(inputParam->workDir, inputParam->numThreads);
 	s_classify.initialize(inputParam->workDir, inputParam->numThreads);
 
+	cv::setNumThreads(inputParam->numThreads);
+
 	return 0;
 }
 
@@ -287,14 +289,16 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 	s_areaSelector.m_selectedArea.y = std::min(std::max(0, s_areaSelector.m_selectedArea.y), mat->rows);
 	s_areaSelector.m_selectedArea.width = std::min(std::max(1, s_areaSelector.m_selectedArea.width), mat->cols - s_areaSelector.m_selectedArea.x);
 	s_areaSelector.m_selectedArea.height = std::min(std::max(1, s_areaSelector.m_selectedArea.height), mat->rows - s_areaSelector.m_selectedArea.y);
-	PRINT("status = %d\n", s_areaSelector.m_status);
-	if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_START) {
-		cv::putText(*mat, "Selecting area0", cv::Point(10, 20), cv::FONT_HERSHEY_DUPLEX, 2, cv::Scalar(0, 255, 0), 2);
-	}
-	if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_DRAG) {
-		cv::putText(*mat, "Selecting area1", cv::Point(10, 20), cv::FONT_HERSHEY_DUPLEX, 2, cv::Scalar(0, 255, 0), 2);
+	switch (s_areaSelector.m_status) {
+	case AreaSelector::STATUS_AREA_SELECT_INIT:
+		cv::putText(*mat, "Point index and middle fingers at the start point", cv::Point(10, 20), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 255, 0), 2);
+		break;
+	case AreaSelector::STATUS_AREA_SELECT_DRAG:
+		cv::putText(*mat, "Move the fingers to the end point, then put back the middle finger", cv::Point(10, 20), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 255, 0), 2);
 		cv::rectangle(*mat, s_areaSelector.m_selectedArea, cv::Scalar(255, 0, 0));
-	} else if (s_areaSelector.m_status == AreaSelector::STATUS_AREA_SELECT_SELECTED) {
+		break;
+	case AreaSelector::STATUS_AREA_SELECT_SELECTED:
+	{
 		std::string labelName = classify(*mat, s_areaSelector.m_selectedArea);
 
 		/* Add a new tracker for the selected area */
@@ -305,6 +309,10 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		object.labelName = labelName;
 		//object.rectFirst = s_selectedArea;
 		s_objectList.push_back(object);
+	}
+		break;
+	default:
+		break;
 	}
 
 	/* Track and display tracked objects */

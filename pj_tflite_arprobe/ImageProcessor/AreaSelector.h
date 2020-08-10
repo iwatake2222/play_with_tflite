@@ -16,10 +16,8 @@ class AreaSelector
 public:
 	typedef enum {
 		STATUS_AREA_SELECT_INIT,
-		STATUS_AREA_SELECT_START,
 		STATUS_AREA_SELECT_DRAG,
 		STATUS_AREA_SELECT_SELECTED,
-		STATUS_AREA_SELECT_END,
 	} STATUS;
 
 public:
@@ -30,6 +28,9 @@ public:
 private:
 	// 0: open, 1: closed, -1 invalid
 	int checkIfClosed(HandLandmark::HAND_LANDMARK &handLandmark);
+
+	// 0: index and middle, 1: index only, -1 other
+	int checkIfPointing(HandLandmark::HAND_LANDMARK &handLandmark);
 
 public:
 	STATUS m_status;
