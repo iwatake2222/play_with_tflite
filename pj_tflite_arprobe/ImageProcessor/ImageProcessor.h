@@ -29,5 +29,6 @@ typedef struct {
 int ImageProcessor_initialize(const INPUT_PARAM *inputParam);
 int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam);
 int ImageProcessor_finalize(void);
+int ImageProcessor_command(int cmd);
 
 #endif

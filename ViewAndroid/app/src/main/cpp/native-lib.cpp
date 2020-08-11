@@ -41,3 +41,15 @@ Java_com_iwatake_viewandroidtflite_MainActivity_ImageProcessorFinalize(
     ret = ImageProcessor_finalize();
     return ret;
 }
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_iwatake_viewandroidtflite_MainActivity_ImageProcessorCommand(
+        JNIEnv* env,
+        jobject, /* this */
+        jint cmd) {
+
+    int ret = 0;
+    ret = ImageProcessor_command(cmd);
+    return ret;
+}
+

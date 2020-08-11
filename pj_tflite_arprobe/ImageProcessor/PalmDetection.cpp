@@ -14,6 +14,7 @@
 
 /*** Macro ***/
 #if defined(ANDROID) || defined(__ANDROID__)
+#define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
 #define PRINT(fmt, ...) __android_log_print(ANDROID_LOG_INFO, TAG, "[PalmDetection] " fmt, __VA_ARGS__)
@@ -31,12 +32,17 @@
 #ifdef TFLITE_DELEGATE_EDGETPU
 not supported
 #else
+#ifdef WIN32
 #define MODEL_NAME "palm_detection"
+#else
+#define MODEL_NAME "palm_detection"
+// #define MODEL_NAME "palm_detection_builtin_256_integer_quant"
+#endif
 #endif
 
-//normalized to[0.f, 1.f]
-static const float PIXEL_MEAN[3] = { 0.0f, 0.0f, 0.0f };
-static const float PIXEL_STD[3] = { 1.0f,  1.0f, 1.0f };
+//normalized to[-1.f, 1.f] (hand_detection_cpu.pbtxt.pbtxt)
+static const float PIXEL_MEAN[3] = { 0.5f, 0.5f, 0.5f };
+static const float PIXEL_STD[3] = { 0.5f,  0.5f, 0.5f };
 
 static std::vector<Anchor> s_anchors;
 
@@ -103,7 +109,9 @@ int PalmDetection::PalmDetection::invoke(cv::Mat &originalMat, std::vector<PALM>
 
 	cv::Mat inputImage;
 	cv::resize(originalMat, inputImage, cv::Size(modelInputWidth, modelInputHeight));
+#ifndef CV_COLOR_IS_RGB
 	cv::cvtColor(inputImage, inputImage, cv::COLOR_BGR2RGB);
+#endif
 	if (m_inputTensor->type == TensorInfo::TENSOR_TYPE_UINT8) {
 		inputImage.convertTo(inputImage, CV_8UC3);
 	} else {
@@ -243,7 +251,8 @@ static float calculateIoU(Detection& det0, Detection& det1)
 static void nms(std::vector<Detection> &detectionList, std::vector<Detection> &detectionListNMS, bool useWeight)
 {
 	std::sort(detectionList.begin(), detectionList.end(), [](Detection const& lhs, Detection const& rhs) {
-		if (lhs.score > rhs.score) return true;
+		if (lhs.w * lhs.h > rhs.w * rhs.h) return true;
+		// if (lhs.score > rhs.score) return true;
 		return false;
 	});
 

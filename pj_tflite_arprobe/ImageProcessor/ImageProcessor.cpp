@@ -16,8 +16,13 @@
 #include "AreaSelector.h"
 #include "ImageProcessor.h"
 
+/*** Setting ***/
+#define INTERVAL_TO_ENFORCE_PALM_DET 5
+#define INTERVAL_TO_SKIP_PALM_DET 2
+
 /*** Macro ***/
 #if defined(ANDROID) || defined(__ANDROID__)
+#define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
 #define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[ImageProcessor] " __VA_ARGS__)
@@ -58,16 +63,25 @@ typedef struct {
 } OBJECT_TRACKER;
 
 /*** Global variable ***/
+static int s_frameCnt;
 static PalmDetection s_palmDetection;
 static HandLandmark s_handLandmark;
 static Classify s_classify;
+static AreaSelector s_areaSelector;
 static RECT s_palmByLm;
 static bool s_isPalmByLmValid = false;
 static std::vector<OBJECT_TRACKER> s_objectList;
-static AreaSelector s_areaSelector;
-
+static int s_animCount = 0;
+static bool s_isDebug = true;
 
 /*** Function ***/
+static cv::Scalar convertColorBgrToAppropreate(cv::Scalar color) {
+#ifdef CV_COLOR_IS_RGB
+	return cv::Scalar(color[2], color[1], color[0]);
+#else
+	return color;
+#endif
+}
 static void calcAverageRect(RECT &rectOrg, HandLandmark::HAND_LANDMARK &rectNew, float ratioPos, float ratioSize)
 {
 	if (rectOrg.width == 0) {
@@ -162,7 +176,7 @@ static void drawText(cv::Mat &mat, RECT rect, cv::Scalar color, std::string str,
 	cv::line(mat, drawpoint1, drawpoint2, color, std::max(2, rect.width / 80));
 	cv::line(mat, drawpoint2, drawpoint3, color, std::max(2, rect.width / 80));
 
-	cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, cv::Scalar(171, 97, 50), 5);
+	cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, convertColorBgrToAppropreate(cv::Scalar(171, 97, 50)), 5);
 	cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, color, 2);
 }
 
@@ -198,6 +212,7 @@ static std::string classify(cv::Mat &originalMat, const cv::Rect &selectedArea)
 
 int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
 {
+	s_frameCnt = 0;
 	s_palmDetection.initialize(inputParam->workDir, inputParam->numThreads);
 	s_handLandmark.initialize(inputParam->workDir, inputParam->numThreads);
 	s_classify.initialize(inputParam->workDir, inputParam->numThreads);
@@ -215,23 +230,32 @@ int ImageProcessor_finalize(void)
 	return 0;
 }
 
+int ImageProcessor_command(int cmd)
+{
+	switch (cmd) {
+	case 0:
+		s_isDebug = !s_isDebug;
+		return 0;
+		break;
+	default:
+		PRINT("command(%d) is not supported\n", cmd);
+		return -1;
+	}
+}
 
 int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 {
+	s_frameCnt++;
+	bool enforcePalmDet = (s_frameCnt % INTERVAL_TO_ENFORCE_PALM_DET) == 0;	// to increase accuracy
+	bool skipPalmDet = (s_frameCnt % INTERVAL_TO_SKIP_PALM_DET) != 0;			// to increase fps
 	bool isPalmValid = false;
 	RECT palm = { 0 };
-	if (s_isPalmByLmValid == true) {
-		/* Use the estimated palm position from the previous frame */
-		isPalmValid = true;
-		palm.x = s_palmByLm.x;
-		palm.y = s_palmByLm.y;
-		palm.width = s_palmByLm.width;
-		palm.height = s_palmByLm.height;
-		palm.rotation = s_palmByLm.rotation;
-	} else {
+	if (s_isPalmByLmValid == false || (enforcePalmDet && !skipPalmDet)) {
 		/*** Get Palms ***/
 		std::vector<PalmDetection::PALM> palmList;
-		s_palmDetection.invoke(*mat, palmList);
+		if (!skipPalmDet) {
+			s_palmDetection.invoke(*mat, palmList);
+		}
 		for (const auto detPalm : palmList) {
 			s_palmByLm.width = 0;	// reset 
 			palm.x = (int)(detPalm.x * 1);
@@ -242,41 +266,55 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 			isPalmValid = true;
 			break;	// use only one palm
 		}
+	} else {
+		/* Use the estimated palm position from the previous frame */
+		isPalmValid = true;
+		palm.x = s_palmByLm.x;
+		palm.y = s_palmByLm.y;
+		palm.width = s_palmByLm.width;
+		palm.height = s_palmByLm.height;
+		palm.rotation = s_palmByLm.rotation;
 	}
 	palm = palm.fix(mat->cols, mat->rows);
 
 	/*** Get landmark ***/
 	HandLandmark::HAND_LANDMARK landmark = { 0 };
 	if (isPalmValid) {
-		cv::Scalar colorRect = (s_isPalmByLmValid) ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
-		cv::rectangle(*mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), colorRect, 3);
+		if (s_isDebug) {
+			cv::Scalar colorRect = (s_isPalmByLmValid) ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
+			cv::rectangle(*mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), convertColorBgrToAppropreate(colorRect), 3);
+		}
 
 		/* Get landmark */
 		s_handLandmark.invoke(*mat, landmark, palm.x, palm.y, palm.width, palm.height, palm.rotation);
 
 		if (landmark.handflag >= 0.8) {
-			calcAverageRect(s_palmByLm, landmark, 0.5f, 0.2f);
-			cv::rectangle(*mat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), cv::Scalar(255, 0, 0), 3);
+			calcAverageRect(s_palmByLm, landmark, 0.6f, 0.4f);
+			if (s_isDebug) {
+				cv::rectangle(*mat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), convertColorBgrToAppropreate(cv::Scalar(255, 0, 0)), 3);
+			}
 
 			/* Display hand landmark */
-			for (int i = 0; i < 21; i++) {
-				cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, cv::Scalar(255, 255, 0), 1);
-				cv::putText(*mat, std::to_string(i), cv::Point((int)landmark.pos[i].x - 10, (int)landmark.pos[i].y - 10), 1, 1, cv::Scalar(255, 255, 0));
-			}
-			for (int i = 0; i < 5; i++) {
-				for (int j = 0; j < 3; j++) {
-					int indexStart = 4 * i + 1 + j;
-					int indexEnd = indexStart + 1;
-					int color = std::min((int)std::max((landmark.pos[indexStart].z + landmark.pos[indexEnd].z) / 2.0f * -4, 0.f), 255);
-					cv::line(*mat, cv::Point((int)landmark.pos[indexStart].x, (int)landmark.pos[indexStart].y), cv::Point((int)landmark.pos[indexEnd].x, (int)landmark.pos[indexEnd].y), cv::Scalar(color, color, color), 3);
+			if (s_isDebug) {
+				for (int i = 0; i < 21; i++) {
+					cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, convertColorBgrToAppropreate(cv::Scalar(255, 255, 0)), 1);
+					cv::putText(*mat, std::to_string(i), cv::Point((int)landmark.pos[i].x - 10, (int)landmark.pos[i].y - 10), 1, 1, convertColorBgrToAppropreate(cv::Scalar(255, 255, 0)));
+				}
+				for (int i = 0; i < 5; i++) {
+					for (int j = 0; j < 3; j++) {
+						int indexStart = 4 * i + 1 + j;
+						int indexEnd = indexStart + 1;
+						int color = std::min((int)std::max((landmark.pos[indexStart].z + landmark.pos[indexEnd].z) / 2.0f * -4, 0.f), 255);
+						cv::line(*mat, cv::Point((int)landmark.pos[indexStart].x, (int)landmark.pos[indexStart].y), cv::Point((int)landmark.pos[indexEnd].x, (int)landmark.pos[indexEnd].y), convertColorBgrToAppropreate(cv::Scalar(color, color, color)), 3);
+					}
+				}
+			} else {
+				for (int i = 0; i < 21; i++) {
+					cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, convertColorBgrToAppropreate(cv::Scalar(255, 255, 0)), 1);
 				}
 			}
 
-			if (landmark.handflag >= 0.99) {
-				s_isPalmByLmValid = true;
-			} else {
-				s_isPalmByLmValid = false;
-			}
+			s_isPalmByLmValid = true;
 		} else {
 			s_isPalmByLmValid = false;
 		}
@@ -285,39 +323,47 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 
 	/* Select area according to finger pose and position */
 	s_areaSelector.run(landmark);
-	s_areaSelector.m_selectedArea.x = std::min(std::max(0, s_areaSelector.m_selectedArea.x), mat->cols);
-	s_areaSelector.m_selectedArea.y = std::min(std::max(0, s_areaSelector.m_selectedArea.y), mat->rows);
-	s_areaSelector.m_selectedArea.width = std::min(std::max(1, s_areaSelector.m_selectedArea.width), mat->cols - s_areaSelector.m_selectedArea.x);
-	s_areaSelector.m_selectedArea.height = std::min(std::max(1, s_areaSelector.m_selectedArea.height), mat->rows - s_areaSelector.m_selectedArea.y);
-	switch (s_areaSelector.m_status) {
-	case AreaSelector::STATUS_AREA_SELECT_INIT:
-		cv::putText(*mat, "Point index and middle fingers at the start point", cv::Point(10, 20), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 255, 0), 2);
-		break;
-	case AreaSelector::STATUS_AREA_SELECT_DRAG:
-		cv::putText(*mat, "Move the fingers to the end point, then put back the middle finger", cv::Point(10, 20), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 255, 0), 2);
-		cv::rectangle(*mat, s_areaSelector.m_selectedArea, cv::Scalar(255, 0, 0));
-		break;
-	case AreaSelector::STATUS_AREA_SELECT_SELECTED:
-	{
-		std::string labelName = classify(*mat, s_areaSelector.m_selectedArea);
+	PRINT("areaSelector.m_status = %d \n", s_areaSelector.m_status);
+	if (landmark.handflag >= 0.8) {
+		s_areaSelector.m_selectedArea.x = std::min(std::max(0, s_areaSelector.m_selectedArea.x), mat->cols);
+		s_areaSelector.m_selectedArea.y = std::min(std::max(0, s_areaSelector.m_selectedArea.y), mat->rows);
+		s_areaSelector.m_selectedArea.width = std::min(std::max(1, s_areaSelector.m_selectedArea.width), mat->cols - s_areaSelector.m_selectedArea.x);
+		s_areaSelector.m_selectedArea.height = std::min(std::max(1, s_areaSelector.m_selectedArea.height), mat->rows - s_areaSelector.m_selectedArea.y);
+		switch (s_areaSelector.m_status) {
+		case AreaSelector::STATUS_AREA_SELECT_INIT:
+			cv::putText(*mat, "Point index and middle fingers at the start point", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 2);
+			break;
+		case AreaSelector::STATUS_AREA_SELECT_DRAG:
+			cv::putText(*mat, "Move the fingers to the end point,", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 2);
+			cv::putText(*mat, "then put back the middle finger", cv::Point(0, 40), cv::FONT_HERSHEY_DUPLEX, 0.8, convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 2);
+			cv::rectangle(*mat, s_areaSelector.m_selectedArea, convertColorBgrToAppropreate(cv::Scalar(255, 0, 0)));
+			break;
+		case AreaSelector::STATUS_AREA_SELECT_SELECTED:
+		{
+			std::string labelName = classify(*mat, s_areaSelector.m_selectedArea);
 
-		/* Add a new tracker for the selected area */
-		OBJECT_TRACKER object;
-		object.tracker = createTrackerByName("KCF");
-		object.tracker->init(*mat, cv::Rect(s_areaSelector.m_selectedArea));
-		object.numLost = 0;
-		object.labelName = labelName;
-		//object.rectFirst = s_selectedArea;
-		s_objectList.push_back(object);
-	}
-		break;
-	default:
-		break;
+			/* Add a new tracker for the selected area */
+			OBJECT_TRACKER object;
+			if (s_areaSelector.m_selectedArea.width * s_areaSelector.m_selectedArea.height > mat->cols * mat->rows * 0.1) {
+				object.tracker = createTrackerByName("MEDIAN_FLOW");	// Use median flow for hube object because KCF becomes slow when the object size is huge
+			} else {
+				object.tracker = createTrackerByName("KCF");
+			}
+			object.tracker->init(*mat, cv::Rect(s_areaSelector.m_selectedArea));
+			object.numLost = 0;
+			object.labelName = labelName;
+			//object.rectFirst = s_selectedArea;
+			s_objectList.push_back(object);
+		}
+			break;
+		default:
+			break;
+		}
 	}
 
 	/* Track and display tracked objects */
-	static int animCount = 0;;
-	animCount++;
+	
+	s_animCount++;
 	for (auto it = s_objectList.begin(); it != s_objectList.end();) {
 		auto tracker = it->tracker;
 		cv::Rect2d trackedRect;
@@ -328,13 +374,19 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 			rect.y = (int)trackedRect.y;
 			rect.width = (int)trackedRect.width;
 			rect.height = (int)trackedRect.height;
-			drawRing(*mat, rect, cv::Scalar(255, 255, 205), animCount);
-			drawText(*mat, rect, cv::Scalar(207, 161, 69), it->labelName, animCount);
+			drawRing(*mat, rect, convertColorBgrToAppropreate(cv::Scalar(255, 255, 205)), s_animCount);
+			drawText(*mat, rect, convertColorBgrToAppropreate(cv::Scalar(207, 161, 69)), it->labelName, s_animCount);
 			it->numLost = 0;
-			it++;
+			if (rect.width > mat->cols * 0.9) {	// in case median flow outputs crazy result
+				PRINT("delete due to too big result\n");
+				it = s_objectList.erase(it);
+				tracker.release();
+			} else {
+				it++;
+			}
 		} else {
 			PRINT("lost\n");
-			if (++(it->numLost) > 100) {
+			if (++(it->numLost) > 20) {
 				PRINT("delete\n");
 				it = s_objectList.erase(it);
 				tracker.release();

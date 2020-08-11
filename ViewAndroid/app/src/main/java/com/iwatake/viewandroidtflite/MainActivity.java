@@ -98,9 +98,31 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        findViewById(R.id.buttonCmd0).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ImageProcessorCommand((0));
+            }
+        });
+
+        findViewById(R.id.buttonCmd1).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ImageProcessorCommand((1));
+            }
+        });
+
+        findViewById(R.id.buttonCmd2).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ImageProcessorCommand((2));
+            }
+        });
+
         if (checkPermissions()) {
             if (appStatus == AppStatus.NotInitialized) {
                 ImageProcessorInitialize();
+                ImageProcessorCommand(0);
                 appStatus = AppStatus.Initialized;
             }
             startCamera();
@@ -277,6 +299,7 @@ public class MainActivity extends AppCompatActivity {
         if(requestCode == REQUEST_CODE_FOR_PERMISSIONS){
             if(checkPermissions()){
                 ImageProcessorInitialize();
+                ImageProcessorCommand(0);
                 appStatus = AppStatus.Initialized;
                 startCamera();
             } else{
@@ -293,4 +316,5 @@ public class MainActivity extends AppCompatActivity {
     public native int ImageProcessorInitialize();
     public native int ImageProcessorProcess(long objMat);
     public native int ImageProcessorFinalize();
+    public native int ImageProcessorCommand(int cmd);
 }

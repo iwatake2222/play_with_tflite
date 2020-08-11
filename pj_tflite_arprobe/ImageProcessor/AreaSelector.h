@@ -27,16 +27,19 @@ public:
 
 private:
 	// 0: open, 1: closed, -1 invalid
-	int checkIfClosed(HandLandmark::HAND_LANDMARK &handLandmark);
+	//int checkIfClosed(HandLandmark::HAND_LANDMARK &handLandmark);
 
 	// 0: index and middle, 1: index only, -1 other
 	int checkIfPointing(HandLandmark::HAND_LANDMARK &handLandmark);
+	int removeChattering(int fingerStatus);
 
 public:
 	STATUS m_status;
 	cv::Point m_startPoint;
 	cv::Rect m_selectedArea;
 	int m_cntHandIsUntrusted;
+	int m_fingerStatus;
+	int m_cntToRemoveChattering;
 
 };
 

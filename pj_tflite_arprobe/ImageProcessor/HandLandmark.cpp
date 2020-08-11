@@ -7,6 +7,7 @@
 
 /*** Macro ***/
 #if defined(ANDROID) || defined(__ANDROID__)
+#define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
 #define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[HandLandmark] " __VA_ARGS__)
@@ -21,11 +22,9 @@ not supported
 #define MODEL_NAME "hand_landmark"
 #endif
 
-//normalized to[0.f, 1.f]
+//normalized to[0.f, 1.f] (hand_landmark_cpu.pbtxt)
 static const float PIXEL_MEAN[3] = { 0.0f, 0.0f, 0.0f };
 static const float PIXEL_STD[3] = { 1.0f,  1.0f, 1.0f };
-//static const float PIXEL_MEAN[3] = { 0.5f, 0.5f, 0.5f };
-//static const float PIXEL_STD[3] = { 0.5f,  0.5f, 0.5f };
 
 /*** Function ***/
 int HandLandmark::initialize(const char *workDir, const int numThreads)
@@ -86,7 +85,9 @@ int HandLandmark::invoke(cv::Mat &originalMat, HAND_LANDMARK& handLandmark, int 
 	/* Resize image */
 	cv::Mat inputImage;
 	cv::resize(rotatedImage, inputImage, cv::Size(modelInputWidth, modelInputHeight));
+#ifndef CV_COLOR_IS_RGB
 	cv::cvtColor(inputImage, inputImage, cv::COLOR_BGR2RGB);
+#endif
 	if (m_inputTensor->type == TensorInfo::TENSOR_TYPE_UINT8) {
 		inputImage.convertTo(inputImage, CV_8UC3);
 	} else {

@@ -8,6 +8,7 @@
 
 /*** Macro ***/
 #if defined(ANDROID) || defined(__ANDROID__)
+#define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
 #define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[Classify] " __VA_ARGS__)
@@ -17,11 +18,11 @@
 
 /* Model parameters */
 #if defined(TFLITE_DELEGATE_EDGETPU)
-#define MODEL_NAME   "mobilenet_v2_1.0_224_quant_edgetpu"
+#define MODEL_NAME   "efficientnet_lite3_int8_2_edgetpu"
 #elif defined(TFLITE_DELEGATE_GPU) || defined(TFLITE_DELEGATE_XNNPACK)
-#define MODEL_NAME   "mobilenet_v2_1.0_224"
+#define MODEL_NAME   "efficientnet_lite3_int8_2"
 #else
-#define MODEL_NAME   "mobilenet_v2_1.0_224_quant"
+#define MODEL_NAME   "efficientnet_lite3_int8_2"
 #endif
 #define LABEL_NAME   "imagenet_labels.txt"
 
@@ -35,7 +36,8 @@ int Classify::initialize(const char *workDir, const int numThreads)
 #if defined(TFLITE_DELEGATE_EDGETPU)
 	not supported
 #elif defined(TFLITE_DELEGATE_GPU)
-	m_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU);
+	//m_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU);
+	m_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE);
 #elif defined(TFLITE_DELEGATE_XNNPACK)
 	m_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_XNNPACK);
 #else
@@ -47,12 +49,8 @@ int Classify::initialize(const char *workDir, const int numThreads)
 	m_inputTensor = new TensorInfo();
 	m_outputTensor = new TensorInfo();
 
-	m_inferenceHelper->getTensorByName("input", m_inputTensor);
-#if defined(TFLITE_DELEGATE_GPU) || defined(TFLITE_DELEGATE_XNNPACK)
-	m_inferenceHelper->getTensorByName("MobilenetV2/Predictions/Reshape_1", m_outputTensor);
-#else
-	m_inferenceHelper->getTensorByName("MobilenetV2/Predictions/Softmax", m_outputTensor);
-#endif
+	m_inferenceHelper->getTensorByName("images", m_inputTensor);
+	m_inferenceHelper->getTensorByName("Softmax", m_outputTensor);
 
 	std::string labelFilename = std::string(workDir) + "/" + LABEL_NAME;
 	readLabel(labelFilename, m_labels);
@@ -79,7 +77,9 @@ int Classify::invoke(cv::Mat &originalMat, RESULT &result)
 	/* Resize image */
 	cv::Mat inputImage;
 	cv::resize(originalMat, inputImage, cv::Size(modelInputWidth, modelInputHeight));
+#ifndef CV_COLOR_IS_RGB
 	cv::cvtColor(inputImage, inputImage, cv::COLOR_BGR2RGB);
+#endif
 	if (m_inputTensor->type == TensorInfo::TENSOR_TYPE_UINT8) {
 		inputImage.convertTo(inputImage, CV_8UC3);
 	} else {
@@ -113,6 +113,7 @@ int Classify::invoke(cv::Mat &originalMat, RESULT &result)
 	/* Find the max score */
 	int maxIndex = (int)(std::max_element(outputScoreList.begin(), outputScoreList.end()) - outputScoreList.begin());
 	auto maxScore = *std::max_element(outputScoreList.begin(), outputScoreList.end());
+	maxIndex++;	// it looks  background is not included
 	PRINT("Result = %s (%d) (%.3f)\n", m_labels[maxIndex].c_str(), maxIndex, maxScore);
 
 	result.labelIndex = maxIndex;
