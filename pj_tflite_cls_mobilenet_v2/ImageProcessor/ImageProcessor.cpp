@@ -14,11 +14,12 @@
 
 /*** Macro ***/
 #if defined(ANDROID) || defined(__ANDROID__)
+#define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[ImageProcessor] " __VA_ARGS__)
 #else
-#define PRINT(...) printf(__VA_ARGS__)
+#define PRINT(fmt, ...) printf("[ImageProcessor] " fmt, __VA_ARGS__)
 #endif
 
 #define CHECK(x)                              \
@@ -36,8 +37,8 @@
 #define MODEL_NAME   "mobilenet_v2_1.0_224_quant"
 #endif
 #define LABEL_NAME   "imagenet_labels.txt"
-static const float PIXEL_MEAN[3] = { 0.5f, 0.5f, 0.5f };
-static const float PIXEL_STD[3] = { 0.25f,  0.25f, 0.25f };
+static const float PIXEL_MEAN[3] = { 0.0f, 0.0f, 0.0f };
+static const float PIXEL_STD[3] = { 1.0f,  1.0f, 1.0f };
 
 /*** Global variable ***/
 static std::vector<std::string> s_labels;
@@ -46,6 +47,14 @@ static TensorInfo *s_inputTensor;
 static TensorInfo *s_outputTensor;
 
 /*** Function ***/
+static cv::Scalar convertColorBgrToAppropreate(cv::Scalar color) {
+#ifdef CV_COLOR_IS_RGB
+	return cv::Scalar(color[2], color[1], color[0]);
+#else
+	return color;
+#endif
+}
+
 static void readLabel(const char* filename, std::vector<std::string> & labels)
 {
 	std::ifstream ifs(filename);
@@ -90,6 +99,15 @@ int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
 	readLabel(labelFilename.c_str(), s_labels);
 
 	return 0;
+}
+
+int ImageProcessor_command(int cmd)
+{
+	switch (cmd) {
+	default:
+		PRINT("command(%d) is not supported\n", cmd);
+		return -1;
+	}
 }
 
 
@@ -142,8 +160,8 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 	/* Draw the result */
 	std::string resultStr;
 	resultStr = "Result:" + s_labels[maxIndex] + " (score = " + std::to_string(maxScore) + ")";
-	cv::putText(*mat, resultStr, cv::Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0), 3);
-	cv::putText(*mat, resultStr, cv::Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 255, 0), 1);
+	cv::putText(*mat, resultStr, cv::Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, convertColorBgrToAppropreate(cv::Scalar(0, 0, 0)), 3);
+	cv::putText(*mat, resultStr, cv::Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 1);
 
 	/* Return the results */
 	outputParam->classId = maxIndex;

@@ -48,7 +48,7 @@ public:
 		_y_scale = 256.0;
 		_h_scale = 256.0;
 		_w_scale = 256.0;
-		_min_score_thresh = 0.8f;
+		_min_score_thresh = 0.7f;
 		_apply_exponential_on_box_size = false;
 	}
 	int num_classes() const { return _num_classes; }

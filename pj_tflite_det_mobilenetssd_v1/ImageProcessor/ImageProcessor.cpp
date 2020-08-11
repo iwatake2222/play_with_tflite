@@ -14,11 +14,12 @@
 
 /*** Macro ***/
 #if defined(ANDROID) || defined(__ANDROID__)
+#define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[ImageProcessor] " __VA_ARGS__)
 #else
-#define PRINT(...) printf(__VA_ARGS__)
+#define PRINT(fmt, ...) printf("[ImageProcessor] " fmt, __VA_ARGS__)
 #endif
 
 #define CHECK(x)                              \
@@ -34,8 +35,8 @@
 #define MODEL_NAME   "coco_ssd_mobilenet_v1_1.0_quant_2018_06_29"
 #endif
 #define LABEL_NAME   "coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.txt"
-static const float PIXEL_MEAN[3] = { 0.5f, 0.5f, 0.5f };
-static const float PIXEL_STD[3] = { 0.25f,  0.25f, 0.25f };
+static const float PIXEL_MEAN[3] = { 0.0f, 0.0f, 0.0f };
+static const float PIXEL_STD[3] = { 1.0f,  1.0f, 1.0f };
 
 typedef struct {
 	double x;
@@ -57,6 +58,14 @@ static TensorInfo *s_outputTensorScore;
 static TensorInfo *s_outputTensorNum;
 
 /*** Function ***/
+static cv::Scalar convertColorBgrToAppropreate(cv::Scalar color) {
+#ifdef CV_COLOR_IS_RGB
+	return cv::Scalar(color[2], color[1], color[0]);
+#else
+	return color;
+#endif
+}
+
 static void getBBox(std::vector<BBox> &bboxList, const float *outputBoxList, const float *outputClassList, const float *outputScoreList, const int outputNum, const double threshold, const int imageWidth = 0, const int imageHeight = 0)
 {
 	for (int i = 0; i < outputNum; i++) {
@@ -134,6 +143,14 @@ int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
 	return 0;
 }
 
+int ImageProcessor_command(int cmd)
+{
+	switch (cmd) {
+	default:
+		PRINT("command(%d) is not supported\n", cmd);
+		return -1;
+	}
+}
 
 int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 {
@@ -176,9 +193,9 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 	/* Draw the result */
 	for (int i = 0; i < (int)bboxList.size(); i++) {
 		const BBox bbox = bboxList[i];
-		cv::rectangle(*mat, cv::Rect((int)bbox.x, (int)bbox.y, (int)bbox.w, (int)bbox.h), cv::Scalar(0, 255, 0), 3);
-		cv::putText(*mat, s_labels[bbox.classId], cv::Point((int)bbox.x, (int)bbox.y), cv::FONT_HERSHEY_PLAIN, 3, cv::Scalar(0, 0, 0), 5);
-		cv::putText(*mat, s_labels[bbox.classId], cv::Point((int)bbox.x, (int)bbox.y), cv::FONT_HERSHEY_PLAIN, 3, cv::Scalar(0, 255, 0), 2);
+		cv::rectangle(*mat, cv::Rect((int)bbox.x, (int)bbox.y, (int)bbox.w, (int)bbox.h), convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 3);
+		cv::putText(*mat, s_labels[bbox.classId], cv::Point((int)bbox.x, (int)bbox.y), cv::FONT_HERSHEY_PLAIN, 3, convertColorBgrToAppropreate(cv::Scalar(0, 0, 0)), 5);
+		cv::putText(*mat, s_labels[bbox.classId], cv::Point((int)bbox.x, (int)bbox.y), cv::FONT_HERSHEY_PLAIN, 3, convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 2);
 	}
 
 
