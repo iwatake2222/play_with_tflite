@@ -23,6 +23,9 @@ import android.view.Surface;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -55,7 +58,13 @@ public class MainActivity extends AppCompatActivity {
     /*** Views ***/
     private PreviewView previewView;
     private ImageView imageView;
+    private ImageView imageView2;
     private Button buttonCamera;
+    private Button buttonVr;
+    private Button buttonVrExit;
+    private Button buttonCmd0;
+    private Button buttonCmd1;
+    private Button buttonCmd2;
     private TextView textViewFps;
     private TextView textViewImageProcessTime;
 
@@ -77,13 +86,37 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        getViews();
+        setEventListeners();
+        exitVrMode();
 
+        if (checkPermissions()) {
+            if (appStatus == AppStatus.NotInitialized) {
+                ImageProcessorInitialize();
+                ImageProcessorCommand(0);
+                appStatus = AppStatus.Initialized;
+            }
+            startCamera();
+        } else {
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_FOR_PERMISSIONS);
+        }
+    }
+
+    private void getViews() {
         previewView = findViewById(R.id.previewView);
         imageView = findViewById(R.id.imageView);
+        imageView2 = findViewById(R.id.imageView2);
         buttonCamera = findViewById(R.id.buttonCamera);
+        buttonVr = findViewById(R.id.buttonVr);
+        buttonVrExit = findViewById(R.id.buttonVrExit);
+        buttonCmd0 = findViewById(R.id.buttonCmd0);
+        buttonCmd1 = findViewById(R.id.buttonCmd1);
+        buttonCmd2 = findViewById(R.id.buttonCmd2);
         textViewFps = findViewById(R.id.textViewFps);
         textViewImageProcessTime = findViewById(R.id.textViewImageProcessTime);
+    }
 
+    private void setEventListeners() {
         buttonCamera.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -98,38 +131,42 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.buttonCmd0).setOnClickListener(new View.OnClickListener() {
+        buttonCmd0.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 ImageProcessorCommand((0));
             }
         });
 
-        findViewById(R.id.buttonCmd1).setOnClickListener(new View.OnClickListener() {
+        buttonCmd1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 ImageProcessorCommand((1));
             }
         });
 
-        findViewById(R.id.buttonCmd2).setOnClickListener(new View.OnClickListener() {
+        buttonCmd2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 ImageProcessorCommand((2));
             }
         });
 
-        if (checkPermissions()) {
-            if (appStatus == AppStatus.NotInitialized) {
-                ImageProcessorInitialize();
-                ImageProcessorCommand(0);
-                appStatus = AppStatus.Initialized;
+        buttonVr.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                enterVrMode();
             }
-            startCamera();
-        } else {
-            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_FOR_PERMISSIONS);
-        }
+        });
+
+        buttonVrExit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                exitVrMode();
+            }
+        });
     }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -147,6 +184,32 @@ public class MainActivity extends AppCompatActivity {
             appStatus = AppStatus.NotInitialized;
             ImageProcessorFinalize();
         }
+    }
+
+    private void enterVrMode() {
+        imageView2.setVisibility(View.VISIBLE);
+        imageView2.setLayoutParams(new TableRow.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
+        buttonCamera.setVisibility(View.INVISIBLE);
+        buttonVr.setVisibility(View.INVISIBLE);
+        buttonCmd0.setVisibility(View.INVISIBLE);
+        buttonCmd1.setVisibility(View.INVISIBLE);
+        buttonCmd2.setVisibility(View.INVISIBLE);
+        textViewFps.setVisibility(View.INVISIBLE);
+        textViewImageProcessTime.setVisibility(View.INVISIBLE);
+        buttonVrExit.setVisibility(View.VISIBLE);
+    }
+
+    private void exitVrMode() {
+        imageView2.setVisibility(View.INVISIBLE);
+        imageView2.setLayoutParams(new TableRow.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0f));
+        buttonCamera.setVisibility(View.VISIBLE);
+        buttonVr.setVisibility(View.VISIBLE);
+        buttonCmd0.setVisibility(View.VISIBLE);
+        buttonCmd1.setVisibility(View.VISIBLE);
+        buttonCmd2.setVisibility(View.VISIBLE);
+        textViewFps.setVisibility(View.VISIBLE);
+        textViewImageProcessTime.setVisibility(View.VISIBLE);
+        buttonVrExit.setVisibility(View.INVISIBLE);
     }
 
     private void startCamera() {
@@ -181,17 +244,14 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void analyze(@NonNull ImageProxy image) {
-            if (previewView.getDisplay() == null || appStatus != AppStatus.Initialized) {
+            if (previewView.getDisplay() == null || appStatus != AppStatus.Initialized || image.getWidth() == 0) {
                 image.close();
                 return;
             }
-
             /* Create cv::mat(RGB888) from image(NV21) */
             Mat matOrg = getMatFromImage(image);
-
             /* Fix image rotation (it looks image in PreviewView is automatically fixed by CameraX???) */
             Mat mat = fixMatRotation(matOrg);
-
 //            Log.i(TAG, "[analyze] width = " + image.getWidth() + ", height = " + image.getHeight() + "Rotation = " + previewView.getDisplay().getRotation());
 //            Log.i(TAG, "[analyze] mat width = " + matOrg.cols() + ", mat height = " + matOrg.rows());
 
@@ -230,6 +290,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     imageView.setImageBitmap(bitmap);
+                    if (imageView2.getVisibility() == View.VISIBLE)  imageView2.setImageBitmap(bitmap);
                     textViewFps.setText(fmFps.toString());
                     textViewImageProcessTime.setText(fmImageProcessTime.toString());
                 }
