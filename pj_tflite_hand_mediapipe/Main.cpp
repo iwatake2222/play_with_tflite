@@ -17,7 +17,7 @@
 #define IMAGE_NAME   RESOURCE_DIR"/hand00.jpg"
 
 /* Settings */
-#define LOOP_NUM_FOR_TIME_MEASUREMENT 0
+#define LOOP_NUM_FOR_TIME_MEASUREMENT 10
 
 int main()
 {
@@ -35,7 +35,7 @@ int main()
 	/* Call image processor library */
 	OUTPUT_PARAM outputParam;
 	ImageProcessor_process(&originalImage, &outputParam);
-
+	ImageProcessor_process(&originalImage, &outputParam);	// it seems the first invoke cannot detect hand
 	cv::imshow("originalImage", originalImage);
 	cv::waitKey(1);
 

@@ -25,7 +25,7 @@
 #define TAG "MyApp_NDK"
 #define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(...) printf(__VA_ARGS__)
+#define PRINT(fmt, ...) printf("[InferenceHelperTensorflowLite] " fmt, __VA_ARGS__)
 #endif
 
 #define CHECK(x)                              \
@@ -74,7 +74,6 @@ int InferenceHelperTensorflowLite::initialize(const char *modelFilename, int num
 #endif
 #ifdef TFLITE_DELEGATE_GPU
 	if (m_helperType == TENSORFLOW_LITE_GPU) {
-		printf("aaa\n");
 		auto options = TfLiteGpuDelegateOptionsV2Default();
 		options.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED;
 		options.inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY;

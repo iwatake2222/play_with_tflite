@@ -67,7 +67,7 @@ int PalmDetection::PalmDetection::initialize(const char *workDir, const int numT
 	std::string modelFilename = std::string(workDir) + "/" + MODEL_NAME;
 
 	std::vector<std::pair<const char*, const void*>> customOps;
-	customOps.push_back(std::pair<const char*, const void*>("Convolution2DTransposeBias", mediapipe::tflite_operations::RegisterConvolution2DTransposeBias()));
+	customOps.push_back(std::make_pair<const char*, const void*>("Convolution2DTransposeBias", (const void*)mediapipe::tflite_operations::RegisterConvolution2DTransposeBias()));
 	m_inferenceHelper->initialize(modelFilename.c_str(), numThreads, customOps);
 
 	m_inputTensor = new TensorInfo();

@@ -11,7 +11,8 @@
 #define TAG "MyApp_NDK"
 #define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(...) printf(__VA_ARGS__)
+#define PRINT( ...) printf(  __VA_ARGS__)
+// #define PRINT(fmt, ...) printf("[InferenceHelper] " fmt, __VA_ARGS__)
 #endif
 
 InferenceHelper* InferenceHelper::create(const InferenceHelper::HELPER_TYPE type)
@@ -19,19 +20,19 @@ InferenceHelper* InferenceHelper::create(const InferenceHelper::HELPER_TYPE type
 	InferenceHelper* p = NULL;
 	switch (type) {
 	case TENSORFLOW_LITE:
-		PRINT("[InferenceHelper] Use TensorflowLite\n");
+		PRINT("Use TensorflowLite\n");
 		p = new InferenceHelperTensorflowLite();
 		break;
 	case TENSORFLOW_LITE_EDGETPU:
-		PRINT("[InferenceHelper] Use TensorflowLite EdgeTPU Delegate\n");
+		PRINT("Use TensorflowLite EdgeTPU Delegate\n");
 		p = new InferenceHelperTensorflowLite();
 		break;
 	case TENSORFLOW_LITE_GPU:
-		PRINT("[InferenceHelper] Use TensorflowLite GPU Delegate\n");
+		PRINT("Use TensorflowLite GPU Delegate\n");
 		p = new InferenceHelperTensorflowLite();
 		break;
 	case TENSORFLOW_LITE_XNNPACK:
-		PRINT("[InferenceHelper] Use TensorflowLite XNNPACK Delegate\n");
+		PRINT("Use TensorflowLite XNNPACK Delegate\n");
 		p = new InferenceHelperTensorflowLite();
 		break;
 	default:

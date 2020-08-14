@@ -16,6 +16,9 @@
 // Editor: iwatake (2020/07/24)
 // ----------------------------------------------------------------------
 
+#include <stdio.h>
+#include <cmath>
+#include <limits>
 #include <unordered_map>
 #include <vector>
 
@@ -28,7 +31,7 @@
 #define TAG "MyApp_NDK"
 #define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(...) printf(__VA_ARGS__)
+#define PRINT(fmt, ...) printf("[tflite_tensors_to_detections_calculator] " fmt, __VA_ARGS__)
 #endif
 #define CHECK_EQ(x, y)                              \
   if (x != y) {                                                \
