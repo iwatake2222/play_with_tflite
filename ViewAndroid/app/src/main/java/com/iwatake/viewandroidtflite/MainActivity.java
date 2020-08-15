@@ -170,16 +170,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (imageAnalysis != null) {
-            imageAnalysis.clearAnalyzer();
-        }
-        while (appStatus == AppStatus.Running) {
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
         if (appStatus == AppStatus.Initialized) {
             appStatus = AppStatus.NotInitialized;
             ImageProcessorFinalize();

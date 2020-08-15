@@ -31,6 +31,10 @@ Sample projects to use Tensorflow Lite for multi-platform
 		- Semantic Segmentation using DeepLab v3
 	- pj_tflite_hand_mediapipe
 		- Palm Detection + Hand Landmark (mediapipe)
+	- pj_tflite_arprobe
+		- AR-ish application using hand tracking
+	- pj_tflite_style_transfer
+		- Artistic Style Transfer
 	- temp_pj_tflite_simple_cls_mobilenet_v2
 		- Basic project without using InferenceHelper
 	- temp_pj_tflite_edgetpuapi_cls_mobilenet_v2
@@ -430,3 +434,8 @@ DOCKER_CPUS="k8 armv7a aarch64" DOCKER_TARGETS=libedgetpu make docker-build
 	- hand tracking
 		- https://github.com/google/mediapipe/tree/master/mediapipe/models/palm_detection.tflite
 		- https://github.com/google/mediapipe/tree/master/mediapipe/models/hand_landmark.tflite
+	- style transfer
+		- https://www.tensorflow.org/lite/models/style_transfer/overview
+		- https://tfhub.dev/google/lite-model/magenta/arbitrary-image-stylization-v1-256/fp16/prediction/1?lite-format=tflite
+		- https://tfhub.dev/google/lite-model/magenta/arbitrary-image-stylization-v1-256/fp16/transfer/1?lite-format=tflite
+		- https://github.com/tensorflow/examples/tree/master/lite/examples/style_transfer/android/app/src/main/assets/thumbnails
