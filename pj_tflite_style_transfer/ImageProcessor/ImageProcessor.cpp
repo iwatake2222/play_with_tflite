@@ -92,6 +92,9 @@ int ImageProcessor_command(int cmd)
 		s_currentImageFileIndex--;
 		if (s_currentImageFileIndex < 0) s_currentImageFileIndex = 0;
 		break;
+	case 2:
+		s_currentImageFileIndex = 0;
+		break;
 	default:
 		PRINT("command(%d) is not supported\n", cmd);
 		return -1;
@@ -103,18 +106,20 @@ int ImageProcessor_command(int cmd)
 }
 
 
-
-
 int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 {
-	StylePrediction::STYLE_PREDICTION_RESULT stylePredictionResult;
-	s_stylePrediction.invoke(*mat, stylePredictionResult);
-	float styleBottleneck[StylePrediction::SIZE_STYLE_BOTTLENECK];
-	const float ratio = 0.5f;
-	for (int i = 0; i < StylePrediction::SIZE_STYLE_BOTTLENECK; i++) styleBottleneck[i] = ratio * stylePredictionResult.styleBottleneck[i] + (1 - ratio) * s_styleBottleneck[i];
+    const int INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK = 30; // to increase FPS (no need to do this every frame)
+	static float s_mergedStyleBottleneck[StylePrediction::SIZE_STYLE_BOTTLENECK];
+	static int s_cnt = 0;
+	if (s_cnt++ % INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK == 0) {
+		const float ratio = 0.5f;
+		StylePrediction::STYLE_PREDICTION_RESULT stylePredictionResult;
+		s_stylePrediction.invoke(*mat, stylePredictionResult);
+		for (int i = 0; i < StylePrediction::SIZE_STYLE_BOTTLENECK; i++) s_mergedStyleBottleneck[i] = ratio * stylePredictionResult.styleBottleneck[i] + (1 - ratio) * s_styleBottleneck[i];
+	}
 
 	StyleTransfer::STYLE_TRANSFER_RESULT styleTransferResult;
-	s_styleTransfer.invoke(*mat, styleBottleneck, StylePrediction::SIZE_STYLE_BOTTLENECK, styleTransferResult);
+	s_styleTransfer.invoke(*mat, s_mergedStyleBottleneck, StylePrediction::SIZE_STYLE_BOTTLENECK, styleTransferResult);
 
 	cv::Mat outMatFp(cv::Size(384, 384), CV_32FC3, styleTransferResult.result);
 	cv::Mat outMat;
