@@ -2,7 +2,7 @@
 ![result](00_doc/result.jpg)
 ![mask](00_doc/mask.jpg)
 
-30～40fps @ Windows 10 (Intel i7-6700 @ 3.4GHz x 4-core)
+30～40fps @ Windows 10 (Intel i7-6700 @ 3.4GHz x 1-core)
 
 ## How to build
 1. Please follow the instruction ( https://github.com/iwatake2222/play_with_tflite/blob/master/README.md )
