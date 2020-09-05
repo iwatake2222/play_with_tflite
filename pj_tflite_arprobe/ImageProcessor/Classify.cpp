@@ -53,7 +53,7 @@ int Classify::initialize(const char *workDir, const int numThreads)
 	m_inferenceHelper->getTensorByName("images", m_inputTensor);
 	m_inferenceHelper->getTensorByName("Softmax", m_outputTensor);
 
-	std::string labelFilename = std::string(workDir) + "/" + LABEL_NAME;
+	std::string labelFilename = std::string(workDir) + "/model/" + LABEL_NAME;
 	readLabel(labelFilename, m_labels);
 
 	return 0;

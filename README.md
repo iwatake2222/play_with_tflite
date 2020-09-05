@@ -134,7 +134,7 @@ cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPE
 	- In case you cannot import OpenCV module, remove sdk module and dependency of app to sdk in Project Structure
 - Modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to call image processor function you want to use.
 	- `set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_arprobe/ImageProcessor")`
-
+- Copy `resource` directory to `/storage/emulated/0/Android/data/com.iwatake.viewandroidtflite/files/Documents/resource` (<- e.g.) . The directory will be created after running the app (so the first run should fail because model files cannot be read)
 
 ## How to create pre-built TensorflowLite library
 Pre-built TensorflowLite libraries are stored in `third_party/tensorflow_prebuilt` . If you want to build them by yourself, please use the following commands.

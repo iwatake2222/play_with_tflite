@@ -18,6 +18,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.Surface;
 import android.view.View;
@@ -39,6 +40,7 @@ import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.Formatter;
 import java.util.concurrent.ExecutorService;
@@ -89,6 +91,9 @@ public class MainActivity extends AppCompatActivity {
         getViews();
         setEventListeners();
         exitVrMode();
+
+        // create data directory to save resource and model files
+        File imageStorageDir = new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "child");
 
         if (checkPermissions()) {
             if (appStatus == AppStatus.NotInitialized) {

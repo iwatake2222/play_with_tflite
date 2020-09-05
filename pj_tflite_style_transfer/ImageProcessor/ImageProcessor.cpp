@@ -48,7 +48,7 @@ static cv::Scalar createCvColor(int b, int g, int r) {
 
 static int calculateStyleBottleneck(std::string styleFilename)
 {
-	std::string path = s_workDir + "/../style/" + styleFilename;
+	std::string path = s_workDir + "/style/" + styleFilename;
 	cv::Mat styleImage = cv::imread(path);
 	if (styleImage.empty()) {
 		PRINT("[error] cannot read %s\n", path.c_str());
@@ -109,7 +109,7 @@ int ImageProcessor_command(int cmd)
 
 int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 {
-    const int INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK = 30; // to increase FPS (no need to do this every frame)
+    const int INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK = 10; // to increase FPS (no need to do this every frame)
 	static float s_mergedStyleBottleneck[StylePrediction::SIZE_STYLE_BOTTLENECK];
 	static int s_cnt = 0;
 	if (s_cnt++ % INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK == 0) {
