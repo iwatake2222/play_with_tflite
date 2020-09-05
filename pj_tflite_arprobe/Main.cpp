@@ -13,7 +13,7 @@
 #include "ImageProcessor.h"
 
 /*** Macro ***/
-#define WORK_DIR     RESOURCE_DIR"/model/"
+#define WORK_DIR     RESOURCE_DIR
 #define IMAGE_NAME   RESOURCE_DIR"/hand00.jpg"
 
 /* Settings */

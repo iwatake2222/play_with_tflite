@@ -22,10 +22,11 @@
 #define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[ImageProcessor] " __VA_ARGS__)
+#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(fmt, ...) printf("[ImageProcessor] " fmt, __VA_ARGS__)
+#define _PRINT(...) printf(__VA_ARGS__)
 #endif
+#define PRINT(...) _PRINT("[ImageProcessor] " __VA_ARGS__)
 
 #define CHECK(x)                              \
   if (!(x)) {                                                \
@@ -59,11 +60,11 @@ static RECT s_palmByLm;
 static bool s_isPalmByLmValid = false;
 
 /*** Function ***/
-static cv::Scalar convertColorBgrToAppropreate(cv::Scalar color) {
+static cv::Scalar createCvColor(int b, int g, int r) {
 #ifdef CV_COLOR_IS_RGB
-	return cv::Scalar(color[2], color[1], color[0]);
+	return cv::Scalar(r, g, b);
 #else
-	return color;
+	return cv::Scalar(b, g, r);
 #endif
 }
 
@@ -142,27 +143,27 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 	/*** Get landmark ***/
 	HandLandmark::HAND_LANDMARK landmark = { 0 };
 	if (isPalmValid) {
-		cv::Scalar colorRect = (s_isPalmByLmValid) ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
-		cv::rectangle(*mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), convertColorBgrToAppropreate(colorRect), 3);
+		cv::Scalar colorRect = (s_isPalmByLmValid) ? createCvColor(0, 255, 0) : createCvColor(0, 0, 255);
+		cv::rectangle(*mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), colorRect, 3);
 
 		/* Get landmark */
 		s_handLandmark.invoke(*mat, landmark, palm.x, palm.y, palm.width, palm.height, palm.rotation);
 
 		if (landmark.handflag >= 0.8) {
 			calcAverageRect(s_palmByLm, landmark, 0.6f, 0.4f);
-			cv::rectangle(*mat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), convertColorBgrToAppropreate(cv::Scalar(255, 0, 0)), 3);
+			cv::rectangle(*mat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), createCvColor(255, 0, 0), 3);
 
 			/* Display hand landmark */
 			for (int i = 0; i < 21; i++) {
-				cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, convertColorBgrToAppropreate(cv::Scalar(255, 255, 0)), 1);
-				cv::putText(*mat, std::to_string(i), cv::Point((int)landmark.pos[i].x - 10, (int)landmark.pos[i].y - 10), 1, 1, convertColorBgrToAppropreate(cv::Scalar(255, 255, 0)));
+				cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, createCvColor(255, 255, 0), 1);
+				cv::putText(*mat, std::to_string(i), cv::Point((int)landmark.pos[i].x - 10, (int)landmark.pos[i].y - 10), 1, 1, createCvColor(255, 255, 0));
 			}
 			for (int i = 0; i < 5; i++) {
 				for (int j = 0; j < 3; j++) {
 					int indexStart = 4 * i + 1 + j;
 					int indexEnd = indexStart + 1;
 					int color = std::min((int)std::max((landmark.pos[indexStart].z + landmark.pos[indexEnd].z) / 2.0f * -4, 0.f), 255);
-					cv::line(*mat, cv::Point((int)landmark.pos[indexStart].x, (int)landmark.pos[indexStart].y), cv::Point((int)landmark.pos[indexEnd].x, (int)landmark.pos[indexEnd].y), convertColorBgrToAppropreate(cv::Scalar(color, color, color)), 3);
+					cv::line(*mat, cv::Point((int)landmark.pos[indexStart].x, (int)landmark.pos[indexStart].y), cv::Point((int)landmark.pos[indexEnd].x, (int)landmark.pos[indexEnd].y), createCvColor(color, color, color), 3);
 				}
 			}
 			s_isPalmByLmValid = true;

@@ -10,10 +10,12 @@
 #define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[StyleTransfer] " __VA_ARGS__)
+#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(fmt, ...) printf("[StyleTransfer] " fmt, __VA_ARGS__)
+#define _PRINT(...) printf(__VA_ARGS__)
 #endif
+#define PRINT(...) _PRINT("[StyleTransfer] " __VA_ARGS__)
+
 
 /* Model parameters */
 #ifdef TFLITE_DELEGATE_EDGETPU
@@ -39,7 +41,7 @@ int StyleTransfer::initialize(const char *workDir, const int numThreads)
 	m_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE);
 #endif
 
-	std::string modelFilename = std::string(workDir) + "/" + MODEL_NAME;
+	std::string modelFilename = std::string(workDir) + "/model/" + MODEL_NAME;
 	m_inferenceHelper->initialize(modelFilename.c_str(), numThreads);
 	m_inputTensor = new TensorInfo();
 	m_inputTensorStyleBottleneck = new TensorInfo();

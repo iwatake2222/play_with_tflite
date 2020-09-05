@@ -25,10 +25,11 @@
 #define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[ImageProcessor] " __VA_ARGS__)
+#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(fmt, ...) printf("[ImageProcessor] " fmt, __VA_ARGS__)
+#define _PRINT(...) printf(__VA_ARGS__)
 #endif
+#define PRINT(...) _PRINT("[ImageProcessor] " __VA_ARGS__)
 
 
 #define CHECK(x)                              \
@@ -75,13 +76,14 @@ static int s_animCount = 0;
 static bool s_isDebug = true;
 
 /*** Function ***/
-static cv::Scalar convertColorBgrToAppropreate(cv::Scalar color) {
+static cv::Scalar createCvColor(int b, int g, int r) {
 #ifdef CV_COLOR_IS_RGB
-	return cv::Scalar(color[2], color[1], color[0]);
+	return cv::Scalar(r, g, b);
 #else
-	return color;
+	return cv::Scalar(b, g, r);
 #endif
 }
+
 static void calcAverageRect(RECT &rectOrg, HandLandmark::HAND_LANDMARK &rectNew, float ratioPos, float ratioSize)
 {
 	if (rectOrg.width == 0) {
@@ -176,7 +178,7 @@ static void drawText(cv::Mat &mat, RECT rect, cv::Scalar color, std::string str,
 	cv::line(mat, drawpoint1, drawpoint2, color, std::max(2, rect.width / 80));
 	cv::line(mat, drawpoint2, drawpoint3, color, std::max(2, rect.width / 80));
 
-	cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, convertColorBgrToAppropreate(cv::Scalar(171, 97, 50)), 5);
+	cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, createCvColor(171, 97, 50), 5);
 	cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, color, 2);
 }
 
@@ -281,8 +283,8 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 	HandLandmark::HAND_LANDMARK landmark = { 0 };
 	if (isPalmValid) {
 		if (s_isDebug) {
-			cv::Scalar colorRect = (s_isPalmByLmValid) ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
-			cv::rectangle(*mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), convertColorBgrToAppropreate(colorRect), 3);
+			cv::Scalar colorRect = (s_isPalmByLmValid) ? createCvColor(0, 255, 0) : createCvColor(0, 0, 255);
+			cv::rectangle(*mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), colorRect, 3);
 		}
 
 		/* Get landmark */
@@ -291,26 +293,26 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		if (landmark.handflag >= 0.8) {
 			calcAverageRect(s_palmByLm, landmark, 0.6f, 0.4f);
 			if (s_isDebug) {
-				cv::rectangle(*mat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), convertColorBgrToAppropreate(cv::Scalar(255, 0, 0)), 3);
+				cv::rectangle(*mat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), createCvColor(255, 0, 0), 3);
 			}
 
 			/* Display hand landmark */
 			if (s_isDebug) {
 				for (int i = 0; i < 21; i++) {
-					cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, convertColorBgrToAppropreate(cv::Scalar(255, 255, 0)), 1);
-					cv::putText(*mat, std::to_string(i), cv::Point((int)landmark.pos[i].x - 10, (int)landmark.pos[i].y - 10), 1, 1, convertColorBgrToAppropreate(cv::Scalar(255, 255, 0)));
+					cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, createCvColor(255, 255, 0), 1);
+					cv::putText(*mat, std::to_string(i), cv::Point((int)landmark.pos[i].x - 10, (int)landmark.pos[i].y - 10), 1, 1, createCvColor(255, 255, 0));
 				}
 				for (int i = 0; i < 5; i++) {
 					for (int j = 0; j < 3; j++) {
 						int indexStart = 4 * i + 1 + j;
 						int indexEnd = indexStart + 1;
 						int color = std::min((int)std::max((landmark.pos[indexStart].z + landmark.pos[indexEnd].z) / 2.0f * -4, 0.f), 255);
-						cv::line(*mat, cv::Point((int)landmark.pos[indexStart].x, (int)landmark.pos[indexStart].y), cv::Point((int)landmark.pos[indexEnd].x, (int)landmark.pos[indexEnd].y), convertColorBgrToAppropreate(cv::Scalar(color, color, color)), 3);
+						cv::line(*mat, cv::Point((int)landmark.pos[indexStart].x, (int)landmark.pos[indexStart].y), cv::Point((int)landmark.pos[indexEnd].x, (int)landmark.pos[indexEnd].y), createCvColor(color, color, color), 3);
 					}
 				}
 			} else {
 				for (int i = 0; i < 21; i++) {
-					cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, convertColorBgrToAppropreate(cv::Scalar(255, 255, 0)), 1);
+					cv::circle(*mat, cv::Point((int)landmark.pos[i].x, (int)landmark.pos[i].y), 3, createCvColor(255, 255, 0), 1);
 				}
 			}
 
@@ -331,12 +333,12 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 		s_areaSelector.m_selectedArea.height = std::min(std::max(1, s_areaSelector.m_selectedArea.height), mat->rows - s_areaSelector.m_selectedArea.y);
 		switch (s_areaSelector.m_status) {
 		case AreaSelector::STATUS_AREA_SELECT_INIT:
-			cv::putText(*mat, "Point index and middle fingers at the start point", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 2);
+			cv::putText(*mat, "Point index and middle fingers at the start point", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, createCvColor(0, 255, 0), 2);
 			break;
 		case AreaSelector::STATUS_AREA_SELECT_DRAG:
-			cv::putText(*mat, "Move the fingers to the end point,", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 2);
-			cv::putText(*mat, "then put back the middle finger", cv::Point(0, 40), cv::FONT_HERSHEY_DUPLEX, 0.8, convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 2);
-			cv::rectangle(*mat, s_areaSelector.m_selectedArea, convertColorBgrToAppropreate(cv::Scalar(255, 0, 0)));
+			cv::putText(*mat, "Move the fingers to the end point,", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, createCvColor(0, 255, 0), 2);
+			cv::putText(*mat, "then put back the middle finger", cv::Point(0, 40), cv::FONT_HERSHEY_DUPLEX, 0.8, createCvColor(0, 255, 0), 2);
+			cv::rectangle(*mat, s_areaSelector.m_selectedArea, createCvColor(255, 0, 0));
 			break;
 		case AreaSelector::STATUS_AREA_SELECT_SELECTED:
 		{
@@ -374,8 +376,8 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 			rect.y = (int)trackedRect.y;
 			rect.width = (int)trackedRect.width;
 			rect.height = (int)trackedRect.height;
-			drawRing(*mat, rect, convertColorBgrToAppropreate(cv::Scalar(255, 255, 205)), s_animCount);
-			drawText(*mat, rect, convertColorBgrToAppropreate(cv::Scalar(207, 161, 69)), it->labelName, s_animCount);
+			drawRing(*mat, rect, createCvColor(255, 255, 205), s_animCount);
+			drawText(*mat, rect, createCvColor(207, 161, 69), it->labelName, s_animCount);
 			it->numLost = 0;
 			if (rect.width > mat->cols * 0.9) {	// in case median flow outputs crazy result
 				PRINT("delete due to too big result\n");

@@ -4,16 +4,16 @@
 #include <stdlib.h>
 #include <string>
 
-#ifdef TFLITE_DELEGATE_EDGETPU
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU
 #include "edgetpu.h"
 #include "edgetpu_c.h"
 #endif
 
-#ifdef TFLITE_DELEGATE_GPU
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU
 #include "tensorflow/lite/delegates/gpu/delegate.h"
 #endif
 
-#ifdef TFLITE_DELEGATE_XNNPACK
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK
 #include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #endif
 
@@ -23,10 +23,11 @@
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(fmt, ...) printf("[InferenceHelperTensorflowLite] " fmt, __VA_ARGS__)
+#define _PRINT(...) printf(__VA_ARGS__)
 #endif
+#define PRINT(...) _PRINT("[InferenceHelperTensorflowLite] " __VA_ARGS__)
 
 #define CHECK(x)                              \
   if (!(x)) {                                                \
@@ -62,7 +63,7 @@ int InferenceHelperTensorflowLite::initialize(const char *modelFilename, int num
 
 	 m_interpreter->SetNumThreads(numThreads);
 
-#ifdef TFLITE_DELEGATE_EDGETPU
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU
 	if (m_helperType == TENSORFLOW_LITE_EDGETPU) {
 		size_t num_devices;
 		std::unique_ptr<edgetpu_device, decltype(&edgetpu_free_devices)> devices(edgetpu_list_devices(&num_devices), &edgetpu_free_devices);
@@ -72,7 +73,7 @@ int InferenceHelperTensorflowLite::initialize(const char *modelFilename, int num
 		m_interpreter->ModifyGraphWithDelegate(m_delegate);
 	}
 #endif
-#ifdef TFLITE_DELEGATE_GPU
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU
 	if (m_helperType == TENSORFLOW_LITE_GPU) {
 		auto options = TfLiteGpuDelegateOptionsV2Default();
 		options.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED;
@@ -81,7 +82,7 @@ int InferenceHelperTensorflowLite::initialize(const char *modelFilename, int num
 		m_interpreter->ModifyGraphWithDelegate(m_delegate);
 	}
 #endif
-#ifdef TFLITE_DELEGATE_XNNPACK
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK
 	if (m_helperType == TENSORFLOW_LITE_XNNPACK) {
 		auto options = TfLiteXNNPackDelegateOptionsDefault();
 		options.num_threads = numThreads;
@@ -103,17 +104,17 @@ int InferenceHelperTensorflowLite::finalize(void)
 	m_resolver.reset();
 	m_interpreter.reset();
 
-#ifdef TFLITE_DELEGATE_EDGETPU
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU
 	if (m_helperType == TENSORFLOW_LITE_EDGETPU) {
 		edgetpu_free_delegate(m_delegate);
 	}
 #endif
-#ifdef TFLITE_DELEGATE_GPU
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU
 	if (m_helperType == TENSORFLOW_LITE_GPU) {
 		TfLiteGpuDelegateV2Delete(m_delegate);
 	}
 #endif
-#ifdef TFLITE_DELEGATE_XNNPACK
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK
 	if (m_helperType == TENSORFLOW_LITE_XNNPACK) {
 		TfLiteXNNPackDelegateDelete(m_delegate);
 	}
@@ -175,7 +176,7 @@ int InferenceHelperTensorflowLite::getTensorByIndex(const int index, TensorInfo 
 	return 0;
 }
 
-int InferenceHelperTensorflowLite::setBufferToTensorByName(const char *name, const char *data, const unsigned int dataSize)
+int InferenceHelperTensorflowLite::setBufferToTensorByName(const char *name, void *data, const int dataSize)
 {
 	int index = getIndexByName(name);
 	if (index == -1) {
@@ -186,7 +187,7 @@ int InferenceHelperTensorflowLite::setBufferToTensorByName(const char *name, con
 	return setBufferToTensorByIndex(index, data, dataSize);
 }
 
-int InferenceHelperTensorflowLite::setBufferToTensorByIndex(const int index, const char *data, const unsigned int dataSize)
+int InferenceHelperTensorflowLite::setBufferToTensorByIndex(const int index, void *data, const int dataSize)
 {
 	const TfLiteTensor* tensor = m_interpreter->tensor(index);
 	const int modelInputHeight = tensor->dims->data[1];
@@ -194,7 +195,7 @@ int InferenceHelperTensorflowLite::setBufferToTensorByIndex(const int index, con
 	const int modelInputChannel = tensor->dims->data[3];
 
 	if (tensor->type == kTfLiteUInt8) {
-		CHECK(sizeof(int8_t) * 1 * modelInputHeight * modelInputWidth * modelInputChannel == dataSize);
+		CHECK(sizeof(int8_t) * 1 * modelInputHeight * modelInputWidth * modelInputChannel == (size_t)dataSize);
 		/* Need deep copy quantization parameters */
 		/* reference: https://github.com/google-coral/edgetpu/blob/master/src/cpp/basic/basic_engine_native.cc */
 		/* todo: release them */
@@ -212,15 +213,15 @@ int InferenceHelperTensorflowLite::setBufferToTensorByIndex(const int index, con
 			index, tensor->type, tensor->name,
 			std::vector<int>(tensor->dims->data, tensor->dims->data + tensor->dims->size),
 			inputQuantClone,	// use copied parameters
-			data, dataSize);
+			(const char*)data, dataSize);
 	} else {
-		CHECK(sizeof(float) * 1 * modelInputHeight * modelInputWidth * modelInputChannel == dataSize);
+		CHECK(sizeof(float) * 1 * modelInputHeight * modelInputWidth * modelInputChannel == (size_t)dataSize);
 		//memcpy(m_interpreter->data.f, data, sizeof(float) * 1 * modelInputWidth * modelInputHeight * modelInputChannel);
 		m_interpreter->SetTensorParametersReadOnly(
 			index, tensor->type, tensor->name,
 			std::vector<int>(tensor->dims->data, tensor->dims->data + tensor->dims->size),
 			tensor->quantization,
-			data, sizeof(float) * 1 * modelInputWidth * modelInputHeight * modelInputChannel);
+			(const char*)data, sizeof(float) * 1 * modelInputWidth * modelInputHeight * modelInputChannel);
 	}
 	return 0;
 }

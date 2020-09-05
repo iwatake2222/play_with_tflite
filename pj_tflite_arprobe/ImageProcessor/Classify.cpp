@@ -11,10 +11,11 @@
 #define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[Classify] " __VA_ARGS__)
+#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(fmt, ...) printf("[Classify] " fmt, __VA_ARGS__)
+#define _PRINT(...) printf(__VA_ARGS__)
 #endif
+#define PRINT(...) _PRINT("[Classify] " __VA_ARGS__)
 
 /* Model parameters */
 #if defined(TFLITE_DELEGATE_EDGETPU)
@@ -44,7 +45,7 @@ int Classify::initialize(const char *workDir, const int numThreads)
 	m_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE);
 #endif
 
-	std::string modelFilename = std::string(workDir) + "/" + MODEL_NAME;
+	std::string modelFilename = std::string(workDir) + "/model/" + MODEL_NAME;
 	m_inferenceHelper->initialize(modelFilename.c_str(), numThreads);
 	m_inputTensor = new TensorInfo();
 	m_outputTensor = new TensorInfo();

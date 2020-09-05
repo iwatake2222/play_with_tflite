@@ -73,12 +73,12 @@ target_link_libraries(native-lib ${OpenCV_LIBS})
 
 ### For my module
 # Set TensorflowLite delegate options
-set(TFLITE_DELEGATE_EDGETPU OFF CACHE BOOL "TFLITE_DELEGATE_EDGETPU" FORCE)
-set(TFLITE_DELEGATE_GPU ON CACHE BOOL "TFLITE_DELEGATE_GPU" FORCE)
-set(TFLITE_DELEGATE_XNNPACK OFF CACHE BOOL "TFLITE_DELEGATE_XNNPACK" FORCE)
+set(INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU OFF CACHE BOOL "TFLITE_DELEGATE_EDGETPU" FORCE)
+set(INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU ON CACHE BOOL "TFLITE_DELEGATE_GPU" FORCE)
+set(INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK OFF CACHE BOOL "TFLITE_DELEGATE_XNNPACK" FORCE)
 
-#set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_arprobe/ImageProcessor")
-set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_style_transfer/ImageProcessor")
+set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_arprobe/ImageProcessor")
+# set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_style_transfer/ImageProcessor")
 message(${ImageProcessor_DIR})
 add_subdirectory(${ImageProcessor_DIR} ImageProcessor)
 target_include_directories(native-lib PUBLIC ${ImageProcessor_DIR})

@@ -19,8 +19,8 @@ public:
 	int invoke(void) override;
 	int getTensorByName(const char *name, TensorInfo *tensorInfo) override;
 	int getTensorByIndex(const int index, TensorInfo *tensorInfo) override;
-	int setBufferToTensorByName(const char *name, const char *data, const unsigned int dataSize) override;
-	int setBufferToTensorByIndex(const int index, const char *data, const unsigned int dataSize) override;
+	int setBufferToTensorByName(const char *name, void *data, const int dataSize) override;
+	int setBufferToTensorByIndex(const int index, void *data, const int dataSize) override;
 
 private:
 	int getIndexByName(const char *name);

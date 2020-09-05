@@ -14,9 +14,9 @@
 
 /*** Macro ***/
 #define IMAGE_NAME   RESOURCE_DIR"/parrot.jpg"
-#define WORK_DIR     RESOURCE_DIR"/model/"
+#define WORK_DIR     RESOURCE_DIR
 /* Settings */
-#define LOOP_NUM_FOR_TIME_MEASUREMENT 100
+#define LOOP_NUM_FOR_TIME_MEASUREMENT 10
 
 int main()
 {

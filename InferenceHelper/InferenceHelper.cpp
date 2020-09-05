@@ -4,39 +4,58 @@
 #include <string>
 
 #include "InferenceHelper.h"
+#ifdef INFERENCE_HELPER_ENABLE_TENSORRT
+#include "InferenceHelperTensorRt.h"
+#endif
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE
 #include "InferenceHelperTensorflowLite.h"
+#endif
 
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT( ...) printf(  __VA_ARGS__)
-// #define PRINT(fmt, ...) printf("[InferenceHelper] " fmt, __VA_ARGS__)
+#define _PRINT(...) printf(__VA_ARGS__)
 #endif
+#define PRINT(...) _PRINT("[InferenceHelper] " __VA_ARGS__)
 
 InferenceHelper* InferenceHelper::create(const InferenceHelper::HELPER_TYPE type)
 {
 	InferenceHelper* p = NULL;
 	switch (type) {
+#ifdef INFERENCE_HELPER_ENABLE_TENSORRT
+	case TENSOR_RT:
+		PRINT("Use TensorRT \n");
+		p = new InferenceHelperTensorRt();
+		break;
+#endif
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE
 	case TENSORFLOW_LITE:
 		PRINT("Use TensorflowLite\n");
 		p = new InferenceHelperTensorflowLite();
 		break;
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU
 	case TENSORFLOW_LITE_EDGETPU:
 		PRINT("Use TensorflowLite EdgeTPU Delegate\n");
 		p = new InferenceHelperTensorflowLite();
 		break;
+#endif
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU
 	case TENSORFLOW_LITE_GPU:
 		PRINT("Use TensorflowLite GPU Delegate\n");
 		p = new InferenceHelperTensorflowLite();
 		break;
+#endif
+#ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK
 	case TENSORFLOW_LITE_XNNPACK:
 		PRINT("Use TensorflowLite XNNPACK Delegate\n");
 		p = new InferenceHelperTensorflowLite();
 		break;
+#endif
+#endif
 	default:
-		PRINT("not supported yet");
+		PRINT("not supported\n");
 		exit(1);
 		break;
 	}

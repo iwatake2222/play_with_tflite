@@ -17,10 +17,11 @@
 #define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(fmt, ...) __android_log_print(ANDROID_LOG_INFO, TAG, "[PalmDetection] " fmt, __VA_ARGS__)
+#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(fmt, ...) printf("[PalmDetection] " fmt, __VA_ARGS__)
+#define _PRINT(...) printf(__VA_ARGS__)
 #endif
+#define PRINT(...) _PRINT("[PalmDetection] " __VA_ARGS__)
 
 #define CHECK(x)                              \
   if (!(x)) {                                                \
@@ -64,7 +65,7 @@ int PalmDetection::PalmDetection::initialize(const char *workDir, const int numT
 	m_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE);
 #endif
 
-	std::string modelFilename = std::string(workDir) + "/" + MODEL_NAME;
+	std::string modelFilename = std::string(workDir) + "/model/" + MODEL_NAME;
 
 	std::vector<std::pair<const char*, const void*>> customOps;
 	customOps.push_back(std::make_pair<const char*, const void*>("Convolution2DTransposeBias", (const void*)mediapipe::tflite_operations::RegisterConvolution2DTransposeBias()));

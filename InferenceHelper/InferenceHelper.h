@@ -37,6 +37,7 @@ private:
 class InferenceHelper {
 public:
 	typedef enum {
+		TENSOR_RT,
 		TENSORFLOW_LITE,
 		TENSORFLOW_LITE_EDGETPU,
 		TENSORFLOW_LITE_GPU,
@@ -46,7 +47,6 @@ public:
 		MNN,
 		OPEN_CV,
 		OPEN_CV_OPENCL,
-		TENSOR_RT,
 	} HELPER_TYPE;
 
 
@@ -58,8 +58,8 @@ public:
 	virtual int invoke(void) = 0;
 	virtual int getTensorByName(const char *name, TensorInfo *tensorInfo) = 0;
 	virtual int getTensorByIndex(const int index, TensorInfo *tensorInfo) = 0;
-	virtual int setBufferToTensorByName(const char *name, const char *data, const unsigned int dataSize) = 0;
-	virtual int setBufferToTensorByIndex(const int index, const char *data, const unsigned int dataSize) = 0;
+	virtual int setBufferToTensorByName(const char *name, void *data, const int dataSize) = 0;
+	virtual int setBufferToTensorByIndex(const int index, void *data, const int dataSize) = 0;
 	static InferenceHelper* create(const HELPER_TYPE typeFw);
 
 protected:

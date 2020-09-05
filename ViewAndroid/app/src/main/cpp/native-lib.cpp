@@ -5,7 +5,9 @@
 #include <opencv2/opencv.hpp>
 #include "ImageProcessor.h"
 
-#define WORK_DIR    "/sdcard/models/"
+#define WORK_DIR    "/sdcard/resource/"
+//#define WORK_DIR    "/mnt/sdcard/resource"
+//#define WORK_DIR    "/storage/emulated/0/resource/"
 
 static std::mutex g_mtx;
 

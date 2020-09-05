@@ -8,12 +8,14 @@
 
 /*** Macro ***/
 #if defined(ANDROID) || defined(__ANDROID__)
+#define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[AreaSelector] " __VA_ARGS__)
+#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(fmt, ...) printf("[AreaSelector] " fmt, __VA_ARGS__)
+#define _PRINT(...) printf(__VA_ARGS__)
 #endif
+#define PRINT(...) _PRINT("[AreaSelector] " __VA_ARGS__)
 
 #define CHECK(x)                              \
   if (!(x)) {                                                \

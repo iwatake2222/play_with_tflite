@@ -17,10 +17,11 @@
 #define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define TAG "MyApp_NDK"
-#define PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, "[ImageProcessor] " __VA_ARGS__)
+#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #else
-#define PRINT(fmt, ...) printf("[ImageProcessor] " fmt, __VA_ARGS__)
+#define _PRINT(...) printf(__VA_ARGS__)
 #endif
+#define PRINT(...) _PRINT("[ImageProcessor] " __VA_ARGS__)
 
 #define CHECK(x)                              \
   if (!(x)) {                                                \
@@ -58,11 +59,11 @@ static TensorInfo *s_outputTensorScore;
 static TensorInfo *s_outputTensorNum;
 
 /*** Function ***/
-static cv::Scalar convertColorBgrToAppropreate(cv::Scalar color) {
+static cv::Scalar createCvColor(int b, int g, int r) {
 #ifdef CV_COLOR_IS_RGB
-	return cv::Scalar(color[2], color[1], color[0]);
+	return cv::Scalar(r, g, b);
 #else
-	return color;
+	return cv::Scalar(b, g, r);
 #endif
 }
 
@@ -120,8 +121,8 @@ int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
 	s_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE);
 #endif
 
-	std::string modelFilename = std::string(inputParam->workDir) + "/" + MODEL_NAME;
-	std::string labelFilename = std::string(inputParam->workDir) + "/" + LABEL_NAME;
+	std::string modelFilename = std::string(inputParam->workDir) + "/model/" + MODEL_NAME;
+	std::string labelFilename = std::string(inputParam->workDir) + "/model/" + LABEL_NAME;
 
 	s_inferenceHelper->initialize(modelFilename.c_str(), inputParam->numThreads);
 
@@ -193,9 +194,9 @@ int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
 	/* Draw the result */
 	for (int i = 0; i < (int)bboxList.size(); i++) {
 		const BBox bbox = bboxList[i];
-		cv::rectangle(*mat, cv::Rect((int)bbox.x, (int)bbox.y, (int)bbox.w, (int)bbox.h), convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 3);
-		cv::putText(*mat, s_labels[bbox.classId], cv::Point((int)bbox.x, (int)bbox.y), cv::FONT_HERSHEY_PLAIN, 3, convertColorBgrToAppropreate(cv::Scalar(0, 0, 0)), 5);
-		cv::putText(*mat, s_labels[bbox.classId], cv::Point((int)bbox.x, (int)bbox.y), cv::FONT_HERSHEY_PLAIN, 3, convertColorBgrToAppropreate(cv::Scalar(0, 255, 0)), 2);
+		cv::rectangle(*mat, cv::Rect((int)bbox.x, (int)bbox.y, (int)bbox.w, (int)bbox.h), createCvColor(0, 255, 0), 3);
+		cv::putText(*mat, s_labels[bbox.classId], cv::Point((int)bbox.x, (int)bbox.y), cv::FONT_HERSHEY_PLAIN, 3, createCvColor(0, 0, 0), 5);
+		cv::putText(*mat, s_labels[bbox.classId], cv::Point((int)bbox.x, (int)bbox.y), cv::FONT_HERSHEY_PLAIN, 3, createCvColor(0, 255, 0), 2);
 	}
 
 

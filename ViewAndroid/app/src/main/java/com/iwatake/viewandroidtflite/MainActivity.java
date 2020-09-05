@@ -92,9 +92,10 @@ public class MainActivity extends AppCompatActivity {
 
         if (checkPermissions()) {
             if (appStatus == AppStatus.NotInitialized) {
-                ImageProcessorInitialize();
-                ImageProcessorCommand(0);
-                appStatus = AppStatus.Initialized;
+                if (ImageProcessorInitialize() == 0) {
+                    ImageProcessorCommand(0);
+                    appStatus = AppStatus.Initialized;
+                }
             }
             startCamera();
         } else {
