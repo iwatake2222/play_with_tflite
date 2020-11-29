@@ -82,10 +82,13 @@ int32_t InferenceHelperTensorflowLite::initialize(const std::string& modelFilena
 	if (m_helperType == TENSORFLOW_LITE_EDGETPU) {
 		size_t num_devices;
 		std::unique_ptr<edgetpu_device, decltype(&edgetpu_free_devices)> devices(edgetpu_list_devices(&num_devices), &edgetpu_free_devices);
-		CHECK(num_devices > 0);
-		const auto& device = devices.get()[0];
-		m_delegate = edgetpu_create_delegate(device.type, device.path, nullptr, 0);
-		m_interpreter->ModifyGraphWithDelegate(m_delegate);
+		if (num_devices > 0) {
+			const auto& device = devices.get()[0];
+			m_delegate = edgetpu_create_delegate(device.type, device.path, nullptr, 0);
+			m_interpreter->ModifyGraphWithDelegate(m_delegate);
+		} else {
+			PRINT_E("[WARNING] Edge TPU is not found\n");
+		}
 	}
 #endif
 #ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU
@@ -100,7 +103,7 @@ int32_t InferenceHelperTensorflowLite::initialize(const std::string& modelFilena
 #ifdef INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK
 	if (m_helperType == TENSORFLOW_LITE_XNNPACK) {
 		auto options = TfLiteXNNPackDelegateOptionsDefault();
-		options.num_threads = numThreads;
+		options.num_threads = m_numThread;
 		m_delegate = TfLiteXNNPackDelegateCreate(&options);
 		m_interpreter->ModifyGraphWithDelegate(m_delegate);
 	}

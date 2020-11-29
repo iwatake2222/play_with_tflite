@@ -84,6 +84,9 @@ int32_t ClassificationEngine::initialize(const std::string& workDir, const int32
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::NCNN));
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::MNN));
 	m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE));
+	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_EDGETPU));
+	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU));
+	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_XNNPACK));
 
 	if (!m_inferenceHelper) {
 		return RET_ERR;
