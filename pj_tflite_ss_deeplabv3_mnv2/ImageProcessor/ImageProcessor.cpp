@@ -1,62 +1,35 @@
 /*** Include ***/
 /* for general */
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cmath>
+#include <cstring>
 #include <string>
+#include <vector>
+#include <array>
+#include <algorithm>
+#include <chrono>
 #include <fstream>
-
+#include <memory>
 
 /* for OpenCV */
 #include <opencv2/opencv.hpp>
 
-#include "InferenceHelper.h"
+/* for My modules */
+#include "CommonHelper.h"
+#include "SemanticSegmentationEngine.h"
 #include "ImageProcessor.h"
 
 /*** Macro ***/
-#if defined(ANDROID) || defined(__ANDROID__)
-#define CV_COLOR_IS_RGB
-#include <android/log.h>
-#define TAG "MyApp_NDK"
-#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
-#else
-#define _PRINT(...) printf(__VA_ARGS__)
-#endif
-#define PRINT(...) _PRINT("[ImageProcessor] " __VA_ARGS__)
-
-#define CHECK(x)                              \
-  if (!(x)) {                                                \
-	PRINT("Error at %s:%d\n", __FILE__, __LINE__); \
-	exit(1);                                                 \
-  }
-
-/* Model parameters */
-#ifdef TFLITE_DELEGATE_EDGETPU
-#define MODEL_NAME   "deeplabv3_mnv2_dm05_pascal_quant_edgetpu"
-#else
-#define MODEL_NAME   "deeplabv3_mnv2_dm05_pascal_quant"
-#endif
-#define LABEL_NAME   "label_PASCAL_VOC2012.txt"
-static const float PIXEL_MEAN[3] = { 0.0f, 0.0f, 0.0f };
-static const float PIXEL_STD[3] = { 1.0f,  1.0f, 1.0f };
-
-typedef struct {
-	double x;
-	double y;
-	double w;
-	double h;
-	int classId;
-	std::string classIdName;
-	double score;
-} BBox;
+#define TAG "ImageProcessor"
+#define PRINT(...)   COMMON_HELPER_PRINT(TAG, __VA_ARGS__)
+#define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-static std::vector<std::string> s_labels;
-static InferenceHelper *s_inferenceHelper;
-static TensorInfo *s_inputTensor;
-static TensorInfo *s_outputTensor;
+std::unique_ptr<SemanticSegmentationEngine> s_engine;
 
 /*** Function ***/
-static cv::Scalar createCvColor(int b, int g, int r) {
+static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
 #ifdef CV_COLOR_IS_RGB
 	return cv::Scalar(r, g, b);
 #else
@@ -64,137 +37,76 @@ static cv::Scalar createCvColor(int b, int g, int r) {
 #endif
 }
 
-static void readLabel(const char* filename, std::vector<std::string> & labels)
+
+int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 {
-	std::ifstream ifs(filename);
-	if (ifs.fail()) {
-		PRINT("failed to read %s\n", filename);
-		return;
+	if (s_engine) {
+		PRINT_E("Already initialized\n");
+		return -1;
 	}
-	std::string str;
-	while (getline(ifs, str)) {
-		labels.push_back(str);
+
+	s_engine.reset(new SemanticSegmentationEngine());
+	if (s_engine->initialize(inputParam->workDir, inputParam->numThreads) != SemanticSegmentationEngine::RET_OK) {
+		s_engine->finalize();
+		s_engine.reset();
+		return -1;
 	}
+	return 0;
 }
 
-
-int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
+int32_t ImageProcessor_finalize(void)
 {
-#if defined(TFLITE_DELEGATE_EDGETPU)
-	s_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_EDGETPU);
-#elif defined(TFLITE_DELEGATE_GPU)
-	s_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU);
-#elif defined(TFLITE_DELEGATE_XNNPACK)
-	s_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_XNNPACK);
-#else
-	s_inferenceHelper = InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE);
-#endif
+	if (!s_engine) {
+		PRINT_E("Not initialized\n");
+		return -1;
+	}
 
-	std::string modelFilename = std::string(inputParam->workDir) + "/model/" + MODEL_NAME;
-	std::string labelFilename = std::string(inputParam->workDir) + "/model/" + LABEL_NAME;
-
-	s_inferenceHelper->initialize(modelFilename.c_str(), inputParam->numThreads);
-	
-	s_inputTensor = new TensorInfo();
-	s_outputTensor = new TensorInfo();
-
-	s_inferenceHelper->getTensorByName("MobilenetV2/MobilenetV2/input", s_inputTensor);
-	s_inferenceHelper->getTensorByName("ArgMax", s_outputTensor);
-
-	/* read label */
-	readLabel(labelFilename.c_str(), s_labels);
+	if (s_engine->finalize() != SemanticSegmentationEngine::RET_OK) {
+		return -1;
+	}
 
 	return 0;
 }
 
-int ImageProcessor_command(int cmd)
+
+int32_t ImageProcessor_command(int32_t cmd)
 {
+	if (!s_engine) {
+		PRINT_E("Not initialized\n");
+		return -1;
+	}
+
 	switch (cmd) {
+	case 0:
 	default:
-		PRINT("command(%d) is not supported\n", cmd);
+		PRINT_E("command(%d) is not supported\n", cmd);
 		return -1;
 	}
 }
 
 
-int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
+int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 {
-	/*** PreProcess ***/
-	cv::Mat inputImage;
-	int modelInputWidth = s_inputTensor->dims[2];
-	int modelInputHeight = s_inputTensor->dims[1];
-	int modelInputChannel = s_inputTensor->dims[3];
-
-	cv::resize(*mat, inputImage, cv::Size(modelInputWidth, modelInputHeight));
-	cv::cvtColor(inputImage, inputImage, cv::COLOR_BGR2RGB);
-	if (s_inputTensor->type == TensorInfo::TENSOR_TYPE_UINT8) {
-		inputImage.convertTo(inputImage, CV_8UC3);
-	} else {
-		inputImage.convertTo(inputImage, CV_32FC3, 1.0 / 255);
-		cv::subtract(inputImage, cv::Scalar(cv::Vec<float, 3>(PIXEL_MEAN)), inputImage);
-		cv::divide(inputImage, cv::Scalar(cv::Vec<float, 3>(PIXEL_STD)), inputImage);
+	if (!s_engine) {
+		PRINT_E("Not initialized\n");
+		return -1;
 	}
 
-	/* Set data to input tensor */
-#if 0
-	s_inferenceHelper->setBufferToTensorByIndex(s_inputTensor->index, (char*)inputImage.data, (int)(inputImage.total() * inputImage.elemSize()));
-#else
-	if (s_inputTensor->type == TensorInfo::TENSOR_TYPE_UINT8) {
-		memcpy(s_inputTensor->data, inputImage.reshape(0, 1).data, sizeof(uint8_t) * 1 * modelInputWidth * modelInputHeight * modelInputChannel);
-	} else {
-		memcpy(s_inputTensor->data, inputImage.reshape(0, 1).data, sizeof(float) * 1 * modelInputWidth * modelInputHeight * modelInputChannel);
-	}
-#endif
-	
-	/*** Inference ***/
-	s_inferenceHelper->invoke();
-
-	/*** PostProcess ***/
-	/* Retrieve the result */
-	int modelOutputWidth = s_outputTensor->dims[2];
-	int modelOutputHeight = s_outputTensor->dims[1];
-	//int modelOutputChannel = s_outputTensor->dims[3];
-	const int64_t *outputMap = (int64_t*)s_outputTensor->data;
-	cv::Mat outputImage = cv::Mat::zeros(modelOutputHeight, modelOutputWidth, CV_8UC3);
-	for (int y = 0; y < modelOutputHeight; y++) {
-		for (int x = 0; x < modelOutputWidth; x++) {
-			//int maxChannel = 0;
-			//float maxValue = 0;
-			//for (int c = 0; c < modelOutputChannel; c++) {
-			//	float value = outputMap[y * (modelOutputWidth * modelOutputChannel) + x * modelOutputChannel + c];
-			//	if (value > maxValue) {
-			//		maxValue = value;
-			//		maxChannel = c;
-			//	}
-			//}
-			int maxChannel = outputMap[y * modelOutputWidth + x];
-			float colorRatioB = (maxChannel % 2 + 1) / 2.0f;
-			float colorRatioG = (maxChannel % 3 + 1) / 3.0f;
-			float colorRatioR = (maxChannel % 4 + 1) / 4.0f;
-			outputImage.data[(y * modelOutputWidth + x) * 3 + 0] = (int)(255 * colorRatioB);
-			outputImage.data[(y * modelOutputWidth + x) * 3 + 1] = (int)(255 * colorRatioG);
-			outputImage.data[(y * modelOutputWidth + x) * 3 + 2] = (int)(255 * (1 - colorRatioR));
-
-		}
+	const cv::Mat originalMat = *mat;
+	SemanticSegmentationEngine::RESULT result;
+	if (s_engine->invoke(originalMat, result) != SemanticSegmentationEngine::RET_OK) {
+		return -1;
 	}
 
-	/* Display result */
-	cv::resize(outputImage, outputImage, mat->size());
-	cv::add(*mat, outputImage, *mat);
-
+	/* Draw the result */
+	cv::resize(result.maskImage, result.maskImage, originalMat.size());
+	cv::add(originalMat, result.maskImage, originalMat);
 
 	/* Return the results */
-	outputParam->dummy = 0;
-	
+	outputParam->timePreProcess = result.timePreProcess;
+	outputParam->timeInference = result.timeInference;
+	outputParam->timePostProcess = result.timePostProcess;
+
 	return 0;
 }
 
-
-int ImageProcessor_finalize(void)
-{
-	s_inferenceHelper->finalize();
-	delete s_inputTensor;
-	delete s_outputTensor;
-	delete s_inferenceHelper;
-	return 0;
-}

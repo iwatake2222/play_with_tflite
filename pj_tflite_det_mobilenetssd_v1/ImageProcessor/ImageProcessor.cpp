@@ -26,7 +26,7 @@
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-std::unique_ptr<DetectionEngine> s_classificationEngine;
+std::unique_ptr<DetectionEngine> s_engine;
 
 /*** Function ***/
 static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
@@ -40,15 +40,15 @@ static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
 
 int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 {
-	if (s_classificationEngine) {
+	if (s_engine) {
 		PRINT_E("Already initialized\n");
 		return -1;
 	}
 
-	s_classificationEngine.reset(new DetectionEngine());
-	if (s_classificationEngine->initialize(inputParam->workDir, inputParam->numThreads) != DetectionEngine::RET_OK) {
-		s_classificationEngine->finalize();
-		s_classificationEngine.reset();
+	s_engine.reset(new DetectionEngine());
+	if (s_engine->initialize(inputParam->workDir, inputParam->numThreads) != DetectionEngine::RET_OK) {
+		s_engine->finalize();
+		s_engine.reset();
 		return -1;
 	}
 	return 0;
@@ -56,12 +56,12 @@ int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 
 int32_t ImageProcessor_finalize(void)
 {
-	if (!s_classificationEngine) {
+	if (!s_engine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
 
-	if (s_classificationEngine->finalize() != DetectionEngine::RET_OK) {
+	if (s_engine->finalize() != DetectionEngine::RET_OK) {
 		return -1;
 	}
 
@@ -71,7 +71,7 @@ int32_t ImageProcessor_finalize(void)
 
 int32_t ImageProcessor_command(int32_t cmd)
 {
-	if (!s_classificationEngine) {
+	if (!s_engine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
@@ -87,7 +87,7 @@ int32_t ImageProcessor_command(int32_t cmd)
 
 int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 {
-	if (!s_classificationEngine) {
+	if (!s_engine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
@@ -95,7 +95,7 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 	const cv::Mat originalMat = *mat;
 	DetectionEngine::RESULT result;
 	result.objectList.clear();
-	if (s_classificationEngine->invoke(originalMat, result) != DetectionEngine::RET_OK) {
+	if (s_engine->invoke(originalMat, result) != DetectionEngine::RET_OK) {
 		return -1;
 	}
 
