@@ -4,12 +4,9 @@ set(LibraryName "ImageProcessor")
 
 # Create library
 add_library (${LibraryName} 
-	ImageProcessor.cpp
-	ImageProcessor.h
-	StylePrediction.cpp
-	StylePrediction.h
-	StyleTransfer.cpp
-	StyleTransfer.h
+	ImageProcessor.cpp ImageProcessor.h 
+	StylePredictionEngine.cpp StylePredictionEngine.h 
+	StyleTransferEngine.cpp StyleTransferEngine.h
 )
 
 # For OpenCV
@@ -17,20 +14,12 @@ find_package(OpenCV REQUIRED)
 target_include_directories(${LibraryName} PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(${LibraryName} ${OpenCV_LIBS})
 
+# Link Common Helper module
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../CommonHelper CommonHelper)
+target_include_directories(${LibraryName} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../../CommonHelper)
+target_link_libraries(${LibraryName} CommonHelper)
+
 # Link InferenceHelper module
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../InferenceHelper InferenceHelper)
 target_include_directories(${LibraryName} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../../InferenceHelper)
 target_link_libraries(${LibraryName} InferenceHelper)
-
-
-
-if(INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU)
-	add_definitions(-DTFLITE_DELEGATE_EDGETPU)
-endif()
-if(INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU)
-	add_definitions(-DTFLITE_DELEGATE_GPU)
-endif()
-if(INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK)
-	add_definitions(-DTFLITE_DELEGATE_XNNPACK)
-endif()
-

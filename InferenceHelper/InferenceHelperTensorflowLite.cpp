@@ -108,6 +108,8 @@ int32_t InferenceHelperTensorflowLite::initialize(const std::string& modelFilena
 		m_interpreter->ModifyGraphWithDelegate(m_delegate);
 	}
 #endif
+
+	/* Memo: If you get error around here in Visual Studio, please make sure you don't use Debug */
 	if (m_interpreter->AllocateTensors() != kTfLiteOk) {
 		PRINT_E("Failed to allocate tensors (%s)\n", modelFilename.c_str());
 		return RET_ERR;
@@ -286,6 +288,7 @@ int32_t InferenceHelperTensorflowLite::invoke(std::vector<OutputTensorInfo>& out
 
 void InferenceHelperTensorflowLite::displayModelInfo(const tflite::Interpreter& interpreter)
 {
+	/* Memo: If you get error around here in Visual Studio, please make sure you don't use Debug */
 	const auto& inputIndices = interpreter.inputs();
 	int32_t inputNum = static_cast<int32_t>(inputIndices.size());
 	PRINT("Input num = %d\n", inputNum);
