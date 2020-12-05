@@ -23,10 +23,10 @@ public:
 		name = "";
 		id = -1;
 		tensorType = TENSOR_TYPE_NONE;
-		tensorDims.batch = 1;
-		tensorDims.width = 1;
-		tensorDims.height = 1;
-		tensorDims.channel = 1;
+		tensorDims.batch = -1;
+		tensorDims.width = -1;
+		tensorDims.height = -1;
+		tensorDims.channel = -1;
 	}
 	~TensorInfo() {}
 
@@ -55,13 +55,13 @@ public:
 	InputTensorInfo() {
 		data = nullptr;
 		dataType = DATA_TYPE_IMAGE;
-		imageInfo.width = 1;
-		imageInfo.height = 1;
-		imageInfo.channel = 1;
-		imageInfo.cropX = 1;
-		imageInfo.cropY = 1;
-		imageInfo.cropWidth = 1;
-		imageInfo.cropHeight = 1;
+		imageInfo.width = -1;
+		imageInfo.height = -1;
+		imageInfo.channel = -1;
+		imageInfo.cropX = -1;
+		imageInfo.cropY = -1;
+		imageInfo.cropWidth = -1;
+		imageInfo.cropHeight = -1;
 		imageInfo.isBGR = true;
 		imageInfo.swapColor = false;
 		for (int32_t i = 0; i < 3; i++) {
@@ -102,27 +102,29 @@ public:
 		quant.zeroPoint = 0;
 		m_dataFp32 = nullptr;
 	}
+
 	~OutputTensorInfo() {
 		if (m_dataFp32 != nullptr) {
 			delete[] m_dataFp32;
 		}
 	}
-	const float_t* getDataAsFloat() {
+
+	float_t* getDataAsFloat() {				/* Returned pointer should be with const, but returning pointer without const is convenient to create cv::Mat */
 		if (tensorType == TENSOR_TYPE_UINT8) {
 			int32_t dataNum = 1;
 			dataNum = tensorDims.batch * tensorDims.channel * tensorDims.height * tensorDims.width;
 			if (m_dataFp32 == nullptr) {
 				m_dataFp32 = new float_t[dataNum];
 			}
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel
 			for (int32_t i = 0; i < dataNum; i++) {
-				const uint8_t* valUint8 = (uint8_t*)data;
+				const uint8_t* valUint8 = static_cast<const uint8_t*>(data);
 				float_t valFloat = (valUint8[i] - quant.zeroPoint) * quant.scale;
 				m_dataFp32[i] = valFloat;
 			}
 			return m_dataFp32;
 		} else if (tensorType == TENSOR_TYPE_FP32) {
-			return (const float_t*)data;
+			return static_cast<float_t*>(data);
 		} else {
 			return nullptr;
 		}
