@@ -23,14 +23,19 @@ public:
 		RET_ERR = -1,
 	};
 
-	typedef struct {
+	typedef struct RESULT_ {
 		int32_t     labelIndex;
 		std::string labelName;
 		float_t     score;
 		double_t    timePreProcess;		// [msec]
 		double_t    timeInference;		// [msec]
 		double_t    timePostProcess;	// [msec]
+		RESULT_() : timePreProcess(0), timeInference(0), timePostProcess(0)
+		{}
 	} RESULT;
+
+private:
+	static constexpr bool WITH_BACKGROUND = true;
 
 public:
 	ClassificationEngine() {}

@@ -55,14 +55,6 @@ int32_t PalmDetectionEngine::initialize(const std::string& workDir, const int32_
 	inputTensorInfo.normalize.norm[0] = 0.5f;
 	inputTensorInfo.normalize.norm[1] = 0.5f;
 	inputTensorInfo.normalize.norm[2] = 0.5f;
-
-	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm = (src  - (mean * 255))  * (1 / (255 * norm)) */
-	for (int32_t i = 0; i < 3; i++) {
-		inputTensorInfo.normalize.mean[i] *= 255.0f;
-		inputTensorInfo.normalize.norm[i] *= 255.0f;
-		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
-	}
-
 	m_inputTensorList.push_back(inputTensorInfo);
 
 	/* Set output tensor info */

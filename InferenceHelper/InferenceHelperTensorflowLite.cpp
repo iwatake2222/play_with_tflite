@@ -133,7 +133,12 @@ int32_t InferenceHelperTensorflowLite::initialize(const std::string& modelFilena
 			return RET_ERR;
 		}
 	}
-	
+
+	/* Convert normalize parameter to speed up */
+	for (auto& inputTensorInfo : inputTensorInfoList) {
+		convertNormalizeParameters(inputTensorInfo);
+	}
+
 	return RET_OK;
 };
 
@@ -430,6 +435,27 @@ int32_t InferenceHelperTensorflowLite::getOutputTensorInfo(OutputTensorInfo& ten
 
 }
 
+void InferenceHelperTensorflowLite::convertNormalizeParameters(InputTensorInfo& inputTensorInfo)
+{
+	if (inputTensorInfo.dataType != InputTensorInfo::DATA_TYPE_IMAGE) return;
+
+#if 0
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm  = src * 1 / (255 * norm) - (mean / norm) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] /= inputTensorInfo.normalize.norm[i];
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
+#if 1
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm = (src  - (mean * 255))  * (1 / (255 * norm)) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
+}
 
 static TfLiteFloatArray* TfLiteFloatArrayCopy(const TfLiteFloatArray* src)
 {

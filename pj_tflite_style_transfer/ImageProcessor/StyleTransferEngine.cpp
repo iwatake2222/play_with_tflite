@@ -37,11 +37,6 @@ int32_t StyleTransferEngine::initialize(const std::string& workDir, const int32_
 	m_inputTensorList.clear();
 	InputTensorInfo inputTensorInfo;
 	inputTensorInfo.name = "content_image";
-	inputTensorInfo.tensorDims.batch = -1;	// tensor dims are retrieved from the model file. You can also set [1,224,224,3] here
-	inputTensorInfo.tensorDims.width = -1;
-	inputTensorInfo.tensorDims.height = -1;
-	inputTensorInfo.tensorDims.channel = -1;
-	inputTensorInfo.data = nullptr;
 	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
 	inputTensorInfo.normalize.mean[0] = 0.0f;
 	inputTensorInfo.normalize.mean[1] = 0.0f;
@@ -49,14 +44,6 @@ int32_t StyleTransferEngine::initialize(const std::string& workDir, const int32_
 	inputTensorInfo.normalize.norm[0] = 1.0f;
 	inputTensorInfo.normalize.norm[1] = 1.0f;
 	inputTensorInfo.normalize.norm[2] = 1.0f;
-#if 1
-	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm = (src  - (mean * 255))  * (1 / (255 * norm)) */
-	for (int32_t i = 0; i < 3; i++) {
-		inputTensorInfo.normalize.mean[i] *= 255.0f;
-		inputTensorInfo.normalize.norm[i] *= 255.0f;
-		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
-	}
-#endif
 	m_inputTensorList.push_back(inputTensorInfo);
 	inputTensorInfo.name = "mobilenet_conv/Conv/BiasAdd";
 	inputTensorInfo.tensorDims.batch = -1;	// tensor dims are retrieved from the model file. You can also set [1,224,224,3] here
@@ -132,7 +119,9 @@ int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float_t st
 	/* do resize and color conversion here because some inference engine doesn't support these operations */
 	cv::Mat imgSrc;
 	cv::resize(originalMat, imgSrc, cv::Size(inputTensorInfo.tensorDims.width, inputTensorInfo.tensorDims.height));
-	//cv::cvtColor(imgSrc, imgSrc, cv::COLOR_BGR2RGB);
+#ifndef CV_COLOR_IS_RGB
+	cv::cvtColor(imgSrc, imgSrc, cv::COLOR_BGR2RGB);
+#endif
 	inputTensorInfo.data = imgSrc.data;
 	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
 	inputTensorInfo.imageInfo.width = imgSrc.cols;
@@ -142,7 +131,7 @@ int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float_t st
 	inputTensorInfo.imageInfo.cropY = 0;
 	inputTensorInfo.imageInfo.cropWidth = imgSrc.cols;
 	inputTensorInfo.imageInfo.cropHeight = imgSrc.rows;
-	inputTensorInfo.imageInfo.isBGR = true;
+	inputTensorInfo.imageInfo.isBGR = false;
 	inputTensorInfo.imageInfo.swapColor = false;
 
 	InputTensorInfo& inputTensorInfoBottleneck = m_inputTensorList[1];

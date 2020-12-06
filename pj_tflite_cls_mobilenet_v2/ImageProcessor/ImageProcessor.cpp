@@ -91,7 +91,7 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 	}
 
 	const cv::Mat originalMat = *mat;
-	ClassificationEngine::RESULT result = { 0 };
+	ClassificationEngine::RESULT result;
 	if (s_engine->invoke(originalMat, result) != ClassificationEngine::RET_OK) {
 		return -1;
 	}
