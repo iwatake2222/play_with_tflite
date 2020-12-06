@@ -92,7 +92,7 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 		return -1;
 	}
 
-	const cv::Mat originalMat = *mat;
+	cv::Mat& originalMat = *mat;
 	DetectionEngine::RESULT result;
 	result.objectList.clear();
 	if (s_engine->invoke(originalMat, result) != DetectionEngine::RET_OK) {

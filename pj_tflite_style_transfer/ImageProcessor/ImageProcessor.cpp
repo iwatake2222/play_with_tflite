@@ -145,7 +145,7 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 		return -1;
 	}
 
-	cv::Mat originalMat = *mat;
+	cv::Mat& originalMat = *mat;
 
 
 	constexpr int32_t INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK = 10; // to increase FPS (no need to do this every frame)
@@ -164,7 +164,7 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 	s_styleTransferEngine->invoke(originalMat, s_mergedStyleBottleneck, StylePredictionEngine::SIZE_STYLE_BOTTLENECK, styleTransferResult);
 
 	/* Return the results */
-	*mat = styleTransferResult.image;
+	originalMat = styleTransferResult.image;
 	outputParam->timePreProcess = styleTransferResult.timePreProcess;
 	outputParam->timeInference = styleTransferResult.timeInference;
 	outputParam->timePostProcess = styleTransferResult.timePostProcess;

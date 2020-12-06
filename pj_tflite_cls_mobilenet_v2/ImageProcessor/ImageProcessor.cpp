@@ -26,7 +26,7 @@
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-std::unique_ptr<ClassificationEngine> s_engine;
+std::unique_ptr<ClassificationEngine> s_classificationEngine;
 
 /*** Function ***/
 static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
@@ -40,13 +40,13 @@ static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
 
 int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 {
-	if (s_engine) {
+	if (s_classificationEngine) {
 		PRINT_E("Already initialized\n");
 		return -1;
 	}
 
-	s_engine.reset(new ClassificationEngine());
-	if (s_engine->initialize(inputParam->workDir, inputParam->numThreads) != ClassificationEngine::RET_OK) {
+	s_classificationEngine.reset(new ClassificationEngine());
+	if (s_classificationEngine->initialize(inputParam->workDir, inputParam->numThreads) != ClassificationEngine::RET_OK) {
 		return -1;
 	}
 	return 0;
@@ -54,12 +54,12 @@ int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 
 int32_t ImageProcessor_finalize(void)
 {
-	if (!s_engine) {
+	if (!s_classificationEngine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
 
-	if (s_engine->finalize() != ClassificationEngine::RET_OK) {
+	if (s_classificationEngine->finalize() != ClassificationEngine::RET_OK) {
 		return -1;
 	}
 
@@ -69,7 +69,7 @@ int32_t ImageProcessor_finalize(void)
 
 int32_t ImageProcessor_command(int32_t cmd)
 {
-	if (!s_engine) {
+	if (!s_classificationEngine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
@@ -85,14 +85,14 @@ int32_t ImageProcessor_command(int32_t cmd)
 
 int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 {
-	if (!s_engine) {
+	if (!s_classificationEngine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
 
-	const cv::Mat originalMat = *mat;
+	cv::Mat& originalMat = *mat;
 	ClassificationEngine::RESULT result;
-	if (s_engine->invoke(originalMat, result) != ClassificationEngine::RET_OK) {
+	if (s_classificationEngine->invoke(originalMat, result) != ClassificationEngine::RET_OK) {
 		return -1;
 	}
 
