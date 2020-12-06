@@ -100,6 +100,8 @@ public class MainActivity extends AppCompatActivity {
                 if (ImageProcessorInitialize() == 0) {
                     ImageProcessorCommand(0);
                     appStatus = AppStatus.Initialized;
+                } else {
+                    Log.i(TAG, "[onCreate] Failed to ImageProcessorInitialize");
                 }
             }
             startCamera();
@@ -355,10 +357,14 @@ public class MainActivity extends AppCompatActivity {
 //        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if(requestCode == REQUEST_CODE_FOR_PERMISSIONS){
             if(checkPermissions()){
-                ImageProcessorInitialize();
-                ImageProcessorCommand(0);
-                appStatus = AppStatus.Initialized;
-                startCamera();
+                if (ImageProcessorInitialize() == 0) {
+                    ImageProcessorCommand(0);
+                    appStatus = AppStatus.Initialized;
+                    startCamera();
+                } else {
+                    Log.i(TAG, "[onRequestPermissionsResult] Failed to ImageProcessorInitialize");
+                    this.finish();
+                }
             } else{
                 Log.i(TAG, "[onRequestPermissionsResult] Failed to get permissions");
                 this.finish();

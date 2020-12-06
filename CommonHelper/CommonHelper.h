@@ -11,6 +11,7 @@
 
 
 #if defined(ANDROID) || defined(__ANDROID__)
+#define CV_COLOR_IS_RGB
 #include <android/log.h>
 #define COMMON_HELPER_NDK_TAG "MyApp_NDK"
 #define COMMON_HELPER_PRINT_(...) __android_log_print(ANDROID_LOG_INFO, COMMON_HELPER_NDK_TAG, __VA_ARGS__)

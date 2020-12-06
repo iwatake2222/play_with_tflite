@@ -314,7 +314,9 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 
 		if (landmarkResult.handLandmark.handflag >= 0.8) {
 			calcAverageRect(s_palmByLm, landmarkResult.handLandmark, 0.6f, 0.4f);
-			cv::rectangle(originalMat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), createCvColor(255, 0, 0), 3);
+			if (s_isDebug) {
+				cv::rectangle(originalMat, cv::Rect(s_palmByLm.x, s_palmByLm.y, s_palmByLm.width, s_palmByLm.height), createCvColor(255, 0, 0), 3);
+			}
 
 			/* Display hand landmark */
 			if (s_isDebug) {

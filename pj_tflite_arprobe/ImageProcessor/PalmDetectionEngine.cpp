@@ -78,9 +78,9 @@ int32_t PalmDetectionEngine::initialize(const std::string& workDir, const int32_
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSOR_RT));
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::NCNN));
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::MNN));
-	m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE));
+	// m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE));
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_EDGETPU));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU));
+	m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU));
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_XNNPACK));
 
 	if (!m_inferenceHelper) {
@@ -199,29 +199,29 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	nms(detectionList, detectionListNMS, false);
 
 	std::vector<PALM> palmList;
-	for (auto palm : detectionListNMS) {
+	for (auto palmDet : detectionListNMS) {
 		/* Convert the coordinate from on (0.0 - 1.0) to on the input image */
-		palm.x *= imageWidth;
-		palm.y *= imageHeight;
-		palm.w *= imageWidth;
-		palm.h *= imageHeight;
-		for (auto kp : palm.keypoints) {
+		palmDet.x *= imageWidth;
+		palmDet.y *= imageHeight;
+		palmDet.w *= imageWidth;
+		palmDet.h *= imageHeight;
+		for (auto kp : palmDet.keypoints) {
 			kp.first *= imageWidth;
 			kp.second *= imageHeight;
 		}
 
 		/* Call DetectionsToRectsCalculator as described in hand_detection_gpu.pbtxt */
 		/*  -> use my own calculator */
-		float rotation = calculateRotation(palm);
+		float rotation = calculateRotation(palmDet);
 		//printf("%f  %f\n", rotation, rotation * 180 / 3.14);
 
 		/* Call RectTransformationCalculator as described in hand_landmark_cpu.pbtxt */
 		/*  -> use my own calculator */
 		float x, y, width, height;
-		RectTransformationCalculator(palm, rotation, x, y, width, height);
+		RectTransformationCalculator(palmDet, rotation, x, y, width, height);
 
 		PALM palm = { 0 };
-		palm.score = palm.score;
+		palm.score = palmDet.score;
 		palm.x = (std::min)(imageWidth * 1.f, (std::max)(x, 0.f));
 		palm.y = (std::min)(imageHeight * 1.f, (std::max)(y, 0.f));
 		palm.width = (std::min)(imageWidth * 1.f - palm.x, (std::max)(width, 0.f));
