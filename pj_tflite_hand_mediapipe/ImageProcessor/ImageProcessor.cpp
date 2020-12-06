@@ -49,8 +49,8 @@ public:
 };
 
 /*** Global variable ***/
-static std::unique_ptr<PalmDetectionEngine> s_palmDetection;
-static std::unique_ptr<HandLandmarkEngine> s_handLandmark;
+static std::unique_ptr<PalmDetectionEngine> s_palmDetectionEngine;
+static std::unique_ptr<HandLandmarkEngine> s_handLandmarkEngine;
 static int32_t s_frameCnt;
 static RECT s_palmByLm;
 static bool s_isPalmByLmValid = false;
@@ -70,17 +70,17 @@ static inline cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
 
 int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 {
-	if (s_palmDetection || s_handLandmark) {
+	if (s_palmDetectionEngine || s_handLandmarkEngine) {
 		PRINT_E("Already initialized\n");
 		return -1;
 	}
 
-	s_palmDetection.reset(new PalmDetectionEngine());
-	if (s_palmDetection->initialize(inputParam->workDir, inputParam->numThreads) != PalmDetectionEngine::RET_OK) {
+	s_palmDetectionEngine.reset(new PalmDetectionEngine());
+	if (s_palmDetectionEngine->initialize(inputParam->workDir, inputParam->numThreads) != PalmDetectionEngine::RET_OK) {
 		return -1;
 	}
-	s_handLandmark.reset(new HandLandmarkEngine());
-	if (s_handLandmark->initialize(inputParam->workDir, inputParam->numThreads) != HandLandmarkEngine::RET_OK) {
+	s_handLandmarkEngine.reset(new HandLandmarkEngine());
+	if (s_handLandmarkEngine->initialize(inputParam->workDir, inputParam->numThreads) != HandLandmarkEngine::RET_OK) {
 		return -1;
 	}
 	return 0;
@@ -88,19 +88,19 @@ int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 
 int32_t ImageProcessor_finalize(void)
 {
-	if (!s_palmDetection || !s_handLandmark) {
+	if (!s_palmDetectionEngine || !s_handLandmarkEngine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
 
-	if (s_palmDetection->finalize() != PalmDetectionEngine::RET_OK) {
+	if (s_palmDetectionEngine->finalize() != PalmDetectionEngine::RET_OK) {
 		return -1;
 	}
-	if (s_handLandmark->finalize() != HandLandmarkEngine::RET_OK) {
+	if (s_handLandmarkEngine->finalize() != HandLandmarkEngine::RET_OK) {
 		return -1;
 	}
-	s_palmDetection.reset();
-	s_handLandmark.reset();
+	s_palmDetectionEngine.reset();
+	s_handLandmarkEngine.reset();
 
 	return 0;
 }
@@ -108,7 +108,7 @@ int32_t ImageProcessor_finalize(void)
 
 int32_t ImageProcessor_command(int32_t cmd)
 {
-	if (!s_palmDetection || !s_handLandmark) {
+	if (!s_palmDetectionEngine || !s_handLandmarkEngine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
@@ -124,7 +124,7 @@ int32_t ImageProcessor_command(int32_t cmd)
 
 int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 {
-	if (!s_palmDetection || !s_handLandmark) {
+	if (!s_palmDetectionEngine || !s_handLandmarkEngine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
@@ -139,7 +139,7 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 	RECT palm = { 0 };
 	if (s_isPalmByLmValid == false || enforcePalmDet) {
 		/*** Get Palms ***/
-		s_palmDetection->invoke(originalMat, palmResult);
+		s_palmDetectionEngine->invoke(originalMat, palmResult);
 		for (const auto& detPalm : palmResult.palmList) {
 			s_palmByLm.width = 0;	// reset 
 			palm.x = (int32_t)(detPalm.x * 1);
@@ -168,7 +168,7 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 		cv::rectangle(originalMat, cv::Rect(palm.x, palm.y, palm.width, palm.height), colorRect, 3);
 
 		/* Get landmark */
-		s_handLandmark->invoke(originalMat, palm.x, palm.y, palm.width, palm.height, palm.rotation, landmarkResult);
+		s_handLandmarkEngine->invoke(originalMat, palm.x, palm.y, palm.width, palm.height, palm.rotation, landmarkResult);
 
 		if (landmarkResult.handLandmark.handflag >= 0.8) {
 			calcAverageRect(s_palmByLm, landmarkResult.handLandmark, 0.6f, 0.4f);

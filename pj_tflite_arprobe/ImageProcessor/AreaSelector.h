@@ -3,13 +3,19 @@
 #define AREA_SELECTOR_
 
 /* for general */
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdint>
+#include <cmath>
 #include <string>
 #include <vector>
+#include <array>
+#include <memory>
 
+/* for OpenCV */
 #include <opencv2/opencv.hpp>
-#include "HandLandmark.h"
+
+/* for My modules */
+#include "HandLandmarkEngine.h"
+
 
 class AreaSelector
 {
@@ -23,23 +29,23 @@ public:
 public:
 	AreaSelector();
 	~AreaSelector();
-	void run(HandLandmark::HAND_LANDMARK &handLandmark);
+	void run(const HandLandmarkEngine::HAND_LANDMARK &handLandmark);
 
 private:
 	// 0: open, 1: closed, -1 invalid
-	//int checkIfClosed(HandLandmark::HAND_LANDMARK &handLandmark);
+	//int32_t checkIfClosed(HandLandmark::HAND_LANDMARK &handLandmark);
 
 	// 0: index and middle, 1: index only, -1 other
-	int checkIfPointing(HandLandmark::HAND_LANDMARK &handLandmark);
-	int removeChattering(int fingerStatus);
+	int32_t checkIfPointing(const HandLandmarkEngine::HAND_LANDMARK &handLandmark);
+	int32_t removeChattering(int32_t fingerStatus);
 
 public:
 	STATUS m_status;
 	cv::Point m_startPoint;
 	cv::Rect m_selectedArea;
-	int m_cntHandIsUntrusted;
-	int m_fingerStatus;
-	int m_cntToRemoveChattering;
+	int32_t m_cntHandIsUntrusted;
+	int32_t m_fingerStatus;
+	int32_t m_cntToRemoveChattering;
 
 };
 
