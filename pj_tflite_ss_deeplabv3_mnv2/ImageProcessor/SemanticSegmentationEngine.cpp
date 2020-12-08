@@ -157,9 +157,9 @@ int32_t SemanticSegmentationEngine::invoke(const cv::Mat& originalMat, RESULT& r
 	for (int y = 0; y < outputHeight; y++) {
 		for (int x = 0; x < outputWidth; x++) {
 			int32_t maxChannel = static_cast<int32_t>(values[y * outputWidth + x]);
-			float_t colorRatioB = (maxChannel % 2 + 1) / 2.0f;
-			float_t colorRatioG = (maxChannel % 3 + 1) / 3.0f;
-			float_t colorRatioR = (maxChannel % 4 + 1) / 4.0f;
+			float colorRatioB = (maxChannel % 2 + 1) / 2.0f;
+			float colorRatioG = (maxChannel % 3 + 1) / 3.0f;
+			float colorRatioR = (maxChannel % 4 + 1) / 4.0f;
 			maskImage.data[(y * outputWidth + x) * 3 + 0] = static_cast<uint8_t>(255 * colorRatioB);
 			maskImage.data[(y * outputWidth + x) * 3 + 1] = static_cast<uint8_t>(255 * colorRatioG);
 			maskImage.data[(y * outputWidth + x) * 3 + 2] = static_cast<uint8_t>(255 * (1 - colorRatioR));
@@ -170,9 +170,9 @@ int32_t SemanticSegmentationEngine::invoke(const cv::Mat& originalMat, RESULT& r
 
 	/* Return the results */
 	result.maskImage = maskImage;
-	result.timePreProcess = static_cast<std::chrono::duration<double_t>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
-	result.timeInference = static_cast<std::chrono::duration<double_t>>(tInference1 - tInference0).count() * 1000.0;
-	result.timePostProcess = static_cast<std::chrono::duration<double_t>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
+	result.timePreProcess = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
+	result.timeInference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
+	result.timePostProcess = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
 	return RET_OK;
 }

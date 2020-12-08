@@ -18,9 +18,9 @@ typedef struct {
 } INPUT_PARAM;
 
 typedef struct {
-	double_t timePreProcess;   // [msec]
-	double_t timeInference;    // [msec]
-	double_t timePostProcess;  // [msec]
+	double timePreProcess;   // [msec]
+	double timeInference;    // [msec]
+	double timePostProcess;  // [msec]
 } OUTPUT_PARAM;
 
 int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam);

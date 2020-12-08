@@ -29,7 +29,7 @@
 /*** Global variable ***/
 std::unique_ptr<StylePredictionEngine> s_stylePredictionEngine;
 std::unique_ptr<StyleTransferEngine> s_styleTransferEngine;
-float_t s_styleBottleneck[StylePredictionEngine::SIZE_STYLE_BOTTLENECK];
+float s_styleBottleneck[StylePredictionEngine::SIZE_STYLE_BOTTLENECK];
 std::string s_workDir;
 bool s_styleBottleneckUpdated = true;
 
@@ -149,10 +149,10 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 
 
 	constexpr int32_t INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK = 10; // to increase FPS (no need to do this every frame)
-	static float_t s_mergedStyleBottleneck[StylePredictionEngine::SIZE_STYLE_BOTTLENECK];
+	static float s_mergedStyleBottleneck[StylePredictionEngine::SIZE_STYLE_BOTTLENECK];
 	static int32_t s_cnt = 0;
 	if (s_cnt++ % INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK == 0 || s_styleBottleneckUpdated) {
-		constexpr float_t ratio = 0.5f;
+		constexpr float ratio = 0.5f;
 		StylePredictionEngine::RESULT stylePredictionResult;
 		s_stylePredictionEngine->invoke(originalMat, stylePredictionResult);
 		for (int32_t i = 0; i < StylePredictionEngine::SIZE_STYLE_BOTTLENECK; i++) {

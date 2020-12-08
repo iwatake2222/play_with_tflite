@@ -178,9 +178,9 @@ int32_t ClassificationEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	/*** PostProcess ***/
 	const auto& tPostProcess0 = std::chrono::steady_clock::now();
 	/* Retrieve the result */
-	std::vector<float_t> outputScoreList;
+	std::vector<float> outputScoreList;
 	outputScoreList.resize(m_outputTensorList[0].tensorDims.width * m_outputTensorList[0].tensorDims.height * m_outputTensorList[0].tensorDims.channel);
-	const float_t* valFloat = m_outputTensorList[0].getDataAsFloat();
+	const float* valFloat = m_outputTensorList[0].getDataAsFloat();
 	for (int32_t i = 0; i < (int32_t)outputScoreList.size(); i++) {
 		outputScoreList[i] = valFloat[i];
 	}
@@ -195,9 +195,9 @@ int32_t ClassificationEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	result.labelIndex = maxIndex;
 	result.labelName = m_labelList[maxIndex];
 	result.score = maxScore;
-	result.timePreProcess = static_cast<std::chrono::duration<double_t>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
-	result.timeInference = static_cast<std::chrono::duration<double_t>>(tInference1 - tInference0).count() * 1000.0;
-	result.timePostProcess = static_cast<std::chrono::duration<double_t>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
+	result.timePreProcess = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
+	result.timeInference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
+	result.timePostProcess = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
 	return RET_OK;
 }

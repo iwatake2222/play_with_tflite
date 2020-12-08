@@ -113,7 +113,7 @@ int32_t StyleTransferEngine::finalize()
 }
 
 
-int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float_t styleBottleneck[], const int32_t lengthStyleBottleneck, RESULT& result)
+int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float styleBottleneck[], const int32_t lengthStyleBottleneck, RESULT& result)
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
@@ -141,7 +141,7 @@ int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float_t st
 	inputTensorInfo.imageInfo.swapColor = false;
 
 	InputTensorInfo& inputTensorInfoBottleneck = m_inputTensorList[1];
-	inputTensorInfoBottleneck.data = const_cast<float_t*>(styleBottleneck);
+	inputTensorInfoBottleneck.data = const_cast<float*>(styleBottleneck);
 	if (m_inferenceHelper->preProcess(m_inputTensorList) != InferenceHelper::RET_OK) {
 		return RET_ERR;
 	}
@@ -156,16 +156,16 @@ int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float_t st
 
 	/*** PostProcess ***/
 	const auto& tPostProcess0 = std::chrono::steady_clock::now();
-	cv::Mat outMatFp(cv::Size(m_outputTensorList[0].tensorDims.width, m_outputTensorList[0].tensorDims.height), CV_32FC3, const_cast<float_t*>(m_outputTensorList[0].getDataAsFloat()));
+	cv::Mat outMatFp(cv::Size(m_outputTensorList[0].tensorDims.width, m_outputTensorList[0].tensorDims.height), CV_32FC3, const_cast<float*>(m_outputTensorList[0].getDataAsFloat()));
 	cv::Mat outMat;
 	outMatFp.convertTo(outMat, CV_8UC3, 255);
 	const auto& tPostProcess1 = std::chrono::steady_clock::now();
 
 	/* Return the results */
 	result.image = outMat;
-	result.timePreProcess = static_cast<std::chrono::duration<double_t>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
-	result.timeInference = static_cast<std::chrono::duration<double_t>>(tInference1 - tInference0).count() * 1000.0;
-	result.timePostProcess = static_cast<std::chrono::duration<double_t>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
+	result.timePreProcess = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
+	result.timeInference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
+	result.timePostProcess = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
 	return RET_OK;
 }

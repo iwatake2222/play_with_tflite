@@ -187,8 +187,8 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	if (options.num_classes() != m_outputTensorList[1].tensorDims.width) {
 		return RET_ERR;
 	}
-	const float_t* raw_boxes = m_outputTensorList[0].getDataAsFloat();
-	const float_t* raw_scores = m_outputTensorList[1].getDataAsFloat();
+	const float* raw_boxes = m_outputTensorList[0].getDataAsFloat();
+	const float* raw_scores = m_outputTensorList[1].getDataAsFloat();
 	mediapipe::Process(options, raw_boxes, raw_scores, s_anchors, detectionList);
 
 	/* Call NonMaxSuppressionCalculator as described in hand_detection_gpu.pbtxt */
@@ -232,9 +232,9 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 
 	/* Return the results */
 	result.palmList = palmList;
-	result.timePreProcess = static_cast<std::chrono::duration<double_t>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
-	result.timeInference = static_cast<std::chrono::duration<double_t>>(tInference1 - tInference0).count() * 1000.0;
-	result.timePostProcess = static_cast<std::chrono::duration<double_t>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
+	result.timePreProcess = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
+	result.timeInference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
+	result.timePostProcess = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
 	return RET_OK;
 }

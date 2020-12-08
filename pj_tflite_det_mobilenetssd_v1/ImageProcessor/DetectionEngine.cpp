@@ -165,9 +165,9 @@ int32_t DetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 
 	/* Return the results */
 	result.objectList = objectList;
-	result.timePreProcess = static_cast<std::chrono::duration<double_t>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
-	result.timeInference = static_cast<std::chrono::duration<double_t>>(tInference1 - tInference0).count() * 1000.0;
-	result.timePostProcess = static_cast<std::chrono::duration<double_t>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
+	result.timePreProcess = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
+	result.timeInference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
+	result.timePostProcess = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
 	return RET_OK;
 }
@@ -189,17 +189,17 @@ int32_t DetectionEngine::readLabel(const std::string& filename, std::vector<std:
 }
 
 
-int32_t DetectionEngine::getObject(std::vector<OBJECT>& objectList, const float_t *outputBoxList, const float_t *outputClassList, const float_t *outputScoreList, const int32_t outputNum,
-	const double_t threshold, const int32_t width, const int32_t height)
+int32_t DetectionEngine::getObject(std::vector<OBJECT>& objectList, const float *outputBoxList, const float *outputClassList, const float *outputScoreList, const int32_t outputNum,
+	const double threshold, const int32_t width, const int32_t height)
 {
 	for (int32_t i = 0; i < outputNum; i++) {
 		int32_t classId = static_cast<int32_t>(outputClassList[i] + 1);
-		float_t score = outputScoreList[i];
+		float score = outputScoreList[i];
 		if (score < threshold) continue;
-		float_t y0 = outputBoxList[4 * i + 0];
-		float_t x0 = outputBoxList[4 * i + 1];
-		float_t y1 = outputBoxList[4 * i + 2];
-		float_t x1 = outputBoxList[4 * i + 3];
+		float y0 = outputBoxList[4 * i + 0];
+		float x0 = outputBoxList[4 * i + 1];
+		float y1 = outputBoxList[4 * i + 2];
+		float x1 = outputBoxList[4 * i + 3];
 		if (width > 0) {
 			x0 *= width;
 			x1 *= width;

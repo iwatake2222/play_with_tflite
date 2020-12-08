@@ -25,9 +25,9 @@ public:
 
 	typedef struct RESULT_ {
 		cv::Mat             image;
-		double_t            timePreProcess;		// [msec]
-		double_t            timeInference;		// [msec]
-		double_t            timePostProcess;	// [msec]
+		double            timePreProcess;		// [msec]
+		double            timeInference;		// [msec]
+		double            timePostProcess;	// [msec]
 		RESULT_() : timePreProcess(0), timeInference(0), timePostProcess(0)
 		{}
 	} RESULT;

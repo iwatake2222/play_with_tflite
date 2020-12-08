@@ -21,10 +21,10 @@ typedef struct {
 typedef struct {
 	int32_t  classId;
 	char     label[256];
-	double_t score;
-	double_t timePreProcess;   // [msec]
-	double_t timeInference;    // [msec]
-	double_t timePostProcess;  // [msec]
+	double score;
+	double timePreProcess;   // [msec]
+	double timeInference;    // [msec]
+	double timePostProcess;  // [msec]
 } OUTPUT_PARAM;
 
 int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam);

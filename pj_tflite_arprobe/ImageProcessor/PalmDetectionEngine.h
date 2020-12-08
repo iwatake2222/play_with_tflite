@@ -24,19 +24,19 @@ public:
 	};
 
 	typedef struct {
-		float_t score;
-		float_t rotation;
-		float_t x;			// coordinate on the input image
-		float_t y;
-		float_t width;
-		float_t height;
+		float score;
+		float rotation;
+		float x;			// coordinate on the input image
+		float y;
+		float width;
+		float height;
 	} PALM;
 
 	typedef struct RESULT_ {
 		std::vector<PALM> palmList;
-		double_t          timePreProcess;		// [msec]
-		double_t          timeInference;		// [msec]
-		double_t          timePostProcess;		// [msec]
+		double          timePreProcess;		// [msec]
+		double          timeInference;		// [msec]
+		double          timePostProcess;		// [msec]
 		RESULT_() : timePreProcess(0), timeInference(0), timePostProcess(0)
 		{}
 	} RESULT;

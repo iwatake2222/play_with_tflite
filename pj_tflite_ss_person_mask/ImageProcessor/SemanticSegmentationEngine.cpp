@@ -148,16 +148,16 @@ int32_t SemanticSegmentationEngine::invoke(const cv::Mat& originalMat, RESULT& r
 	int32_t outputWidth = m_outputTensorList[0].tensorDims.width;
 	int32_t outputHeight = m_outputTensorList[0].tensorDims.height;
 	int32_t outputCannel = m_outputTensorList[0].tensorDims.channel;
-	float_t* values = static_cast<float_t*>(m_outputTensorList[0].data);
+	float* values = static_cast<float*>(m_outputTensorList[0].data);
 	cv::Mat maskImage = cv::Mat(outputHeight, outputWidth, CV_32FC1, values);
 	maskImage.convertTo(maskImage, CV_8UC1, 255, 0);
 	const auto& tPostProcess1 = std::chrono::steady_clock::now();
 
 	/* Return the results */
 	result.maskImage = maskImage;
-	result.timePreProcess = static_cast<std::chrono::duration<double_t>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
-	result.timeInference = static_cast<std::chrono::duration<double_t>>(tInference1 - tInference0).count() * 1000.0;
-	result.timePostProcess = static_cast<std::chrono::duration<double_t>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
+	result.timePreProcess = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
+	result.timeInference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
+	result.timePostProcess = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
 	return RET_OK;
 }

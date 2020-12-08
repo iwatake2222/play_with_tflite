@@ -24,15 +24,15 @@ typedef struct {
 	struct {
 		int32_t  classId;
 		char     label[256];
-		double_t score;
+		double score;
 		int32_t  x;
 		int32_t  y;
 		int32_t  width;
 		int32_t  height;
 	} objectList[NUM_MAX_RESULT];
-	double_t timePreProcess;   // [msec]
-	double_t timeInference;    // [msec]
-	double_t timePostProcess;  // [msec]
+	double timePreProcess;   // [msec]
+	double timeInference;    // [msec]
+	double timePostProcess;  // [msec]
 } OUTPUT_PARAM;
 
 int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam);

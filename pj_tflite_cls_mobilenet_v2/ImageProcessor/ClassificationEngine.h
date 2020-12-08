@@ -26,10 +26,10 @@ public:
 	typedef struct RESULT_ {
 		int32_t     labelIndex;
 		std::string labelName;
-		float_t     score;
-		double_t    timePreProcess;		// [msec]
-		double_t    timeInference;		// [msec]
-		double_t    timePostProcess;	// [msec]
+		float     score;
+		double    timePreProcess;		// [msec]
+		double    timeInference;		// [msec]
+		double    timePostProcess;	// [msec]
 		RESULT_() : timePreProcess(0), timeInference(0), timePostProcess(0)
 		{}
 	} RESULT;

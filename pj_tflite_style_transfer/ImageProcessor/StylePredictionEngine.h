@@ -26,10 +26,10 @@ public:
 	static constexpr int SIZE_STYLE_BOTTLENECK = 100;
 
 	typedef struct RESULT_ {
-		const float_t*      styleBottleneck;	// data is gauranteed until next invoke or calling destructor
-		double_t            timePreProcess;		// [msec]
-		double_t            timeInference;		// [msec]
-		double_t            timePostProcess;	// [msec]
+		const float*      styleBottleneck;	// data is gauranteed until next invoke or calling destructor
+		double            timePreProcess;		// [msec]
+		double            timeInference;		// [msec]
+		double            timePostProcess;	// [msec]
 		RESULT_() : timePreProcess(0), timeInference(0), timePostProcess(0)
 		{}
 	} RESULT;
