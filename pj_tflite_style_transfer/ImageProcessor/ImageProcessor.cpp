@@ -1,44 +1,40 @@
 /*** Include ***/
 /* for general */
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cmath>
+#include <cstring>
 #include <string>
+#include <vector>
+#include <array>
+#include <algorithm>
+#include <chrono>
 #include <fstream>
-
+#include <memory>
 
 /* for OpenCV */
 #include <opencv2/opencv.hpp>
 
-#include "StylePrediction.h"
-#include "StyleTransfer.h"
+/* for My modules */
+#include "CommonHelper.h"
+#include "StylePredictionEngine.h"
+#include "StyleTransferEngine.h"
 #include "ImageProcessor.h"
 
 /*** Macro ***/
-#if defined(ANDROID) || defined(__ANDROID__)
-#define CV_COLOR_IS_RGB
-#include <android/log.h>
-#define TAG "MyApp_NDK"
-#define _PRINT(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
-#else
-#define _PRINT(...) printf(__VA_ARGS__)
-#endif
-#define PRINT(...) _PRINT("[ImageProcessor] " __VA_ARGS__)
-
-#define CHECK(x)                              \
-  if (!(x)) {                                                \
-	PRINT("Error at %s:%d\n", __FILE__, __LINE__); \
-	exit(1);                                                 \
-  }
-
+#define TAG "ImageProcessor"
+#define PRINT(...)   COMMON_HELPER_PRINT(TAG, __VA_ARGS__)
+#define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-static StylePrediction s_stylePrediction;
-static StyleTransfer s_styleTransfer;
-float s_styleBottleneck[StylePrediction::SIZE_STYLE_BOTTLENECK];
+std::unique_ptr<StylePredictionEngine> s_stylePredictionEngine;
+std::unique_ptr<StyleTransferEngine> s_styleTransferEngine;
+float s_styleBottleneck[StylePredictionEngine::SIZE_STYLE_BOTTLENECK];
 std::string s_workDir;
+bool s_styleBottleneckUpdated = true;
 
 /*** Function ***/
-static cv::Scalar createCvColor(int b, int g, int r) {
+static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
 #ifdef CV_COLOR_IS_RGB
 	return cv::Scalar(r, g, b);
 #else
@@ -46,7 +42,7 @@ static cv::Scalar createCvColor(int b, int g, int r) {
 #endif
 }
 
-static int calculateStyleBottleneck(std::string styleFilename)
+static int32_t calculateStyleBottleneck(std::string styleFilename)
 {
 	std::string path = s_workDir + "/style/" + styleFilename;
 	cv::Mat styleImage = cv::imread(path);
@@ -54,35 +50,70 @@ static int calculateStyleBottleneck(std::string styleFilename)
 		PRINT("[error] cannot read %s\n", path.c_str());
 		return -1;
 	}
-	
-	StylePrediction::STYLE_PREDICTION_RESULT stylePredictionResult;
-	s_stylePrediction.invoke(styleImage, stylePredictionResult);
-	for (int i = 0; i < StylePrediction::SIZE_STYLE_BOTTLENECK; i++) s_styleBottleneck[i] = stylePredictionResult.styleBottleneck[i];
+
+	StylePredictionEngine::RESULT stylePredictionResult;
+	s_stylePredictionEngine->invoke(styleImage, stylePredictionResult);
+	for (int32_t i = 0; i < StylePredictionEngine::SIZE_STYLE_BOTTLENECK; i++) {
+		s_styleBottleneck[i] = stylePredictionResult.styleBottleneck[i];
+	}
+	s_styleBottleneckUpdated = true;
 	return 0;
 }
 
-int ImageProcessor_initialize(const INPUT_PARAM *inputParam)
+int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 {
+	if (s_stylePredictionEngine || s_styleTransferEngine) {
+		PRINT_E("Already initialized\n");
+		return -1;
+	}
+
 	s_workDir = inputParam->workDir;
-	s_stylePrediction.initialize(inputParam->workDir, inputParam->numThreads);
-	s_styleTransfer.initialize(inputParam->workDir, inputParam->numThreads);
+
+	s_stylePredictionEngine.reset(new StylePredictionEngine());
+	if (s_stylePredictionEngine->initialize(inputParam->workDir, inputParam->numThreads) != StylePredictionEngine::RET_OK) {
+		s_stylePredictionEngine->finalize();
+		s_stylePredictionEngine.reset();
+		return -1;
+	}
+
+	s_styleTransferEngine.reset(new StyleTransferEngine());
+	if (s_styleTransferEngine->initialize(inputParam->workDir, inputParam->numThreads) != StyleTransferEngine::RET_OK) {
+		s_styleTransferEngine->finalize();
+		s_styleTransferEngine.reset();
+		return -1;
+	}
 
 	ImageProcessor_command(0);
 
 	return 0;
 }
 
-
-int ImageProcessor_finalize(void)
+int32_t ImageProcessor_finalize(void)
 {
-	s_stylePrediction.finalize();
-	s_styleTransfer.finalize();
+	if (!s_stylePredictionEngine || !s_styleTransferEngine) {
+		PRINT_E("Not initialized\n");
+		return -1;
+	}
+
+	if (s_stylePredictionEngine->finalize() != StylePredictionEngine::RET_OK) {
+		return -1;
+	}
+
+	if (s_styleTransferEngine->finalize() != StyleTransferEngine::RET_OK) {
+		return -1;
+	}
+
 	return 0;
 }
 
 
-int ImageProcessor_command(int cmd)
+int32_t ImageProcessor_command(int32_t cmd)
 {
+	if (!s_stylePredictionEngine || !s_styleTransferEngine) {
+		PRINT_E("Not initialized\n");
+		return -1;
+	}
+
 	static int s_currentImageFileIndex = 0;
 	switch (cmd) {
 	case 0:
@@ -97,7 +128,7 @@ int ImageProcessor_command(int cmd)
 		s_currentImageFileIndex = 0;
 		break;
 	default:
-		PRINT("command(%d) is not supported\n", cmd);
+		PRINT_E("command(%d) is not supported\n", cmd);
 		return -1;
 	}
 	std::string filename = "style" + std::to_string(s_currentImageFileIndex) + ".jpg";
@@ -107,32 +138,36 @@ int ImageProcessor_command(int cmd)
 }
 
 
-int ImageProcessor_process(cv::Mat *mat, OUTPUT_PARAM *outputParam)
+int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 {
-    const int INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK = 10; // to increase FPS (no need to do this every frame)
-	static float s_mergedStyleBottleneck[StylePrediction::SIZE_STYLE_BOTTLENECK];
-	static int s_cnt = 0;
-	if (s_cnt++ % INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK == 0) {
-		const float ratio = 0.5f;
-		StylePrediction::STYLE_PREDICTION_RESULT stylePredictionResult;
-		s_stylePrediction.invoke(*mat, stylePredictionResult);
-		for (int i = 0; i < StylePrediction::SIZE_STYLE_BOTTLENECK; i++) s_mergedStyleBottleneck[i] = ratio * stylePredictionResult.styleBottleneck[i] + (1 - ratio) * s_styleBottleneck[i];
+	if (!s_stylePredictionEngine || !s_styleTransferEngine) {
+		PRINT_E("Not initialized\n");
+		return -1;
 	}
 
-	StyleTransfer::STYLE_TRANSFER_RESULT styleTransferResult;
-	s_styleTransfer.invoke(*mat, s_mergedStyleBottleneck, StylePrediction::SIZE_STYLE_BOTTLENECK, styleTransferResult);
+	cv::Mat& originalMat = *mat;
 
-	cv::Mat outMatFp(cv::Size(384, 384), CV_32FC3, styleTransferResult.result);
-	cv::Mat outMat;
-	outMatFp.convertTo(outMat, CV_8UC3, 255);
-	*mat = outMat;
 
-	//cv::Mat outMat(cv::Size(384, 384), CV_8UC3);
-	//for (int i = 0; i < 384 * 384 * 3; i++) {
-	//	outMat.data[i] = styleTransferResult.result[i] * 255;
-	//}
-	//cv::imshow("input", *mat);
-	//cv::imshow("result", outMat);
+	constexpr int32_t INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK = 10; // to increase FPS (no need to do this every frame)
+	static float s_mergedStyleBottleneck[StylePredictionEngine::SIZE_STYLE_BOTTLENECK];
+	static int32_t s_cnt = 0;
+	if (s_cnt++ % INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK == 0 || s_styleBottleneckUpdated) {
+		constexpr float ratio = 0.5f;
+		StylePredictionEngine::RESULT stylePredictionResult;
+		s_stylePredictionEngine->invoke(originalMat, stylePredictionResult);
+		for (int32_t i = 0; i < StylePredictionEngine::SIZE_STYLE_BOTTLENECK; i++) {
+			s_mergedStyleBottleneck[i] = ratio * stylePredictionResult.styleBottleneck[i] + (1 - ratio) * s_styleBottleneck[i];
+		}
+	}
+
+	StyleTransferEngine::RESULT styleTransferResult;
+	s_styleTransferEngine->invoke(originalMat, s_mergedStyleBottleneck, StylePredictionEngine::SIZE_STYLE_BOTTLENECK, styleTransferResult);
+
+	/* Return the results */
+	originalMat = styleTransferResult.image;
+	outputParam->timePreProcess = styleTransferResult.timePreProcess;
+	outputParam->timeInference = styleTransferResult.timeInference;
+	outputParam->timePostProcess = styleTransferResult.timePostProcess;
 
 	return 0;
 }

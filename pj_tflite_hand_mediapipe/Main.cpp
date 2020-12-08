@@ -1,25 +1,28 @@
 /*** Include ***/
 /* for general */
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cmath>
+#include <cstring>
 #include <string>
 #include <vector>
+#include <array>
 #include <algorithm>
 #include <chrono>
 
 /* for OpenCV */
 #include <opencv2/opencv.hpp>
 
+/* for My modules */
 #include "ImageProcessor.h"
 
 /*** Macro ***/
-#define WORK_DIR     RESOURCE_DIR
 #define IMAGE_NAME   RESOURCE_DIR"/hand00.jpg"
-
-/* Settings */
+#define WORK_DIR     RESOURCE_DIR
 #define LOOP_NUM_FOR_TIME_MEASUREMENT 10
 
-int main()
+
+int32_t main()
 {
 	/*** Initialize ***/
 	/* Initialize image processor library */
@@ -35,24 +38,33 @@ int main()
 	/* Call image processor library */
 	OUTPUT_PARAM outputParam;
 	ImageProcessor_process(&originalImage, &outputParam);
-	ImageProcessor_process(&originalImage, &outputParam);	// it seems the first invoke cannot detect hand
+
 	cv::imshow("originalImage", originalImage);
 	cv::waitKey(1);
 
 	/*** (Optional) Measure inference time ***/
+	double timePreProcess = 0;
+	double timeInference = 0;
+	double timePostProcess = 0;
 	const auto& t0 = std::chrono::steady_clock::now();
-	for (int i = 0; i < LOOP_NUM_FOR_TIME_MEASUREMENT; i++) {
+	for (int32_t i = 0; i < LOOP_NUM_FOR_TIME_MEASUREMENT; i++) {
 		ImageProcessor_process(&originalImage, &outputParam);
+		timePreProcess += outputParam.timePreProcess;
+		timeInference += outputParam.timeInference;
+		timePostProcess += outputParam.timePostProcess;
 	}
 	const auto& t1 = std::chrono::steady_clock::now();
 	std::chrono::duration<double> timeSpan = t1 - t0;
-	printf("Image processing time  = %f [msec]\n", timeSpan.count() * 1000.0 / LOOP_NUM_FOR_TIME_MEASUREMENT);
+	printf("PreProcessing time  = %.3lf [msec]\n", timePreProcess / LOOP_NUM_FOR_TIME_MEASUREMENT);
+	printf("Inference time  = %.3lf [msec]\n", timeInference / LOOP_NUM_FOR_TIME_MEASUREMENT);
+	printf("PostProcessing time  = %.3lf [msec]\n", timePostProcess / LOOP_NUM_FOR_TIME_MEASUREMENT);
+	printf("Total Image processing time  = %.3lf [msec]\n", timeSpan.count() * 1000.0 / LOOP_NUM_FOR_TIME_MEASUREMENT);
 	cv::waitKey(-1);
 
 #else
 	/* Initialize camera */
-	int originalImageWidth = 1280;
-	int originalImageHeight = 720;
+	int32_t originalImageWidth = 640;
+	int32_t originalImageHeight = 480;
 
 	static cv::VideoCapture cap;
 	cap = cv::VideoCapture(0);
