@@ -37,6 +37,11 @@ int32_t StylePredictionEngine::initialize(const std::string& workDir, const int3
 	m_inputTensorList.clear();
 	InputTensorInfo inputTensorInfo;
 	inputTensorInfo.name = "style_image";
+	inputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
+	inputTensorInfo.tensorDims.batch = 1;
+	inputTensorInfo.tensorDims.width = 256;
+	inputTensorInfo.tensorDims.height = 256;
+	inputTensorInfo.tensorDims.channel = 3;
 	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
 	inputTensorInfo.normalize.mean[0] = 0.0f;
 	inputTensorInfo.normalize.mean[1] = 0.0f;
@@ -49,6 +54,7 @@ int32_t StylePredictionEngine::initialize(const std::string& workDir, const int3
 	/* Set output tensor info */
 	m_outputTensorList.clear();
 	OutputTensorInfo outputTensorInfo;
+	outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
 	outputTensorInfo.name = "mobilenet_conv/Conv/BiasAdd";
 	m_outputTensorList.push_back(outputTensorInfo);
 

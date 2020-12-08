@@ -37,6 +37,11 @@ int32_t StyleTransferEngine::initialize(const std::string& workDir, const int32_
 	m_inputTensorList.clear();
 	InputTensorInfo inputTensorInfo;
 	inputTensorInfo.name = "content_image";
+	inputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
+	inputTensorInfo.tensorDims.batch = 1;
+	inputTensorInfo.tensorDims.width = 384;
+	inputTensorInfo.tensorDims.height = 384;
+	inputTensorInfo.tensorDims.channel = 3;
 	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
 	inputTensorInfo.normalize.mean[0] = 0.0f;
 	inputTensorInfo.normalize.mean[1] = 0.0f;
@@ -58,6 +63,7 @@ int32_t StyleTransferEngine::initialize(const std::string& workDir, const int32_
 	/* Set output tensor info */
 	m_outputTensorList.clear();
 	OutputTensorInfo outputTensorInfo;
+	outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
 	outputTensorInfo.name = "transformer/expand/conv3/conv/Sigmoid";
 	m_outputTensorList.push_back(outputTensorInfo);
 

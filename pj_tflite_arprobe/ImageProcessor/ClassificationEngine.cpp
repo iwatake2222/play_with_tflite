@@ -40,6 +40,11 @@ int32_t ClassificationEngine::initialize(const std::string& workDir, const int32
 	m_inputTensorList.clear();
 	InputTensorInfo inputTensorInfo;
 	inputTensorInfo.name = "images";
+	inputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_UINT8;
+	inputTensorInfo.tensorDims.batch = 1;
+	inputTensorInfo.tensorDims.width = 280;
+	inputTensorInfo.tensorDims.height = 280;
+	inputTensorInfo.tensorDims.channel = 3;
 	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
 	inputTensorInfo.normalize.mean[0] = 0.0f;		/* normalize to [0.f, 1.f] */
 	inputTensorInfo.normalize.mean[1] = 0.0f;
@@ -52,6 +57,7 @@ int32_t ClassificationEngine::initialize(const std::string& workDir, const int32
 	/* Set output tensor info */
 	m_outputTensorList.clear();
 	OutputTensorInfo outputTensorInfo;
+	outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_UINT8;
 	outputTensorInfo.name = "Softmax";
 	m_outputTensorList.push_back(outputTensorInfo);
 
@@ -60,9 +66,9 @@ int32_t ClassificationEngine::initialize(const std::string& workDir, const int32
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSOR_RT));
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::NCNN));
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::MNN));
-	// m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE));
+	m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE));
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_EDGETPU));
-	m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU));
+	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU));
 	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_XNNPACK));
 
 	if (!m_inferenceHelper) {

@@ -31,7 +31,7 @@ int32_t main()
 	inputParam.numThreads = 4;
 	ImageProcessor_initialize(&inputParam);
 
-#ifndef SPEED_TEST_ONLY
+#ifdef SPEED_TEST_ONLY
 	/* Read an input image */
 	cv::Mat originalImage = cv::imread(IMAGE_NAME);
 

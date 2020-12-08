@@ -40,6 +40,11 @@ int32_t DetectionEngine::initialize(const std::string& workDir, const int32_t nu
 	m_inputTensorList.clear();
 	InputTensorInfo inputTensorInfo;
 	inputTensorInfo.name = "normalized_input_image_tensor";
+	inputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
+	inputTensorInfo.tensorDims.batch = 1;
+	inputTensorInfo.tensorDims.width = 300;
+	inputTensorInfo.tensorDims.height = 300;
+	inputTensorInfo.tensorDims.channel = 3;
 	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
 	inputTensorInfo.normalize.mean[0] = 0.5f;
 	inputTensorInfo.normalize.mean[1] = 0.5f;
@@ -52,6 +57,7 @@ int32_t DetectionEngine::initialize(const std::string& workDir, const int32_t nu
 	/* Set output tensor info */
 	m_outputTensorList.clear();
 	OutputTensorInfo outputTensorInfo;
+	outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
 	outputTensorInfo.name = "TFLite_Detection_PostProcess";
 	m_outputTensorList.push_back(outputTensorInfo);
 	outputTensorInfo.name = "TFLite_Detection_PostProcess:1";

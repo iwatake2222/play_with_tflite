@@ -31,8 +31,8 @@
 // #define USE_INT8
 
 #define OPT_MAX_WORK_SPACE_SIZE (1 << 30)
-#define OPT_AVG_TIMING_ITERATIONS 8
-#define OPT_MIN_TIMING_ITERATIONS 4
+#define OPT_AVG_TIMING_ITERATIONS 4
+#define OPT_MIN_TIMING_ITERATIONS 2
 
 #ifdef USE_INT8
 /* ★ Modify the following (use the same parameter as the model. Also, ppm must be the same size but not normalized.) */
@@ -190,6 +190,12 @@ int32_t InferenceHelperTensorRt::initialize(const std::string& modelFilename, st
 		}
 	}
 
+	/* Convert normalize parameter to speed up */
+	for (auto& inputTensorInfo : inputTensorInfoList) {
+		convertNormalizeParameters(inputTensorInfo);
+	}
+
+
 	return RET_OK;
 }
 
@@ -239,7 +245,7 @@ int32_t InferenceHelperTensorRt::preProcess(const std::vector<InputTensorInfo>& 
 			/* Normalize image */
 			if (inputTensorInfo.tensorType == TensorInfo::TENSOR_TYPE_FP32) {
 				/* convert NHWC to NCHW */
-				float_t *dst = (float_t*)(m_bufferListCPU[inputTensorInfo.id].first);
+				float *dst = (float*)(m_bufferListCPU[inputTensorInfo.id].first);
 				uint8_t *src = (uint8_t*)(inputTensorInfo.data);
 				if (m_bufferListCPU[inputTensorInfo.id].second != 4 * inputTensorInfo.imageInfo.width * inputTensorInfo.imageInfo.height * inputTensorInfo.imageInfo.channel) {
 					PRINT_E("Data size doesn't match\n");
@@ -347,9 +353,9 @@ int32_t InferenceHelperTensorRt::allocateBuffers(std::vector<InputTensorInfo>& i
 		case nvinfer1::DataType::kFLOAT:
 		case nvinfer1::DataType::kHALF:
 		case nvinfer1::DataType::kINT32:
-			bufferCPU = new float_t[dataSize];
-			m_bufferListCPU.push_back(std::pair<void*,int32_t>(bufferCPU, dataSize * sizeof(float_t)));
-			cudaMalloc(&bufferGPU, dataSize * sizeof(float_t));
+			bufferCPU = new float[dataSize];
+			m_bufferListCPU.push_back(std::pair<void*,int32_t>(bufferCPU, dataSize * sizeof(float)));
+			cudaMalloc(&bufferGPU, dataSize * sizeof(float));
 			m_bufferListGPU.push_back(bufferGPU);
 			break;
 		case nvinfer1::DataType::kINT8:
@@ -419,4 +425,26 @@ int32_t InferenceHelperTensorRt::allocateBuffers(std::vector<InputTensorInfo>& i
 	}
 
 	return RET_OK;
+}
+
+void InferenceHelperTensorRt::convertNormalizeParameters(InputTensorInfo& inputTensorInfo)
+{
+	if (inputTensorInfo.dataType != InputTensorInfo::DATA_TYPE_IMAGE) return;
+
+#if 0
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm  = src * 1 / (255 * norm) - (mean / norm) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] /= inputTensorInfo.normalize.norm[i];
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
+#if 1
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm = (src  - (mean * 255))  * (1 / (255 * norm)) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
 }

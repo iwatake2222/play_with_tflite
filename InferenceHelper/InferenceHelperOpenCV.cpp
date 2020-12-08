@@ -91,6 +91,11 @@ int32_t InferenceHelperOpenCV::initialize(const std::string& modelFilename, std:
 		}
 	}
 
+	/* Convert normalize parameter to speed up */
+	for (auto& inputTensorInfo : inputTensorInfoList) {
+		convertNormalizeParameters(inputTensorInfo);
+	}
+
 	return RET_OK;
 };
 
@@ -142,23 +147,23 @@ int32_t InferenceHelperOpenCV::preProcess(const std::vector<InputTensorInfo>& in
 				if (inputTensorInfo.tensorDims.channel == 3) {
 #if 1
 					imgSrc.convertTo(imgSrc, CV_32FC3);
-					cv::subtract(imgSrc, cv::Scalar(cv::Vec<float_t, 3>(inputTensorInfo.normalize.mean)), imgSrc);
-					cv::multiply(imgSrc, cv::Scalar(cv::Vec<float_t, 3>(inputTensorInfo.normalize.norm)), imgSrc);
+					cv::subtract(imgSrc, cv::Scalar(cv::Vec<float, 3>(inputTensorInfo.normalize.mean)), imgSrc);
+					cv::multiply(imgSrc, cv::Scalar(cv::Vec<float, 3>(inputTensorInfo.normalize.norm)), imgSrc);
 					
 #else
 					imgSrc.convertTo(imgSrc, CV_32FC3, 1.0 / 255);
-					cv::subtract(imgSrc, cv::Scalar(cv::Vec<float_t, 3>(inputTensorInfo.normalize.mean)), imgSrc);
-					cv::divide(imgSrc, cv::Scalar(cv::Vec<float_t, 3>(inputTensorInfo.normalize.norm)), imgSrc);
+					cv::subtract(imgSrc, cv::Scalar(cv::Vec<float, 3>(inputTensorInfo.normalize.mean)), imgSrc);
+					cv::divide(imgSrc, cv::Scalar(cv::Vec<float, 3>(inputTensorInfo.normalize.norm)), imgSrc);
 #endif
 				} else if (inputTensorInfo.tensorDims.channel == 1) {
 #if 1
 					imgSrc.convertTo(imgSrc, CV_32FC1);
-					cv::subtract(imgSrc, cv::Scalar(cv::Vec<float_t, 1>(inputTensorInfo.normalize.mean)), imgSrc);
-					cv::multiply(imgSrc, cv::Scalar(cv::Vec<float_t, 1>(inputTensorInfo.normalize.norm)), imgSrc);
+					cv::subtract(imgSrc, cv::Scalar(cv::Vec<float, 1>(inputTensorInfo.normalize.mean)), imgSrc);
+					cv::multiply(imgSrc, cv::Scalar(cv::Vec<float, 1>(inputTensorInfo.normalize.norm)), imgSrc);
 #else
 					imgSrc.convertTo(imgSrc, CV_32FC1, 1.0 / 255);
-					cv::subtract(imgSrc, cv::Scalar(cv::Vec<float_t, 1>(inputTensorInfo.normalize.mean)), imgSrc);
-					cv::divide(imgSrc, cv::Scalar(cv::Vec<float_t, 1>(inputTensorInfo.normalize.norm)), imgSrc);
+					cv::subtract(imgSrc, cv::Scalar(cv::Vec<float, 1>(inputTensorInfo.normalize.mean)), imgSrc);
+					cv::divide(imgSrc, cv::Scalar(cv::Vec<float, 1>(inputTensorInfo.normalize.norm)), imgSrc);
 #endif
 				} else {
 					PRINT_E("Unsupported channel num (%d)\n", inputTensorInfo.tensorDims.channel);
@@ -227,4 +232,26 @@ int32_t InferenceHelperOpenCV::invoke(std::vector<OutputTensorInfo>& outputTenso
 	}
 
 	return RET_OK;
+}
+
+void InferenceHelperOpenCV::convertNormalizeParameters(InputTensorInfo& inputTensorInfo)
+{
+	if (inputTensorInfo.dataType != InputTensorInfo::DATA_TYPE_IMAGE) return;
+
+#if 0
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm  = src * 1 / (255 * norm) - (mean / norm) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] /= inputTensorInfo.normalize.norm[i];
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
+#if 1
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm = (src  - (mean * 255))  * (1 / (255 * norm)) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
 }

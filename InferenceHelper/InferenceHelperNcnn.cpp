@@ -52,14 +52,26 @@ int32_t InferenceHelperNcnn::initialize(const std::string& modelFilename, std::v
 	m_net->opt.use_fp16_packed = true;
 	m_net->opt.use_fp16_storage = true;
 
-	if (m_net->load_param((std::string(modelFilename) + ".param").c_str()) != 0) {
+	std::string binFilename = modelFilename;
+	if (modelFilename.find(".param") == std::string::npos) {
+		PRINT_E("Invalid model param filename (%s)\n", modelFilename.c_str());
+		return RET_ERR;
+	}
+	binFilename = binFilename.replace(binFilename.find(".param"), std::string(".param").length(), ".bin\0");
+	if (m_net->load_param(modelFilename.c_str()) != 0) {
 		PRINT_E("Failed to load model param file (%s)\n", modelFilename.c_str());
 		return RET_ERR;
 	}
-	if (m_net->load_model((std::string(modelFilename) + ".bin").c_str()) != 0) {
-		PRINT_E("Failed to load model bin file (%s)\n", modelFilename.c_str());
+	if (m_net->load_model(binFilename.c_str()) != 0) {
+		PRINT_E("Failed to load model bin file (%s)\n", binFilename.c_str());
 		return RET_ERR;
 	}
+
+	/* Convert normalize parameter to speed up */
+	for (auto& inputTensorInfo : inputTensorInfoList) {
+		convertNormalizeParameters(inputTensorInfo);
+	}
+
 	return RET_OK;
 };
 
@@ -111,9 +123,10 @@ int32_t InferenceHelperNcnn::preProcess(const std::vector<InputTensorInfo>& inpu
 			/* Normalize image */
 			ncnnMat.substract_mean_normalize(inputTensorInfo.normalize.mean, inputTensorInfo.normalize.norm);
 		} else if (inputTensorInfo.dataType == InputTensorInfo::DATA_TYPE_BLOB_NHWC) {
-			PRINT_E("Unsupported data type (%d)\n", inputTensorInfo.dataType);
+			PRINT_E("[ToDo] Unsupported data type (%d)\n", inputTensorInfo.dataType);
+			ncnnMat = ncnn::Mat::from_pixels((uint8_t*)inputTensorInfo.data, inputTensorInfo.tensorDims.channel == 3 ? ncnn::Mat::PIXEL_RGB : ncnn::Mat::PIXEL_GRAY, inputTensorInfo.tensorDims.width, inputTensorInfo.tensorDims.height);
 		} else if (inputTensorInfo.dataType == InputTensorInfo::DATA_TYPE_BLOB_NCHW) {
-			PRINT_E("Unsupported data type (%d)\n", inputTensorInfo.dataType);
+			ncnnMat = ncnn::Mat(inputTensorInfo.tensorDims.width, inputTensorInfo.tensorDims.height, inputTensorInfo.tensorDims.channel, inputTensorInfo.data);
 		} else {
 			PRINT_E("Unsupported data type (%d)\n", inputTensorInfo.dataType);
 			return RET_ERR;
@@ -152,3 +165,26 @@ int32_t InferenceHelperNcnn::invoke(std::vector<OutputTensorInfo>& outputTensorI
 
 	return RET_OK;
 }
+
+void InferenceHelperNcnn::convertNormalizeParameters(InputTensorInfo& inputTensorInfo)
+{
+	if (inputTensorInfo.dataType != InputTensorInfo::DATA_TYPE_IMAGE) return;
+
+#if 0
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm  = src * 1 / (255 * norm) - (mean / norm) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] /= inputTensorInfo.normalize.norm[i];
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
+#if 1
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm = (src  - (mean * 255))  * (1 / (255 * norm)) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
+}
+

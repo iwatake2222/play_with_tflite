@@ -42,10 +42,10 @@ int32_t ClassificationEngine::initialize(const std::string& workDir, const int32
 	InputTensorInfo inputTensorInfo;
 	inputTensorInfo.name = "input";
 	inputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
-	inputTensorInfo.tensorDims.batch = -1;	// tensor dims are retrieved from the model file. You can also set [1,224,224,3] here
-	inputTensorInfo.tensorDims.width = -1;
-	inputTensorInfo.tensorDims.height = -1;
-	inputTensorInfo.tensorDims.channel = -1;
+	inputTensorInfo.tensorDims.batch = 1;
+	inputTensorInfo.tensorDims.width = 224;
+	inputTensorInfo.tensorDims.height = 224;
+	inputTensorInfo.tensorDims.channel = 3;
 	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
 	inputTensorInfo.normalize.mean[0] = 0.485f;   	/* https://github.com/onnx/models/tree/master/vision/classification/mobilenet#preprocessing */
 	inputTensorInfo.normalize.mean[1] = 0.456f;
@@ -58,6 +58,7 @@ int32_t ClassificationEngine::initialize(const std::string& workDir, const int32
 	/* Set output tensor info */
 	m_outputTensorList.clear();
 	OutputTensorInfo outputTensorInfo;
+	outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
 	outputTensorInfo.name = "MobilenetV2/Predictions/Reshape_1";
 	//outputTensorInfo.name = "MobilenetV2/Predictions/Softmax";
 	m_outputTensorList.push_back(outputTensorInfo);
@@ -153,11 +154,14 @@ int32_t ClassificationEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	inputTensorInfo.imageInfo.cropHeight = originalMat.rows;
 	inputTensorInfo.imageInfo.isBGR = true;
 	inputTensorInfo.imageInfo.swapColor = true;
+#if 0
 	InferenceHelper::preProcessByOpenCV(inputTensorInfo, false, imgSrc);
-	//InferenceHelper::preProcessByOpenCV(inputTensorInfo, true, imgSrc);
-	inputTensorInfo.data = imgSrc.data;
 	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_BLOB_NHWC;
-	//inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_BLOB_NCHW;
+#else
+	InferenceHelper::preProcessByOpenCV(inputTensorInfo, true, imgSrc);
+	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_BLOB_NCHW;
+#endif
+	inputTensorInfo.data = imgSrc.data;
 #endif
 	if (m_inferenceHelper->preProcess(m_inputTensorList) != InferenceHelper::RET_OK) {
 		return RET_ERR;

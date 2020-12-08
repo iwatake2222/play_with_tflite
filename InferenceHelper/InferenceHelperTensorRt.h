@@ -31,7 +31,8 @@ public:
 
 private:
 	int32_t allocateBuffers(std::vector<InputTensorInfo>& inputTensorInfoList, std::vector<OutputTensorInfo>& outputTensorInfoList);
-
+	void convertNormalizeParameters(InputTensorInfo& tensorInfo);
+	
 private:
 	int32_t m_numThread;
 	std::shared_ptr<nvinfer1::IRuntime> m_runtime;

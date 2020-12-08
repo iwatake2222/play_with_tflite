@@ -48,6 +48,11 @@ int32_t PalmDetectionEngine::initialize(const std::string& workDir, const int32_
 	m_inputTensorList.clear();
 	InputTensorInfo inputTensorInfo;
 	inputTensorInfo.name = "input";
+	inputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
+	inputTensorInfo.tensorDims.batch = 1;
+	inputTensorInfo.tensorDims.width = 256;
+	inputTensorInfo.tensorDims.height = 256;
+	inputTensorInfo.tensorDims.channel = 3;
 	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
 	inputTensorInfo.normalize.mean[0] = 0.5f;   	/* normalized to[-1.f, 1.f] (hand_detection_cpu.pbtxt.pbtxt) */
 	inputTensorInfo.normalize.mean[1] = 0.5f;
@@ -60,6 +65,7 @@ int32_t PalmDetectionEngine::initialize(const std::string& workDir, const int32_
 	/* Set output tensor info */
 	m_outputTensorList.clear();
 	OutputTensorInfo outputTensorInfo;
+	outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
 	outputTensorInfo.name = "regressors";
 	m_outputTensorList.push_back(outputTensorInfo);
 	outputTensorInfo.name = "classificators";

@@ -138,22 +138,22 @@ void InferenceHelper::preProcessByOpenCV(const InputTensorInfo& inputTensorInfo,
 		if (inputTensorInfo.tensorDims.channel == 3) {
 #if 1
 			imgSrc.convertTo(imgSrc, CV_32FC3);
-			cv::subtract(imgSrc, cv::Scalar(cv::Vec<float_t, 3>(inputTensorInfo.normalize.mean)), imgSrc);
-			cv::multiply(imgSrc, cv::Scalar(cv::Vec<float_t, 3>(inputTensorInfo.normalize.norm)), imgSrc);
+			cv::subtract(imgSrc, cv::Scalar(cv::Vec<float, 3>(inputTensorInfo.normalize.mean)), imgSrc);
+			cv::multiply(imgSrc, cv::Scalar(cv::Vec<float, 3>(inputTensorInfo.normalize.norm)), imgSrc);
 #else
 			imgSrc.convertTo(imgSrc, CV_32FC3, 1.0 / 255);
-			cv::subtract(imgSrc, cv::Scalar(cv::Vec<float_t, 3>(inputTensorInfo.normalize.mean)), imgSrc);
-			cv::divide(imgSrc, cv::Scalar(cv::Vec<float_t, 3>(inputTensorInfo.normalize.norm)), imgSrc);
+			cv::subtract(imgSrc, cv::Scalar(cv::Vec<float, 3>(inputTensorInfo.normalize.mean)), imgSrc);
+			cv::divide(imgSrc, cv::Scalar(cv::Vec<float, 3>(inputTensorInfo.normalize.norm)), imgSrc);
 #endif
 		} else {
 #if 1
 			imgSrc.convertTo(imgSrc, CV_32FC1);
-			cv::subtract(imgSrc, cv::Scalar(cv::Vec<float_t, 1>(inputTensorInfo.normalize.mean)), imgSrc);
-			cv::multiply(imgSrc, cv::Scalar(cv::Vec<float_t, 1>(inputTensorInfo.normalize.norm)), imgSrc);
+			cv::subtract(imgSrc, cv::Scalar(cv::Vec<float, 1>(inputTensorInfo.normalize.mean)), imgSrc);
+			cv::multiply(imgSrc, cv::Scalar(cv::Vec<float, 1>(inputTensorInfo.normalize.norm)), imgSrc);
 #else
 			imgSrc.convertTo(imgSrc, CV_32FC1, 1.0 / 255);
-			cv::subtract(imgSrc, cv::Scalar(cv::Vec<float_t, 1>(inputTensorInfo.normalize.mean)), imgSrc);
-			cv::divide(imgSrc, cv::Scalar(cv::Vec<float_t, 1>(inputTensorInfo.normalize.norm)), imgSrc);
+			cv::subtract(imgSrc, cv::Scalar(cv::Vec<float, 1>(inputTensorInfo.normalize.mean)), imgSrc);
+			cv::divide(imgSrc, cv::Scalar(cv::Vec<float, 1>(inputTensorInfo.normalize.norm)), imgSrc);
 #endif
 		}
 	} else {

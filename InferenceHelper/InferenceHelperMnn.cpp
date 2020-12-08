@@ -68,7 +68,7 @@ int32_t InferenceHelperMnn::initialize(const std::string& modelFilename, std::ve
 	}
 
 	/* Check tensor info fits the info from model */
-	for (const auto& inputTensorInfo : inputTensorInfoList) {
+	for (auto& inputTensorInfo : inputTensorInfoList) {
 		auto inputTensor = m_net->getSessionInput(m_session, inputTensorInfo.name.c_str());
 		if (inputTensor == nullptr) {
 			PRINT_E("Invalid input name (%s)\n", inputTensorInfo.name.c_str());
@@ -83,16 +83,29 @@ int32_t InferenceHelperMnn::initialize(const std::string& modelFilename, std::ve
 			return RET_ERR;
 		}
 		if ((inputTensor->channel() != -1) && (inputTensor->height() != -1) && (inputTensor->width() != -1)) {
-			if ((inputTensor->channel() == inputTensorInfo.tensorDims.channel) && (inputTensor->height() == inputTensorInfo.tensorDims.height) && (inputTensor->width() == inputTensorInfo.tensorDims.width)) {
-				/* OK */
+			if (inputTensorInfo.tensorDims.channel != -1) {
+				if ((inputTensor->channel() == inputTensorInfo.tensorDims.channel) && (inputTensor->height() == inputTensorInfo.tensorDims.height) && (inputTensor->width() == inputTensorInfo.tensorDims.width)) {
+					/* OK */
+				} else {
+					PRINT_E("Incorrect input tensor size\n");
+					return RET_ERR;
+				}
 			} else {
-				PRINT_E("Incorrect input tensor size\n");
-				return RET_ERR;
+				PRINT("Input tensor size is set from the model\n");
+				inputTensorInfo.tensorDims.channel = inputTensor->channel();
+				inputTensorInfo.tensorDims.height = inputTensor->height();
+				inputTensorInfo.tensorDims.width = inputTensor->width();
 			}
 		} else {
-			/* In case the input size  is not fixed */
-			m_net->resizeTensor(inputTensor, { 1, inputTensorInfo.tensorDims.channel, inputTensorInfo.tensorDims.height, inputTensorInfo.tensorDims.width });
-			m_net->resizeSession(m_session);
+			if (inputTensorInfo.tensorDims.channel != -1) {
+				PRINT("Input tensor size is resized\n");
+				/* In case the input size  is not fixed */
+				m_net->resizeTensor(inputTensor, { 1, inputTensorInfo.tensorDims.channel, inputTensorInfo.tensorDims.height, inputTensorInfo.tensorDims.width });
+				m_net->resizeSession(m_session);
+			} else {
+				PRINT_E("Model input size is not set\n");
+				return RET_ERR;
+			}
 		}
 	}
 	for (const auto& outputTensorInfo : outputTensorInfoList) {
@@ -103,6 +116,12 @@ int32_t InferenceHelperMnn::initialize(const std::string& modelFilename, std::ve
 		}
 		/* Output size is set when run inference later */
 	}
+
+	/* Convert normalize parameter to speed up */
+	for (auto& inputTensorInfo : inputTensorInfoList) {
+		convertNormalizeParameters(inputTensorInfo);
+	}
+
 
 	return RET_OK;
 };
@@ -162,7 +181,7 @@ int32_t InferenceHelperMnn::preProcess(const std::vector<InputTensorInfo>& input
 			/* Resize image */
 			imageProcessconfig.filterType = MNN::CV::BILINEAR;
 			MNN::CV::Matrix trans;
-			trans.setScale(static_cast<float_t>(inputTensorInfo.imageInfo.cropWidth) / inputTensorInfo.tensorDims.width, static_cast<float_t>(inputTensorInfo.imageInfo.cropHeight) / inputTensorInfo.tensorDims.height);
+			trans.setScale(static_cast<float>(inputTensorInfo.imageInfo.cropWidth) / inputTensorInfo.tensorDims.width, static_cast<float>(inputTensorInfo.imageInfo.cropHeight) / inputTensorInfo.tensorDims.height);
 
 			/* Do pre-process */
 			std::shared_ptr<MNN::CV::ImageProcess> pretreat(MNN::CV::ImageProcess::create(imageProcessconfig));
@@ -177,7 +196,7 @@ int32_t InferenceHelperMnn::preProcess(const std::vector<InputTensorInfo>& input
 			}
 			if (tensor->getType().code == halide_type_float) {
 				for (int32_t i = 0; i < inputTensorInfo.tensorDims.width * inputTensorInfo.tensorDims.height * inputTensorInfo.tensorDims.channel; i++) {
-					tensor->host<float_t>()[i] = static_cast<float_t*>(inputTensorInfo.data)[i];
+					tensor->host<float>()[i] = static_cast<float*>(inputTensorInfo.data)[i];
 				}
 			} else {
 				for (int32_t i = 0; i < inputTensorInfo.tensorDims.width * inputTensorInfo.tensorDims.height * inputTensorInfo.tensorDims.channel; i++) {
@@ -211,7 +230,7 @@ int32_t InferenceHelperMnn::invoke(std::vector<OutputTensorInfo>& outputTensorIn
 		auto type = outputUser->getType();
 		if (type.code == halide_type_float) {
 			outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
-			outputTensorInfo.data = outputUser->host<float_t>();
+			outputTensorInfo.data = outputUser->host<float>();
 		} else if (type.code == halide_type_uint && type.bytes() == 1) {
 			outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_UINT8;
 			outputTensorInfo.data = outputUser->host<uint8_t>();
@@ -228,4 +247,26 @@ int32_t InferenceHelperMnn::invoke(std::vector<OutputTensorInfo>& outputTensorIn
 	}
 
 	return RET_OK;
+}
+
+void InferenceHelperMnn::convertNormalizeParameters(InputTensorInfo& inputTensorInfo)
+{
+	if (inputTensorInfo.dataType != InputTensorInfo::DATA_TYPE_IMAGE) return;
+
+#if 0
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm  = src * 1 / (255 * norm) - (mean / norm) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] /= inputTensorInfo.normalize.norm[i];
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
+#if 1
+	/* Convert to speeden up normalization:  ((src / 255) - mean) / norm = (src  - (mean * 255))  * (1 / (255 * norm)) */
+	for (int32_t i = 0; i < 3; i++) {
+		inputTensorInfo.normalize.mean[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] *= 255.0f;
+		inputTensorInfo.normalize.norm[i] = 1.0f / inputTensorInfo.normalize.norm[i];
+	}
+#endif
 }

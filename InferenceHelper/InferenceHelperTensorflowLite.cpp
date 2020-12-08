@@ -200,7 +200,7 @@ int32_t InferenceHelperTensorflowLite::preProcess(const std::vector<InputTensorI
 				uint8_t* dst = m_interpreter->typed_tensor<uint8_t>(inputTensorInfo.id);
 				memcpy(dst, src, sizeof(uint8_t) * inputTensorInfo.tensorDims.width * inputTensorInfo.tensorDims.height * inputTensorInfo.tensorDims.channel);
 			} else if (inputTensorInfo.tensorType == TensorInfo::TENSOR_TYPE_FP32) {
-				float_t* dst = m_interpreter->typed_tensor<float_t>(inputTensorInfo.id);
+				float* dst = m_interpreter->typed_tensor<float>(inputTensorInfo.id);
 #pragma omp parallel for num_threads(m_numThread)
 				for (int32_t i = 0; i < inputTensorInfo.tensorDims.width * inputTensorInfo.tensorDims.height; i++) {
 					for (int32_t c = 0; c < inputTensorInfo.tensorDims.channel; c++) {
@@ -231,10 +231,10 @@ int32_t InferenceHelperTensorflowLite::preProcess(const std::vector<InputTensorI
 					}
 				}
 			} else if (inputTensorInfo.tensorType == TensorInfo::TENSOR_TYPE_FP32) {
-				float_t* dst = m_interpreter->typed_tensor<float_t>(inputTensorInfo.id);
-				float_t* src = static_cast<float_t*>(inputTensorInfo.data);
+				float* dst = m_interpreter->typed_tensor<float>(inputTensorInfo.id);
+				float* src = static_cast<float*>(inputTensorInfo.data);
 				if (inputTensorInfo.dataType == InputTensorInfo::DATA_TYPE_BLOB_NHWC) {	/* NHWC -> NHWC */
-					//memcpy(dst, src, sizeof(float_t) * inputTensorInfo.tensorDims.width * inputTensorInfo.tensorDims.height * inputTensorInfo.tensorDims.channel);
+					//memcpy(dst, src, sizeof(float) * inputTensorInfo.tensorDims.width * inputTensorInfo.tensorDims.height * inputTensorInfo.tensorDims.channel);
 					setBufferToTensor(inputTensorInfo.id, src);
 				} else {	/* NCHW -> NHWC */
 					for (int32_t i = 0; i < inputTensorInfo.tensorDims.width * inputTensorInfo.tensorDims.height; i++) {
@@ -414,7 +414,7 @@ int32_t InferenceHelperTensorflowLite::getOutputTensorInfo(OutputTensorInfo& ten
 				break;
 			case kTfLiteFloat32:
 				tensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
-				tensorInfo.data = m_interpreter->typed_tensor<float_t>(i);
+				tensorInfo.data = m_interpreter->typed_tensor<float>(i);
 				break;
 			case kTfLiteInt32:
 				tensorInfo.tensorType = TensorInfo::TENSOR_TYPE_INT32;
@@ -495,7 +495,7 @@ int32_t InferenceHelperTensorflowLite::setBufferToTensor(int32_t index, void *da
 			inputQuantClone,	// use copied parameters
 			(const char*)data, dataSize);
 	} else {
-		int32_t dataSize = sizeof(float_t) * 1 * modelInputHeight * modelInputWidth * modelInputChannel;
+		int32_t dataSize = sizeof(float) * 1 * modelInputHeight * modelInputWidth * modelInputChannel;
 		m_interpreter->SetTensorParametersReadOnly(
 			index, tensor->type, tensor->name,
 			std::vector<int32_t>(tensor->dims->data, tensor->dims->data + tensor->dims->size),

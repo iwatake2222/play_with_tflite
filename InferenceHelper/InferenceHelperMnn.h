@@ -29,6 +29,9 @@ public:
 	int32_t invoke(std::vector<OutputTensorInfo>& outputTensorInfoList) override;
 
 private:
+	void convertNormalizeParameters(InputTensorInfo& inputTensorInfo);
+
+private:
 	std::unique_ptr<MNN::Interpreter> m_net;
 	MNN::Session* m_session;
 	std::vector<std::unique_ptr<MNN::Tensor>> m_outMatList;

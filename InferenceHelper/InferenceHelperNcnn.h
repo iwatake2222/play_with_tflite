@@ -27,6 +27,9 @@ public:
 	int32_t invoke(std::vector<OutputTensorInfo>& outputTensorInfoList) override;
 
 private:
+	void convertNormalizeParameters(InputTensorInfo& tensorInfo);
+
+private:
 	std::unique_ptr<ncnn::Net> m_net;
 	std::vector<std::pair<std::string, ncnn::Mat>> m_inMatList;	// <name, mat>
 	std::vector<ncnn::Mat> m_outMatList;

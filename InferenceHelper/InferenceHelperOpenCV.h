@@ -27,6 +27,9 @@ public:
 	int32_t invoke(std::vector<OutputTensorInfo>& outputTensorInfoList) override;
 
 private:
+	void convertNormalizeParameters(InputTensorInfo& inputTensorInfo);
+
+private:
 	cv::dnn::Net m_net;
 	std::vector<cv::Mat> m_inMatList;
 	std::vector<cv::Mat> m_outMatList;	// store data as member variable so that an user can refer the results
