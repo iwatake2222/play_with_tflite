@@ -1,6 +1,0 @@
-- tensorflow_prebuilt
-    - bb3c460114b13fda5c730fe43587b8e8c2243cd7
-    - with XNNPACK
-- edgetpu_prebuilt
-    - 7064b94dd5b996189242320359dbab8b52c94a84
-
