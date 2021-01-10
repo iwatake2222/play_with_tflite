@@ -25,8 +25,27 @@
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
-#define MODEL_NAME   "mobilenet_v2_1.0_224.tflite"
-//#define MODEL_NAME   "mobilenet_v2_1.0_224_quant.tflite"
+
+#if 1
+// FP32
+#define MODEL_NAME  "mobilenet_v2_1.0_224.tflite"
+#define INPUT_NAME  "input"
+#define OUTPUT_NAME "MobilenetV2/Predictions/Reshape_1"
+#define TENSORTYPE  TensorInfo::TENSOR_TYPE_FP32
+#elif 1
+// UIINT8
+#define MODEL_NAME  "mobilenet_v2_1.0_224_quant.tflite"
+#define INPUT_NAME  "input"
+#define OUTPUT_NAME "output"
+#define TENSORTYPE  TensorInfo::TENSOR_TYPE_UINT8
+#elif 1
+// UIINT8 + EDGETPU
+#define MODEL_NAME  "mobilenet_v2_1.0_224_quant_edgetpu.tflite"
+#define INPUT_NAME  "input"
+#define OUTPUT_NAME "output"
+#define TENSORTYPE  TensorInfo::TENSOR_TYPE_UINT8
+#endif
+
 #define LABEL_NAME   "imagenet_labels.txt"
 
 
@@ -40,8 +59,8 @@ int32_t ClassificationEngine::initialize(const std::string& workDir, const int32
 	/* Set input tensor info */
 	m_inputTensorList.clear();
 	InputTensorInfo inputTensorInfo;
-	inputTensorInfo.name = "input";
-	inputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
+	inputTensorInfo.name = INPUT_NAME;
+	inputTensorInfo.tensorType = TENSORTYPE;
 	inputTensorInfo.tensorDims.batch = 1;
 	inputTensorInfo.tensorDims.width = 224;
 	inputTensorInfo.tensorDims.height = 224;
@@ -58,20 +77,15 @@ int32_t ClassificationEngine::initialize(const std::string& workDir, const int32
 	/* Set output tensor info */
 	m_outputTensorList.clear();
 	OutputTensorInfo outputTensorInfo;
-	outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
-	outputTensorInfo.name = "MobilenetV2/Predictions/Reshape_1";
-	//outputTensorInfo.name = "MobilenetV2/Predictions/Softmax";
+	outputTensorInfo.tensorType = TENSORTYPE;
+	outputTensorInfo.name = OUTPUT_NAME;
 	m_outputTensorList.push_back(outputTensorInfo);
 
 	/* Create and Initialize Inference Helper */
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::OPEN_CV));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSOR_RT));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::NCNN));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::MNN));
 	m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_EDGETPU));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_XNNPACK));
+	// m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_XNNPACK));
+	// m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU));
+	// m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_EDGETPU));
 
 	if (!m_inferenceHelper) {
 		return RET_ERR;
