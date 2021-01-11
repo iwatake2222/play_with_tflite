@@ -17,7 +17,7 @@ target_include_directories(${LibraryName} PUBLIC ${INFERENCE_HELPER_DIR}/CommonH
 target_link_libraries(${LibraryName} CommonHelper)
 
 # Link InferenceHelper module
-set(INFERENCE_HELPER_ENABLE_OPENCV OFF CACHE BOOL "OPENCV" FORCE)
+set(INFERENCE_HELPER_ENABLE_OPENCV OFF CACHE BOOL "OPENCV")
 set(INFERENCE_HELPER_ENABLE_TFLITE ON CACHE BOOL "TFLITE")
 add_subdirectory(${INFERENCE_HELPER_DIR}/InferenceHelper InferenceHelper)
 target_include_directories(${LibraryName} PUBLIC ${INFERENCE_HELPER_DIR}/InferenceHelper)
