@@ -35,11 +35,11 @@ Sample projects to use Tensorflow Lite for multi-platform
 		- AR-ish application using hand tracking
 	- pj_tflite_style_transfer
 		- Artistic Style Transfer
-	- temp_pj_tflite_simple_cls_mobilenet_v2
+	- temp_pj_tflite_simple_cls_mobilenet_v2 (Not supported now)
 		- Basic project without using InferenceHelper
-	- temp_pj_tflite_edgetpuapi_cls_mobilenet_v2
+	- temp_pj_tflite_edgetpuapi_cls_mobilenet_v2 (Not supported now)
 		- Basic project using API from coral
-	- temp_pj_tflite_edgetpupipeline_cls_inception_v3
+	- temp_pj_tflite_edgetpupipeline_cls_inception_v3 (Not supported now)
 		- Basic project for Edge TPU Pipeline
 
 ## How to build application
@@ -145,6 +145,9 @@ You also need to select framework when calling `InferenceHelper::create` .
 - Modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to call image processor function you want to use.
 	- `set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_arprobe/ImageProcessor")`
 - Copy `resource` directory to `/storage/emulated/0/Android/data/com.iwatake.viewandroidtflite/files/Documents/resource` (<- e.g.) . The directory will be created after running the app (so the first run should fail because model files cannot be read)
+
+- *Note* : By default, `InferenceHelper::TENSORFLOW_LITE` is used. It's better to use `InferenceHelper::TENSORFLOW_LITE_GPU` to get high performance.
+
 
 ## How to create pre-built Tensorflow Lite library
 Pre-built Tensorflow Lite libraries are stored in `InferenceHelper/ThirdParty/tensorflow_prebuilt` . If you want to build them by yourself, please use the following commands.
