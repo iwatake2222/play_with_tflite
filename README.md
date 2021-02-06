@@ -21,6 +21,8 @@ Sample projects to use Tensorflow Lite for multi-platform
 		- Tested in Windows, Raspberry Pi (armv7) and Jetson NX (aarch64)
 	- GPU
 		- Tested in Jetson NX and Android
+	- NNAPI(CPU, GPU, DSP)
+		- Tested in Android (Pixel 4a)
 
 - Projects
 	- pj_tflite_cls_mobilenet_v2
@@ -62,7 +64,7 @@ Sample projects to use Tensorflow Lite for multi-platform
 	```
 
 - Download prebuilt libraries
-	- Download prebuilt libraries (ThirdParty.zip) from https://github.com/iwatake2222/InferenceHelper/releases/ 
+	- Download prebuilt libraries (ThirdParty.zip) from https://github.com/iwatake2222/InferenceHelper/releases/  (<- Not in this repository)
 	- Extract it to `InferenceHelper/ThirdParty/`
 - Download models
 	- Download models (resource.zip) from https://github.com/iwatake2222/play_with_tflite/releases/ 
@@ -107,6 +109,9 @@ cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPE
 
 # XNNPACK
 cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=on
+
+# NNAPI (Note: You use Android for NNAPI. Therefore, you will modify CMakeLists.txt in Android Studio rather than the following command)
+cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_NNAPI=on
 ```
 
 You also need to select framework when calling `InferenceHelper::create` .
@@ -146,7 +151,17 @@ You also need to select framework when calling `InferenceHelper::create` .
 	- `set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_arprobe/ImageProcessor")`
 - Copy `resource` directory to `/storage/emulated/0/Android/data/com.iwatake.viewandroidtflite/files/Documents/resource` (<- e.g.) . The directory will be created after running the app (so the first run should fail because model files cannot be read)
 
-- *Note* : By default, `InferenceHelper::TENSORFLOW_LITE` is used. It's better to use `InferenceHelper::TENSORFLOW_LITE_GPU` to get high performance.
+- *Note* : By default, `InferenceHelper::TENSORFLOW_LITE` is used. You can modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to select which delegate to use. It's better to use `InferenceHelper::TENSORFLOW_LITE_GPU` to get high performance.
+
+
+### NNAPI
+By default, NNAPI will select the most appropreate accelerator for the model. You can specify which accelerator to use by yourself. Modify the following code in `InferenceHelperTensorflowLite.cpp`
+
+```
+// options.accelerator_name = "qti-default";
+// options.accelerator_name = "qti-dsp";
+// options.accelerator_name = "qti-gpu";
+```
 
 
 ## How to create pre-built Tensorflow Lite library
@@ -270,7 +285,7 @@ You can create libtensorflow.so(it's actually dll) for Windows using the followi
 		- `bazel-bin/tensorflow/lite/libtensorflowlite.so.if.lib`
 
 ### For Android
-You can create libtensorflow.so for Android (armv7, aarch64) either in PC Linux or in Windows. I used Windows 10 to build.
+You can create libtensorflow.so for Android (armv7, aarch64) either in PC Linux or in Windows.
 You need to install Android SDK and Android NDK beforehand, then specify the path to sdk and ndk when `python configure.py` asks "`Would you like to interactively configure ./WORKSPACE for Android builds`". (Notice that path must be like `c:/...` instead of `c:\...`)
 
 - Build for armv7 Android
@@ -308,6 +323,7 @@ You need to install Android SDK and Android NDK beforehand, then specify the pat
 	--strip always 
 	```
 - *Note* : Build with v2.4.0 failed in Windows, but it succeeded in Linux (2021/01/09)
+- *Note* : Code for NNAPI delegate is automatically built
 
 ## How to create pre-built EdgeTPU library
 You can download the official libraries from https://github.com/google-coral/libedgetpu . However, you need to use the same tflite version as used in EdgeTPU library. Since I use v2.4.0 version here, I built my own libraries for EdgeTPU using tensorflow v2.4.0. They are stored in `InferenceHelper/ThirdParty/edgetpu_prebuilt` , and the projects link these libraries.
