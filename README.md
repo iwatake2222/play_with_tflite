@@ -37,6 +37,8 @@ Sample projects to use Tensorflow Lite for multi-platform
 		- AR-ish application using hand tracking
 	- pj_tflite_style_transfer
 		- Artistic Style Transfer
+	- pj_tflite_pose_movenet
+		- Pose detection using MoveNet.SinglePose.Lightning
 	- temp_pj_tflite_simple_cls_mobilenet_v2 (Not supported now)
 		- Basic project without using InferenceHelper
 	- temp_pj_tflite_edgetpuapi_cls_mobilenet_v2 (Not supported now)
