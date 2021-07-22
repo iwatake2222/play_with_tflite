@@ -17,7 +17,7 @@
 #include <opencv2/tracking/tracker.hpp>
 
 /* for My modules */
-#include "CommonHelper.h"
+#include "common_helper.h"
 #include "PalmDetectionEngine.h"
 #include "HandLandmarkEngine.h"
 #include "ClassificationEngine.h"

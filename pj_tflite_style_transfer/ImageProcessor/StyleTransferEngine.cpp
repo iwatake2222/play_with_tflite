@@ -15,8 +15,8 @@
 #include <opencv2/opencv.hpp>
 
 /* for My modules */
-#include "CommonHelper.h"
-#include "InferenceHelper.h"
+#include "common_helper.h"
+#include "inference_helper.h"
 #include "StyleTransferEngine.h"
 
 /*** Macro ***/
@@ -37,12 +37,12 @@ int32_t StyleTransferEngine::initialize(const std::string& workDir, const int32_
 	m_inputTensorList.clear();
 	InputTensorInfo inputTensorInfo;
 	inputTensorInfo.name = "content_image";
-	inputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
-	inputTensorInfo.tensorDims.batch = 1;
-	inputTensorInfo.tensorDims.width = 384;
-	inputTensorInfo.tensorDims.height = 384;
-	inputTensorInfo.tensorDims.channel = 3;
-	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
+	inputTensorInfo.tensor_type= TensorInfo::kTensorTypeFp32;
+	inputTensorInfo.tensor_dims.batch = 1;
+	inputTensorInfo.tensor_dims.width = 384;
+	inputTensorInfo.tensor_dims.height = 384;
+	inputTensorInfo.tensor_dims.channel = 3;
+	inputTensorInfo.data_type = InputTensorInfo::kDataTypeImage;
 	inputTensorInfo.normalize.mean[0] = 0.0f;
 	inputTensorInfo.normalize.mean[1] = 0.0f;
 	inputTensorInfo.normalize.mean[2] = 0.0f;
@@ -51,48 +51,48 @@ int32_t StyleTransferEngine::initialize(const std::string& workDir, const int32_
 	inputTensorInfo.normalize.norm[2] = 1.0f;
 	m_inputTensorList.push_back(inputTensorInfo);
 	inputTensorInfo.name = "mobilenet_conv/Conv/BiasAdd";
-	inputTensorInfo.tensorDims.batch = -1;	// tensor dims are retrieved from the model file. You can also set [1,224,224,3] here
-	inputTensorInfo.tensorDims.width = -1;
-	inputTensorInfo.tensorDims.height = -1;
-	inputTensorInfo.tensorDims.channel = -1;
+	inputTensorInfo.tensor_dims.batch = -1;	// tensor dims are retrieved from the model file. You can also set [1,224,224,3] here
+	inputTensorInfo.tensor_dims.width = -1;
+	inputTensorInfo.tensor_dims.height = -1;
+	inputTensorInfo.tensor_dims.channel = -1;
 	inputTensorInfo.data = nullptr;
-	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_BLOB_NHWC;
+	inputTensorInfo.data_type = InputTensorInfo::kDataTypeBlobNhwc;
 	m_inputTensorList.push_back(inputTensorInfo);
 
 
 	/* Set output tensor info */
 	m_outputTensorList.clear();
 	OutputTensorInfo outputTensorInfo;
-	outputTensorInfo.tensorType = TensorInfo::TENSOR_TYPE_FP32;
+	outputTensorInfo.tensor_type = TensorInfo::kTensorTypeFp32;
 	outputTensorInfo.name = "transformer/expand/conv3/conv/Sigmoid";
 	m_outputTensorList.push_back(outputTensorInfo);
 
 	/* Create and Initialize Inference Helper */
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::OPEN_CV));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSOR_RT));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::NCNN));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::MNN));
-	m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_EDGETPU));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_GPU));
-	//m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_XNNPACK));
-	// m_inferenceHelper.reset(InferenceHelper::create(InferenceHelper::TENSORFLOW_LITE_NNAPI));
+	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::OPEN_CV));
+	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::TENSOR_RT));
+	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::NCNN));
+	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::MNN));
+	m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
+	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
+	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu));
+	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
+	// m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
 
 	if (!m_inferenceHelper) {
 		return RET_ERR;
 	}
-	if (m_inferenceHelper->setNumThread(numThreads) != InferenceHelper::RET_OK) {
+	if (m_inferenceHelper->SetNumThreads(numThreads) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
 		return RET_ERR;
 	}
-	if (m_inferenceHelper->initialize(modelFilename, m_inputTensorList, m_outputTensorList) != InferenceHelper::RET_OK) {
+	if (m_inferenceHelper->Initialize(modelFilename, m_inputTensorList, m_outputTensorList) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
 		return RET_ERR;
 	}
 
 	/* Check if input tensor info is set */
 	for (const auto& inputTensorInfo : m_inputTensorList) {
-		if ((inputTensorInfo.tensorDims.width <= 0) || (inputTensorInfo.tensorDims.height <= 0) || inputTensorInfo.tensorType == TensorInfo::TENSOR_TYPE_NONE) {
+		if ((inputTensorInfo.tensor_dims.width <= 0) || (inputTensorInfo.tensor_dims.height <= 0) || inputTensorInfo.tensor_type == TensorInfo::kTensorTypeNone) {
 			PRINT_E("Invalid tensor size\n");
 			m_inferenceHelper.reset();
 			return RET_ERR;
@@ -109,7 +109,7 @@ int32_t StyleTransferEngine::finalize()
 		PRINT_E("Inference helper is not created\n");
 		return RET_ERR;
 	}
-	m_inferenceHelper->finalize();
+	m_inferenceHelper->Finalize();
 	return RET_OK;
 }
 
@@ -125,39 +125,39 @@ int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float styl
 	InputTensorInfo& inputTensorInfo = m_inputTensorList[0];
 	/* do resize and color conversion here because some inference engine doesn't support these operations */
 	cv::Mat imgSrc;
-	cv::resize(originalMat, imgSrc, cv::Size(inputTensorInfo.tensorDims.width, inputTensorInfo.tensorDims.height));
+	cv::resize(originalMat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
 #ifndef CV_COLOR_IS_RGB
 	cv::cvtColor(imgSrc, imgSrc, cv::COLOR_BGR2RGB);
 #endif
 	inputTensorInfo.data = imgSrc.data;
-	inputTensorInfo.dataType = InputTensorInfo::DATA_TYPE_IMAGE;
-	inputTensorInfo.imageInfo.width = imgSrc.cols;
-	inputTensorInfo.imageInfo.height = imgSrc.rows;
-	inputTensorInfo.imageInfo.channel = imgSrc.channels();
-	inputTensorInfo.imageInfo.cropX = 0;
-	inputTensorInfo.imageInfo.cropY = 0;
-	inputTensorInfo.imageInfo.cropWidth = imgSrc.cols;
-	inputTensorInfo.imageInfo.cropHeight = imgSrc.rows;
-	inputTensorInfo.imageInfo.isBGR = false;
-	inputTensorInfo.imageInfo.swapColor = false;
+	inputTensorInfo.data_type = InputTensorInfo::kDataTypeImage;
+	inputTensorInfo.image_info.width = imgSrc.cols;
+	inputTensorInfo.image_info.height = imgSrc.rows;
+	inputTensorInfo.image_info.channel = imgSrc.channels();
+	inputTensorInfo.image_info.crop_x = 0;
+	inputTensorInfo.image_info.crop_y = 0;
+	inputTensorInfo.image_info.crop_width = imgSrc.cols;
+	inputTensorInfo.image_info.crop_height = imgSrc.rows;
+	inputTensorInfo.image_info.is_bgr = false;
+	inputTensorInfo.image_info.swap_color = false;
 
 	InputTensorInfo& inputTensorInfoBottleneck = m_inputTensorList[1];
 	inputTensorInfoBottleneck.data = const_cast<float*>(styleBottleneck);
-	if (m_inferenceHelper->preProcess(m_inputTensorList) != InferenceHelper::RET_OK) {
+	if (m_inferenceHelper->PreProcess(m_inputTensorList) != InferenceHelper::kRetOk) {
 		return RET_ERR;
 	}
 	const auto& tPreProcess1 = std::chrono::steady_clock::now();
 
 	/*** Inference ***/
 	const auto& tInference0 = std::chrono::steady_clock::now();
-	if (m_inferenceHelper->invoke(m_outputTensorList) != InferenceHelper::RET_OK) {
+	if (m_inferenceHelper->Process(m_outputTensorList) != InferenceHelper::kRetOk) {
 		return RET_ERR;
 	}
 	const auto& tInference1 = std::chrono::steady_clock::now();
 
 	/*** PostProcess ***/
 	const auto& tPostProcess0 = std::chrono::steady_clock::now();
-	cv::Mat outMatFp(cv::Size(m_outputTensorList[0].tensorDims.width, m_outputTensorList[0].tensorDims.height), CV_32FC3, const_cast<float*>(m_outputTensorList[0].getDataAsFloat()));
+	cv::Mat outMatFp(cv::Size(m_outputTensorList[0].tensor_dims.width, m_outputTensorList[0].tensor_dims.height), CV_32FC3, const_cast<float*>(m_outputTensorList[0].GetDataAsFloat()));
 	cv::Mat outMat;
 	outMatFp.convertTo(outMat, CV_8UC3, 255);
 	const auto& tPostProcess1 = std::chrono::steady_clock::now();

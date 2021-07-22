@@ -16,7 +16,7 @@
 #include <opencv2/opencv.hpp>
 
 /* for My modules */
-#include "CommonHelper.h"
+#include "common_helper.h"
 #include "PalmDetectionEngine.h"
 #include "HandLandmarkEngine.h"
 #include "ImageProcessor.h"

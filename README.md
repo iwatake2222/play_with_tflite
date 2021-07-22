@@ -60,14 +60,14 @@ Sample projects to use Tensorflow Lite for multi-platform
 	cd play_with_tflite
 
 	git submodule update --init --recursive
-	cd InferenceHelper/ThirdParty/tensorflow
+	cd InferenceHelper/third_party/tensorflow
 	chmod +x tensorflow/lite/tools/make/download_dependencies.sh
 	tensorflow/lite/tools/make/download_dependencies.sh
 	```
 
 - Download prebuilt libraries
-	- Download prebuilt libraries (ThirdParty.zip) from https://github.com/iwatake2222/InferenceHelper/releases/  (<- Not in this repository)
-	- Extract it to `InferenceHelper/ThirdParty/`
+	- Download prebuilt libraries (third_party.zip) from https://github.com/iwatake2222/InferenceHelper/releases/  (<- Not in this repository)
+	- Extract it to `InferenceHelper/third_party/`
 - Download models
 	- Download models (resource.zip) from https://github.com/iwatake2222/play_with_tflite/releases/ 
 	- Extract it to `resource/`

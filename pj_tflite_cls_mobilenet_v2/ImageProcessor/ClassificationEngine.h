@@ -13,7 +13,7 @@
 #include <opencv2/opencv.hpp>
 
 /* for My modules */
-#include "InferenceHelper.h"
+#include "inference_helper.h"
 
 
 class ClassificationEngine {
