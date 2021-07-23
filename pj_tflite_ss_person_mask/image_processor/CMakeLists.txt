@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 set(LibraryName "ImageProcessor")
 
 # Create library
-add_library (${LibraryName} ImageProcessor.cpp ImageProcessor.h ClassificationEngine.cpp ClassificationEngine.h)
+add_library (${LibraryName} image_processor.cpp image_processor.h semantic_segmentation_engine.cpp semantic_segmentation_engine.h)
 
 # For OpenCV
 find_package(OpenCV REQUIRED)

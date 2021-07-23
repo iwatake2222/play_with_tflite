@@ -3,7 +3,11 @@ cmake_minimum_required(VERSION 3.0)
 set(LibraryName "ImageProcessor")
 
 # Create library
-add_library (${LibraryName} ImageProcessor.cpp ImageProcessor.h SemanticSegmentationEngine.cpp SemanticSegmentationEngine.h)
+add_library (${LibraryName} 
+	image_processor.cpp image_processor.h 
+	style_prediction_engine.cpp style_prediction_engine.h 
+	style_transfer_engine.cpp style_transfer_engine.h
+)
 
 # For OpenCV
 find_package(OpenCV REQUIRED)
@@ -23,4 +27,3 @@ set(INFERENCE_HELPER_ENABLE_TFLITE ON CACHE BOOL "TFLITE")
 add_subdirectory(${INFERENCE_HELPER_DIR}/inference_helper inference_helper)
 target_include_directories(${LibraryName} PUBLIC ${INFERENCE_HELPER_DIR}/inference_helper)
 target_link_libraries(${LibraryName} InferenceHelper)
-

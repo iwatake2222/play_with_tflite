@@ -4,12 +4,16 @@ set(LibraryName "ImageProcessor")
 
 # Create library
 add_library (${LibraryName} 
-	ImageProcessor.cpp
-	ImageProcessor.h
-	PalmDetectionEngine.cpp
-	PalmDetectionEngine.h
-	HandLandmarkEngine.cpp
-	HandLandmarkEngine.h
+	image_processor.cpp
+	image_processor.h
+	palm_detection_engine.cpp
+	palm_detection_engine.h
+	hand_landmark_engine.cpp
+	hand_landmark_engine.h
+	classification_engine.cpp
+	classification_engine.h
+	area_selector.cpp
+	area_selector.h
 	meidapipe/transpose_conv_bias.cc
 	meidapipe/transpose_conv_bias.h
 	meidapipe/ssd_anchors_calculator.cc
@@ -36,5 +40,4 @@ set(INFERENCE_HELPER_ENABLE_TFLITE ON CACHE BOOL "TFLITE")
 add_subdirectory(${INFERENCE_HELPER_DIR}/inference_helper inference_helper)
 target_include_directories(${LibraryName} PUBLIC ${INFERENCE_HELPER_DIR}/inference_helper)
 target_link_libraries(${LibraryName} InferenceHelper)
-
 

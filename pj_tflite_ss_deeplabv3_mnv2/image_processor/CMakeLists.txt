@@ -3,24 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 set(LibraryName "ImageProcessor")
 
 # Create library
-add_library (${LibraryName} 
-	ImageProcessor.cpp
-	ImageProcessor.h
-	PalmDetectionEngine.cpp
-	PalmDetectionEngine.h
-	HandLandmarkEngine.cpp
-	HandLandmarkEngine.h
-	ClassificationEngine.cpp
-	ClassificationEngine.h
-	AreaSelector.cpp
-	AreaSelector.h
-	meidapipe/transpose_conv_bias.cc
-	meidapipe/transpose_conv_bias.h
-	meidapipe/ssd_anchors_calculator.cc
-	meidapipe/ssd_anchors_calculator.h
-	meidapipe/tflite_tensors_to_detections_calculator.cc
-	meidapipe/tflite_tensors_to_detections_calculator.h
-)
+add_library (${LibraryName} image_processor.cpp image_processor.h semantic_segmentation_engine.cpp semantic_segmentation_engine.h)
 
 # For OpenCV
 find_package(OpenCV REQUIRED)
