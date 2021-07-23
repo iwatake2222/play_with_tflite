@@ -68,15 +68,11 @@ int32_t StyleTransferEngine::initialize(const std::string& workDir, const int32_
 	m_outputTensorList.push_back(outputTensorInfo);
 
 	/* Create and Initialize Inference Helper */
-	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::OPEN_CV));
-	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::TENSOR_RT));
-	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::NCNN));
-	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::MNN));
 	m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
 	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
 	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu));
 	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
-	// m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
+	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
 
 	if (!m_inferenceHelper) {
 		return RET_ERR;

@@ -40,7 +40,7 @@ int32_t DetectionEngine::initialize(const std::string& workDir, const int32_t nu
 	m_inputTensorList.clear();
 	InputTensorInfo inputTensorInfo;
 	inputTensorInfo.name = "normalized_input_image_tensor";
-	inputTensorInfo.tensor_type= TensorInfo::kTensorTypeFp32;
+	inputTensorInfo.tensor_type= TensorInfo::kTensorTypeUint8;
 	inputTensorInfo.tensor_dims.batch = 1;
 	inputTensorInfo.tensor_dims.width = 300;
 	inputTensorInfo.tensor_dims.height = 300;
