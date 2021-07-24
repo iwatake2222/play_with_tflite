@@ -1,3 +1,17 @@
+/* Copyright 2020 iwatake2222
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
 /*** Include ***/
 /* for general */
 #include <cstdint>
@@ -38,10 +52,10 @@ static constexpr int32_t INDEX_LITTLE_FINGER_END = 20;
 /*** Function ***/
 AreaSelector::AreaSelector()
 {
-	m_status = STATUS_AREA_SELECT_INIT;
-	m_cntHandIsUntrusted = 0;
-	m_fingerStatus = -1;
-	m_cntToRemoveChattering = 0;
+    m_status = STATUS_AREA_SELECT_INIT;
+    m_cntHandIsUntrusted = 0;
+    m_fingerStatus = -1;
+    m_cntToRemoveChattering = 0;
 }
 
 AreaSelector::~AreaSelector()
@@ -50,196 +64,196 @@ AreaSelector::~AreaSelector()
 
 void AreaSelector::run(const HandLandmarkEngine::HAND_LANDMARK &hand_landmark)
 {
-	int32_t fingerStatus = -1;
-	if (hand_landmark.handflag > 0.9) {
-		fingerStatus = checkIfPointing(hand_landmark);
-		PRINT("fingerStatus = %d\n", fingerStatus);
-		fingerStatus = removeChattering(fingerStatus);
-		PRINT("fingerStatus = %d\n", fingerStatus);
-	}
-	
-	if (fingerStatus == -1) {
-		m_cntHandIsUntrusted++;
-		if (m_cntHandIsUntrusted > 10) {
-			m_status = STATUS_AREA_SELECT_INIT;
-			//m_cntHandIsUntrusted = 0;
-			//m_cntToRemoveChattering = 0;
-		}
-	} else {
-		m_cntHandIsUntrusted = 0;	 //clear counter
-	}
-	
-	switch (m_status) {
-	case STATUS_AREA_SELECT_INIT:
-		m_selectedArea.x = 0;
-		m_selectedArea.y = 0;
-		m_selectedArea.width = 0;
-		m_selectedArea.height = 0;
-		if (fingerStatus == 1) {
-			m_status = STATUS_AREA_SELECT_DRAG;
-			m_startPoint.x = (int32_t)hand_landmark.pos[INDEX_INDEX_FINGER_END].x;
-			m_startPoint.y = (int32_t)hand_landmark.pos[INDEX_INDEX_FINGER_END].y;
-		}
-		break;
-	case STATUS_AREA_SELECT_DRAG:
-		if (fingerStatus != -1) {
-			m_selectedArea.x = std::min(m_startPoint.x, (int32_t)(hand_landmark.pos[INDEX_INDEX_FINGER_END].x));
-			m_selectedArea.y = std::min(m_startPoint.y, (int32_t)(hand_landmark.pos[INDEX_INDEX_FINGER_END].y));
-			m_selectedArea.width = (int32_t)std::abs(m_startPoint.x - hand_landmark.pos[INDEX_INDEX_FINGER_END].x);
-			m_selectedArea.height = (int32_t)std::abs(m_startPoint.y - hand_landmark.pos[INDEX_INDEX_FINGER_END].y);
-			if (fingerStatus == 0) {
-				m_status = STATUS_AREA_SELECT_SELECTED;
-			} else if (fingerStatus == 1) {
-				m_status = STATUS_AREA_SELECT_DRAG;
-			}
-		}
-		break;
-	case STATUS_AREA_SELECT_SELECTED:
-		m_status = STATUS_AREA_SELECT_INIT;
-		break;
-	default:
-		break;
-	}
+    int32_t fingerStatus = -1;
+    if (hand_landmark.handflag > 0.9) {
+        fingerStatus = checkIfPointing(hand_landmark);
+        PRINT("fingerStatus = %d\n", fingerStatus);
+        fingerStatus = removeChattering(fingerStatus);
+        PRINT("fingerStatus = %d\n", fingerStatus);
+    }
+    
+    if (fingerStatus == -1) {
+        m_cntHandIsUntrusted++;
+        if (m_cntHandIsUntrusted > 10) {
+            m_status = STATUS_AREA_SELECT_INIT;
+            //m_cntHandIsUntrusted = 0;
+            //m_cntToRemoveChattering = 0;
+        }
+    } else {
+        m_cntHandIsUntrusted = 0;	 //clear counter
+    }
+    
+    switch (m_status) {
+    case STATUS_AREA_SELECT_INIT:
+        m_selectedArea.x = 0;
+        m_selectedArea.y = 0;
+        m_selectedArea.width = 0;
+        m_selectedArea.height = 0;
+        if (fingerStatus == 1) {
+            m_status = STATUS_AREA_SELECT_DRAG;
+            m_startPoint.x = (int32_t)hand_landmark.pos[INDEX_INDEX_FINGER_END].x;
+            m_startPoint.y = (int32_t)hand_landmark.pos[INDEX_INDEX_FINGER_END].y;
+        }
+        break;
+    case STATUS_AREA_SELECT_DRAG:
+        if (fingerStatus != -1) {
+            m_selectedArea.x = std::min(m_startPoint.x, (int32_t)(hand_landmark.pos[INDEX_INDEX_FINGER_END].x));
+            m_selectedArea.y = std::min(m_startPoint.y, (int32_t)(hand_landmark.pos[INDEX_INDEX_FINGER_END].y));
+            m_selectedArea.width = (int32_t)std::abs(m_startPoint.x - hand_landmark.pos[INDEX_INDEX_FINGER_END].x);
+            m_selectedArea.height = (int32_t)std::abs(m_startPoint.y - hand_landmark.pos[INDEX_INDEX_FINGER_END].y);
+            if (fingerStatus == 0) {
+                m_status = STATUS_AREA_SELECT_SELECTED;
+            } else if (fingerStatus == 1) {
+                m_status = STATUS_AREA_SELECT_DRAG;
+            }
+        }
+        break;
+    case STATUS_AREA_SELECT_SELECTED:
+        m_status = STATUS_AREA_SELECT_INIT;
+        break;
+    default:
+        break;
+    }
 }
 
 int32_t AreaSelector::removeChattering(int32_t value)
 {
-	if (m_fingerStatus != value) {
-		m_cntToRemoveChattering++;
-		if (m_cntToRemoveChattering > 5) {
-			m_cntToRemoveChattering = 0;
-			m_fingerStatus = value;
-		}
-	} else {
-		m_cntToRemoveChattering = 0;
-	}
+    if (m_fingerStatus != value) {
+        m_cntToRemoveChattering++;
+        if (m_cntToRemoveChattering > 5) {
+            m_cntToRemoveChattering = 0;
+            m_fingerStatus = value;
+        }
+    } else {
+        m_cntToRemoveChattering = 0;
+    }
 
-	if (value == -1) {
-		return -1;
-	} else {
-		return m_fingerStatus;
-	}
+    if (value == -1) {
+        return -1;
+    } else {
+        return m_fingerStatus;
+    }
 }
 
 // 1: pointed by index finger, 1: pointed by index and middle fingers, -1 invalid
 int32_t AreaSelector::checkIfPointing(const HandLandmarkEngine::HAND_LANDMARK &hand_landmark)
 {
-	constexpr int32_t POINTED_INDEX = 0;
-	constexpr int32_t POINTED_INDEX_MIDDLE = 1;
-	constexpr int32_t INVALID = -1;
+    constexpr int32_t POINTED_INDEX = 0;
+    constexpr int32_t POINTED_INDEX_MIDDLE = 1;
+    constexpr int32_t INVALID = -1;
 
-	constexpr double MAX_GRADIENT = 30;
-	constexpr double THRESH_GRADIENT_INDEX_FINGER = 0.6;
-	const double threshGradient = (m_status == STATUS_AREA_SELECT_INIT) ? 0.6 : 0.8;
-	const double threshDistance = (m_status == STATUS_AREA_SELECT_INIT) ? 0.3 : 0.6;
+    constexpr double MAX_GRADIENT = 30;
+    constexpr double THRESH_GRADIENT_INDEX_FINGER = 0.6;
+    const double threshGradient = (m_status == STATUS_AREA_SELECT_INIT) ? 0.6 : 0.8;
+    const double threshDistance = (m_status == STATUS_AREA_SELECT_INIT) ? 0.3 : 0.6;
 
-	/* calculate gradient of each finger */
-	double gradientIndexFinger = MAX_GRADIENT;
-	if ((hand_landmark.pos[INDEX_INDEX_FINGER_END].x - hand_landmark.pos[INDEX_INDEX_FINGER_START].x) != 0) {
-		gradientIndexFinger = (double)(hand_landmark.pos[INDEX_INDEX_FINGER_END].y - hand_landmark.pos[INDEX_INDEX_FINGER_START].y) / (hand_landmark.pos[INDEX_INDEX_FINGER_END].x - hand_landmark.pos[INDEX_INDEX_FINGER_START].x);
-		if (gradientIndexFinger > MAX_GRADIENT) gradientIndexFinger = MAX_GRADIENT;
-	}
-	double gradientMiddleFinger = MAX_GRADIENT;
-	if ((hand_landmark.pos[INDEX_MIDDLE_FINGER_END].x - hand_landmark.pos[INDEX_MIDDLE_FINGER_START].x) != 0) {
-		gradientMiddleFinger = (double)(hand_landmark.pos[INDEX_MIDDLE_FINGER_END].y - hand_landmark.pos[INDEX_MIDDLE_FINGER_START].y) / (hand_landmark.pos[INDEX_MIDDLE_FINGER_END].x - hand_landmark.pos[INDEX_MIDDLE_FINGER_START].x);
-		if (gradientMiddleFinger > MAX_GRADIENT) gradientMiddleFinger = MAX_GRADIENT;
-	}
-	double gradientRingFinger = MAX_GRADIENT;
-	if ((hand_landmark.pos[INDEX_RING_FINGER_END].x - hand_landmark.pos[INDEX_RING_FINGER_START].x) != 0) {
-		gradientRingFinger = (double)(hand_landmark.pos[INDEX_RING_FINGER_END].y - hand_landmark.pos[INDEX_RING_FINGER_START].y) / (hand_landmark.pos[INDEX_RING_FINGER_END].x - hand_landmark.pos[INDEX_RING_FINGER_START].x);
-		if (gradientRingFinger > MAX_GRADIENT) gradientRingFinger = MAX_GRADIENT;
-	}
-	double gradientLittleFinger = MAX_GRADIENT;
-	if ((hand_landmark.pos[INDEX_LITTLE_FINGER_END].x - hand_landmark.pos[INDEX_LITTLE_FINGER_START].x) != 0) {
-		gradientLittleFinger = (double)(hand_landmark.pos[INDEX_LITTLE_FINGER_END].y - hand_landmark.pos[INDEX_LITTLE_FINGER_START].y) / (hand_landmark.pos[INDEX_LITTLE_FINGER_END].x - hand_landmark.pos[INDEX_LITTLE_FINGER_START].x);
-		if (gradientLittleFinger > MAX_GRADIENT) gradientLittleFinger = MAX_GRADIENT;
-	}
-	PRINT("index = %5.3lf, middle = %5.3lf, ring = %5.3lf, little = %5.3lf\n", gradientIndexFinger, gradientMiddleFinger, gradientRingFinger, gradientLittleFinger);
+    /* calculate gradient of each finger */
+    double gradientIndexFinger = MAX_GRADIENT;
+    if ((hand_landmark.pos[INDEX_INDEX_FINGER_END].x - hand_landmark.pos[INDEX_INDEX_FINGER_START].x) != 0) {
+        gradientIndexFinger = (double)(hand_landmark.pos[INDEX_INDEX_FINGER_END].y - hand_landmark.pos[INDEX_INDEX_FINGER_START].y) / (hand_landmark.pos[INDEX_INDEX_FINGER_END].x - hand_landmark.pos[INDEX_INDEX_FINGER_START].x);
+        if (gradientIndexFinger > MAX_GRADIENT) gradientIndexFinger = MAX_GRADIENT;
+    }
+    double gradientMiddleFinger = MAX_GRADIENT;
+    if ((hand_landmark.pos[INDEX_MIDDLE_FINGER_END].x - hand_landmark.pos[INDEX_MIDDLE_FINGER_START].x) != 0) {
+        gradientMiddleFinger = (double)(hand_landmark.pos[INDEX_MIDDLE_FINGER_END].y - hand_landmark.pos[INDEX_MIDDLE_FINGER_START].y) / (hand_landmark.pos[INDEX_MIDDLE_FINGER_END].x - hand_landmark.pos[INDEX_MIDDLE_FINGER_START].x);
+        if (gradientMiddleFinger > MAX_GRADIENT) gradientMiddleFinger = MAX_GRADIENT;
+    }
+    double gradientRingFinger = MAX_GRADIENT;
+    if ((hand_landmark.pos[INDEX_RING_FINGER_END].x - hand_landmark.pos[INDEX_RING_FINGER_START].x) != 0) {
+        gradientRingFinger = (double)(hand_landmark.pos[INDEX_RING_FINGER_END].y - hand_landmark.pos[INDEX_RING_FINGER_START].y) / (hand_landmark.pos[INDEX_RING_FINGER_END].x - hand_landmark.pos[INDEX_RING_FINGER_START].x);
+        if (gradientRingFinger > MAX_GRADIENT) gradientRingFinger = MAX_GRADIENT;
+    }
+    double gradientLittleFinger = MAX_GRADIENT;
+    if ((hand_landmark.pos[INDEX_LITTLE_FINGER_END].x - hand_landmark.pos[INDEX_LITTLE_FINGER_START].x) != 0) {
+        gradientLittleFinger = (double)(hand_landmark.pos[INDEX_LITTLE_FINGER_END].y - hand_landmark.pos[INDEX_LITTLE_FINGER_START].y) / (hand_landmark.pos[INDEX_LITTLE_FINGER_END].x - hand_landmark.pos[INDEX_LITTLE_FINGER_START].x);
+        if (gradientLittleFinger > MAX_GRADIENT) gradientLittleFinger = MAX_GRADIENT;
+    }
+    PRINT("index = %5.3lf, middle = %5.3lf, ring = %5.3lf, little = %5.3lf\n", gradientIndexFinger, gradientMiddleFinger, gradientRingFinger, gradientLittleFinger);
 
-	/* calculate gradient of each joint of each finger */
-	std::vector<double> gradientIndexFingers;
-	for (int32_t i = INDEX_INDEX_FINGER_START; i < INDEX_INDEX_FINGER_END; i++) {
-		double dx = hand_landmark.pos[i + 1].x - hand_landmark.pos[i].x;
-		double dy = hand_landmark.pos[i + 1].y - hand_landmark.pos[i].y;
-		double gradient = MAX_GRADIENT;
-		if (dx != 0) gradient = std::min(dy / dx, MAX_GRADIENT);
-		gradientIndexFingers.push_back(gradient);
-		PRINT("index = %5.3lf\n", gradient);
-	}
+    /* calculate gradient of each joint of each finger */
+    std::vector<double> gradientIndexFingers;
+    for (int32_t i = INDEX_INDEX_FINGER_START; i < INDEX_INDEX_FINGER_END; i++) {
+        double dx = hand_landmark.pos[i + 1].x - hand_landmark.pos[i].x;
+        double dy = hand_landmark.pos[i + 1].y - hand_landmark.pos[i].y;
+        double gradient = MAX_GRADIENT;
+        if (dx != 0) gradient = std::min(dy / dx, MAX_GRADIENT);
+        gradientIndexFingers.push_back(gradient);
+        PRINT("index = %5.3lf\n", gradient);
+    }
 
-	std::vector<double> gradientMiddleFingers;
-	for (int32_t i = INDEX_MIDDLE_FINGER_START; i < INDEX_MIDDLE_FINGER_END; i++) {
-		double dx = hand_landmark.pos[i + 1].x - hand_landmark.pos[i].x;
-		double dy = hand_landmark.pos[i + 1].y - hand_landmark.pos[i].y;
-		double gradient = MAX_GRADIENT;
-		if (dx != 0) gradient = std::min(dy / dx, MAX_GRADIENT);
-		gradientMiddleFingers.push_back(gradient);
-		PRINT("middle = %5.3lf\n", gradient);
-	}
+    std::vector<double> gradientMiddleFingers;
+    for (int32_t i = INDEX_MIDDLE_FINGER_START; i < INDEX_MIDDLE_FINGER_END; i++) {
+        double dx = hand_landmark.pos[i + 1].x - hand_landmark.pos[i].x;
+        double dy = hand_landmark.pos[i + 1].y - hand_landmark.pos[i].y;
+        double gradient = MAX_GRADIENT;
+        if (dx != 0) gradient = std::min(dy / dx, MAX_GRADIENT);
+        gradientMiddleFingers.push_back(gradient);
+        PRINT("middle = %5.3lf\n", gradient);
+    }
 
-	std::vector<double> gradientRingFingers;
-	for (int32_t i = INDEX_RING_FINGER_START; i < INDEX_RING_FINGER_END; i++) {
-		double dx = hand_landmark.pos[i + 1].x - hand_landmark.pos[i].x;
-		double dy = hand_landmark.pos[i + 1].y - hand_landmark.pos[i].y;
-		double gradient = MAX_GRADIENT;
-		if (dx != 0) gradient = std::min(dy / dx, MAX_GRADIENT);
-		gradientRingFingers.push_back(gradient);
-		PRINT("ring = %5.3lf\n", gradient);
-	}
-	std::vector<double> gradientLittleFingers;
-	for (int32_t i = INDEX_LITTLE_FINGER_START; i < INDEX_LITTLE_FINGER_END; i++) {
-		double dx = hand_landmark.pos[i + 1].x - hand_landmark.pos[i].x;
-		double dy = hand_landmark.pos[i + 1].y - hand_landmark.pos[i].y;
-		double gradient = MAX_GRADIENT;
-		if (dx != 0) gradient = std::min(dy / dx, MAX_GRADIENT);
-		gradientLittleFingers.push_back(gradient);
-		PRINT("little = %5.3lf\n", gradient);
-	}
+    std::vector<double> gradientRingFingers;
+    for (int32_t i = INDEX_RING_FINGER_START; i < INDEX_RING_FINGER_END; i++) {
+        double dx = hand_landmark.pos[i + 1].x - hand_landmark.pos[i].x;
+        double dy = hand_landmark.pos[i + 1].y - hand_landmark.pos[i].y;
+        double gradient = MAX_GRADIENT;
+        if (dx != 0) gradient = std::min(dy / dx, MAX_GRADIENT);
+        gradientRingFingers.push_back(gradient);
+        PRINT("ring = %5.3lf\n", gradient);
+    }
+    std::vector<double> gradientLittleFingers;
+    for (int32_t i = INDEX_LITTLE_FINGER_START; i < INDEX_LITTLE_FINGER_END; i++) {
+        double dx = hand_landmark.pos[i + 1].x - hand_landmark.pos[i].x;
+        double dy = hand_landmark.pos[i + 1].y - hand_landmark.pos[i].y;
+        double gradient = MAX_GRADIENT;
+        if (dx != 0) gradient = std::min(dy / dx, MAX_GRADIENT);
+        gradientLittleFingers.push_back(gradient);
+        PRINT("little = %5.3lf\n", gradient);
+    }
 
-	/* check if the ring and little fingers are held */
-	bool fingerIsHeld = true;
-	if (hand_landmark.pos[INDEX_INDEX_FINGER_END].y < hand_landmark.pos[INDEX_INDEX_FINGER_START].y) {
-		for (int32_t i = INDEX_RING_FINGER_START; i < INDEX_RING_FINGER_END; i++) {
-			if (hand_landmark.pos[INDEX_RING_FINGER_END].y < hand_landmark.pos[i].y) fingerIsHeld = false;
-		}
-		for (int32_t i = INDEX_LITTLE_FINGER_START; i < INDEX_LITTLE_FINGER_END; i++) {
-			if (hand_landmark.pos[INDEX_LITTLE_FINGER_END].y < hand_landmark.pos[i].y) fingerIsHeld = false;
-		}
-	} else {
-		for (int32_t i = INDEX_RING_FINGER_START; i < INDEX_RING_FINGER_END; i++) {
-			if (hand_landmark.pos[INDEX_RING_FINGER_END].y > hand_landmark.pos[i].y) fingerIsHeld = false;
-		}
-		for (int32_t i = INDEX_LITTLE_FINGER_START; i < INDEX_LITTLE_FINGER_END; i++) {
-			if (hand_landmark.pos[INDEX_LITTLE_FINGER_END].y > hand_landmark.pos[i].y) fingerIsHeld = false;
-		}
-	}
-	PRINT("fingerIsHeld = %d\n", fingerIsHeld);
-	if (fingerIsHeld == false) return INVALID;
+    /* check if the ring and little fingers are held */
+    bool fingerIsHeld = true;
+    if (hand_landmark.pos[INDEX_INDEX_FINGER_END].y < hand_landmark.pos[INDEX_INDEX_FINGER_START].y) {
+        for (int32_t i = INDEX_RING_FINGER_START; i < INDEX_RING_FINGER_END; i++) {
+            if (hand_landmark.pos[INDEX_RING_FINGER_END].y < hand_landmark.pos[i].y) fingerIsHeld = false;
+        }
+        for (int32_t i = INDEX_LITTLE_FINGER_START; i < INDEX_LITTLE_FINGER_END; i++) {
+            if (hand_landmark.pos[INDEX_LITTLE_FINGER_END].y < hand_landmark.pos[i].y) fingerIsHeld = false;
+        }
+    } else {
+        for (int32_t i = INDEX_RING_FINGER_START; i < INDEX_RING_FINGER_END; i++) {
+            if (hand_landmark.pos[INDEX_RING_FINGER_END].y > hand_landmark.pos[i].y) fingerIsHeld = false;
+        }
+        for (int32_t i = INDEX_LITTLE_FINGER_START; i < INDEX_LITTLE_FINGER_END; i++) {
+            if (hand_landmark.pos[INDEX_LITTLE_FINGER_END].y > hand_landmark.pos[i].y) fingerIsHeld = false;
+        }
+    }
+    PRINT("fingerIsHeld = %d\n", fingerIsHeld);
+    if (fingerIsHeld == false) return INVALID;
 
-	/* check if the index finger is straight */
-	for (int32_t i = 0; i < gradientIndexFingers.size() - 2; i++) {	// ignore the last node (the last node tends not to be straight)
-		if (std::abs((gradientIndexFingers[i] - gradientIndexFingers[i + 1]) / gradientIndexFingers[i]) > THRESH_GRADIENT_INDEX_FINGER) return INVALID;
-		if (gradientIndexFingers[i] * gradientIndexFingers[i + 1] < 0) return INVALID;
-	}
+    /* check if the index finger is straight */
+    for (int32_t i = 0; i < gradientIndexFingers.size() - 2; i++) {	// ignore the last node (the last node tends not to be straight)
+        if (std::abs((gradientIndexFingers[i] - gradientIndexFingers[i + 1]) / gradientIndexFingers[i]) > THRESH_GRADIENT_INDEX_FINGER) return INVALID;
+        if (gradientIndexFingers[i] * gradientIndexFingers[i + 1] < 0) return INVALID;
+    }
 
-	/* check if the middle finger is straight */
-	for (int32_t i = 0; i < gradientMiddleFingers.size() - 2; i++) {
-		if (std::abs((gradientMiddleFingers[i] - gradientMiddleFingers[i + 1]) / gradientMiddleFingers[i]) > threshGradient) return POINTED_INDEX;
-		if (gradientMiddleFingers[i] * gradientMiddleFingers[i + 1] < 0)  return POINTED_INDEX;
-	}
+    /* check if the middle finger is straight */
+    for (int32_t i = 0; i < gradientMiddleFingers.size() - 2; i++) {
+        if (std::abs((gradientMiddleFingers[i] - gradientMiddleFingers[i + 1]) / gradientMiddleFingers[i]) > threshGradient) return POINTED_INDEX;
+        if (gradientMiddleFingers[i] * gradientMiddleFingers[i + 1] < 0)  return POINTED_INDEX;
+    }
 
-	/*  check if teh middle finger has the same gradient as index finger */
-	if (std::abs((gradientIndexFinger - gradientMiddleFinger) / gradientIndexFinger) > threshGradient) return POINTED_INDEX;
-	if (gradientIndexFinger * gradientMiddleFinger < 0)  return POINTED_INDEX;
+    /*  check if teh middle finger has the same gradient as index finger */
+    if (std::abs((gradientIndexFinger - gradientMiddleFinger) / gradientIndexFinger) > threshGradient) return POINTED_INDEX;
+    if (gradientIndexFinger * gradientMiddleFinger < 0)  return POINTED_INDEX;
 
-	/*  chec the distance b/w index and middle finger */
-	double distance = pow(hand_landmark.pos[INDEX_INDEX_FINGER_END].x - hand_landmark.pos[INDEX_MIDDLE_FINGER_END].x, 2) + pow(hand_landmark.pos[INDEX_INDEX_FINGER_END].y - hand_landmark.pos[INDEX_MIDDLE_FINGER_END].y, 2);
-	distance = sqrt(distance);
-	double baseDistance = pow(hand_landmark.pos[INDEX_INDEX_FINGER_START].x - hand_landmark.pos[INDEX_INDEX_FINGER_END].x, 2) + pow(hand_landmark.pos[INDEX_INDEX_FINGER_START].y - hand_landmark.pos[INDEX_INDEX_FINGER_END].y, 2);
-	baseDistance = sqrt(baseDistance);
-	if (distance > baseDistance * threshDistance) return POINTED_INDEX;
+    /*  chec the distance b/w index and middle finger */
+    double distance = pow(hand_landmark.pos[INDEX_INDEX_FINGER_END].x - hand_landmark.pos[INDEX_MIDDLE_FINGER_END].x, 2) + pow(hand_landmark.pos[INDEX_INDEX_FINGER_END].y - hand_landmark.pos[INDEX_MIDDLE_FINGER_END].y, 2);
+    distance = sqrt(distance);
+    double baseDistance = pow(hand_landmark.pos[INDEX_INDEX_FINGER_START].x - hand_landmark.pos[INDEX_INDEX_FINGER_END].x, 2) + pow(hand_landmark.pos[INDEX_INDEX_FINGER_START].y - hand_landmark.pos[INDEX_INDEX_FINGER_END].y, 2);
+    baseDistance = sqrt(baseDistance);
+    if (distance > baseDistance * threshDistance) return POINTED_INDEX;
 
-	return POINTED_INDEX_MIDDLE;
+    return POINTED_INDEX_MIDDLE;
 }
 
 //int32_t AreaSelector::checkIfClosed(HandLandmark::HAND_LANDMARK &hand_landmark)

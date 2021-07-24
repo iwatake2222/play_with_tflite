@@ -4,18 +4,18 @@ set(LibraryName "ImageProcessor")
 
 # Create library
 add_library (${LibraryName} 
-	image_processor.cpp
-	image_processor.h
-	palm_detection_engine.cpp
-	palm_detection_engine.h
-	hand_landmark_engine.cpp
-	hand_landmark_engine.h
-	meidapipe/transpose_conv_bias.cc
-	meidapipe/transpose_conv_bias.h
-	meidapipe/ssd_anchors_calculator.cc
-	meidapipe/ssd_anchors_calculator.h
-	meidapipe/tflite_tensors_to_detections_calculator.cc
-	meidapipe/tflite_tensors_to_detections_calculator.h
+    image_processor.cpp
+    image_processor.h
+    palm_detection_engine.cpp
+    palm_detection_engine.h
+    hand_landmark_engine.cpp
+    hand_landmark_engine.h
+    meidapipe/transpose_conv_bias.cc
+    meidapipe/transpose_conv_bias.h
+    meidapipe/ssd_anchors_calculator.cc
+    meidapipe/ssd_anchors_calculator.h
+    meidapipe/tflite_tensors_to_detections_calculator.cc
+    meidapipe/tflite_tensors_to_detections_calculator.h
 )
 
 # For OpenCV

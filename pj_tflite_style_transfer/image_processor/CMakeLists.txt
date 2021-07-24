@@ -4,9 +4,9 @@ set(LibraryName "ImageProcessor")
 
 # Create library
 add_library (${LibraryName} 
-	image_processor.cpp image_processor.h 
-	style_prediction_engine.cpp style_prediction_engine.h 
-	style_transfer_engine.cpp style_transfer_engine.h
+    image_processor.cpp image_processor.h 
+    style_prediction_engine.cpp style_prediction_engine.h 
+    style_transfer_engine.cpp style_transfer_engine.h
 )
 
 # For OpenCV
