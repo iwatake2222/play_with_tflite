@@ -29,7 +29,7 @@
 std::unique_ptr<SemanticSegmentationEngine> s_engine;
 
 /*** Function ***/
-static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
+static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
 #ifdef CV_COLOR_IS_RGB
 	return cv::Scalar(r, g, b);
 #else
@@ -46,8 +46,8 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param
 	}
 
 	s_engine.reset(new SemanticSegmentationEngine());
-	if (s_engine->initialize(input_param->work_dir, input_param->num_threads) != SemanticSegmentationEngine::RET_OK) {
-		s_engine->finalize();
+	if (s_engine->Initialize(input_param->work_dir, input_param->num_threads) != SemanticSegmentationEngine::kRetOk) {
+		s_engine->Finalize();
 		s_engine.reset();
 		return -1;
 	}
@@ -61,7 +61,7 @@ int32_t ImageProcessor::Finalize(void)
 		return -1;
 	}
 
-	if (s_engine->finalize() != SemanticSegmentationEngine::RET_OK) {
+	if (s_engine->Finalize() != SemanticSegmentationEngine::kRetOk) {
 		return -1;
 	}
 
@@ -92,18 +92,18 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 		return -1;
 	}
 
-	cv::Mat& originalMat = *mat;
-	SemanticSegmentationEngine::RESULT result;
-	if (s_engine->invoke(originalMat, result) != SemanticSegmentationEngine::RET_OK) {
+	cv::Mat& original_mat = *mat;
+	SemanticSegmentationEngine::Result result;
+	if (s_engine->Process(original_mat, result) != SemanticSegmentationEngine::kRetOk) {
 		return -1;
 	}
 
 	/* Draw the result */
 	cv::cvtColor(result.maskImage, result.maskImage, cv::COLOR_GRAY2BGR);
-	cv::resize(result.maskImage, result.maskImage, originalMat.size());
-	cv::subtract(originalMat, result.maskImage, originalMat);		// Fill out masked area
+	cv::resize(result.maskImage, result.maskImage, original_mat.size());
+	cv::subtract(original_mat, result.maskImage, original_mat);		// Fill out masked area
 	cv::multiply(result.maskImage, cv::Scalar(0, 255, 0), result.maskImage);	// optional: change mask color
-	cv::add(originalMat, result.maskImage, originalMat);		// Fill out masked area
+	cv::add(original_mat, result.maskImage, original_mat);		// Fill out masked area
 
 	/* Return the results */
 	output_param->time_pre_process = result.time_pre_process;

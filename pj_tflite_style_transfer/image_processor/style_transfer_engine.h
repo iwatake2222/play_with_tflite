@@ -19,25 +19,25 @@
 class StyleTransferEngine {
 public:
 	enum {
-		RET_OK = 0,
-		RET_ERR = -1,
+		kRetOk = 0,
+		kRetErr = -1,
 	};
 
-	typedef struct RESULT_ {
+	typedef struct Result_ {
 		cv::Mat             image;
 		double            time_pre_process;		// [msec]
 		double            time_inference;		// [msec]
 		double            time_post_process;	// [msec]
-		RESULT_() : time_pre_process(0), time_inference(0), time_post_process(0)
+		Result_() : time_pre_process(0), time_inference(0), time_post_process(0)
 		{}
-	} RESULT;
+	} Result;
 
 public:
 	StyleTransferEngine() {}
 	~StyleTransferEngine() {}
-	int32_t initialize(const std::string& work_dir, const int32_t num_threads);
-	int32_t finalize(void);
-	int32_t invoke(const cv::Mat& originalMat, const float styleBottleneck[], const int lengthStyleBottleneck, RESULT& result);
+	int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
+	int32_t Finalize(void);
+	int32_t Process(const cv::Mat& original_mat, const float styleBottleneck[], const int lengthStyleBottleneck, Result& result);
 
 
 private:

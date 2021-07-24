@@ -19,8 +19,8 @@
 class HandLandmarkEngine {
 public:
 	enum {
-		RET_OK = 0,
-		RET_ERR = -1,
+		kRetOk = 0,
+		kRetErr = -1,
 	};
 
 	typedef struct {
@@ -40,24 +40,24 @@ public:
 		} rect;
 	} HAND_LANDMARK;
 
-	typedef struct RESULT_ {
+	typedef struct Result_ {
 		HAND_LANDMARK  handLandmark;
 		double       time_pre_process;		// [msec]
 		double       time_inference;		// [msec]
 		double       time_post_process;		// [msec]
-		RESULT_() : time_pre_process(0), time_inference(0), time_post_process(0)
+		Result_() : time_pre_process(0), time_inference(0), time_post_process(0)
 		{}
-	} RESULT;
+	} Result;
 
 public:
 	HandLandmarkEngine() {}
 	~HandLandmarkEngine() {}
-	int32_t initialize(const std::string& work_dir, const int32_t num_threads);
-	int32_t finalize(void);
-	int32_t invoke(const cv::Mat& originalMat, int32_t palmX, int32_t palmY, int32_t palmW, int32_t palmH, float palmRotation, RESULT& result);
+	int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
+	int32_t Finalize(void);
+	int32_t Process(const cv::Mat& original_mat, int32_t palmX, int32_t palmY, int32_t palmW, int32_t palmH, float palmRotation, Result& result);
 
 public:
-	void rotateLandmark(HAND_LANDMARK& handLandmark, float rotationRad, int32_t imageWidth, int32_t imageHeight);
+	void rotateLandmark(HAND_LANDMARK& handLandmark, float rotationRad, int32_t image_width, int32_t image_height);
 	float calculateRotation(const HAND_LANDMARK& handLandmark);
 	void transformLandmarkToRect(HAND_LANDMARK& handLandmark);
 

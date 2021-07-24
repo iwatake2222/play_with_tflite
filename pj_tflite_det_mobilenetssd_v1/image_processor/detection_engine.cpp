@@ -30,7 +30,7 @@
 
 
 /*** Function ***/
-int32_t DetectionEngine::initialize(const std::string& work_dir, const int32_t num_threads)
+int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
 {
 	/* Set model information */
 	std::string modelFilename = work_dir + "/model/" + MODEL_NAME;
@@ -76,15 +76,15 @@ int32_t DetectionEngine::initialize(const std::string& work_dir, const int32_t n
 	
 
 	if (!m_inferenceHelper) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (m_inferenceHelper->SetNumThreads(num_threads) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (m_inferenceHelper->Initialize(modelFilename, m_inputTensorList, m_outputTensorList) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 
 	/* Check if input tensor info is set */
@@ -92,41 +92,41 @@ int32_t DetectionEngine::initialize(const std::string& work_dir, const int32_t n
 		if ((inputTensorInfo.tensor_dims.width <= 0) || (inputTensorInfo.tensor_dims.height <= 0) || inputTensorInfo.tensor_type == TensorInfo::kTensorTypeNone) {
 			PRINT_E("Invalid tensor size\n");
 			m_inferenceHelper.reset();
-			return RET_ERR;
+			return kRetErr;
 		}
 	}
 
 	/* read label */
-	if (readLabel(labelFilename, m_labelList) != RET_OK) {
-		return RET_ERR;
+	if (ReadLabel(labelFilename, m_labelList) != kRetOk) {
+		return kRetErr;
 	}
 
-	return RET_OK;
+	return kRetOk;
 }
 
-int32_t DetectionEngine::finalize()
+int32_t DetectionEngine::Finalize()
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 	m_inferenceHelper->Finalize();
-	return RET_OK;
+	return kRetOk;
 }
 
 
-int32_t DetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
+int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 	/*** PreProcess ***/
 	const auto& tPreProcess0 = std::chrono::steady_clock::now();
 	InputTensorInfo& inputTensorInfo = m_inputTensorList[0];
 	/* do resize and color conversion here because some inference engine doesn't support these operations */
 	cv::Mat imgSrc;
-	cv::resize(originalMat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
+	cv::resize(original_mat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
 #ifndef CV_COLOR_IS_RGB
 	cv::cvtColor(imgSrc, imgSrc, cv::COLOR_BGR2RGB);
 #endif
@@ -142,14 +142,14 @@ int32_t DetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	inputTensorInfo.image_info.is_bgr = false;
 	inputTensorInfo.image_info.swap_color = false;
 	if (m_inferenceHelper->PreProcess(m_inputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tPreProcess1 = std::chrono::steady_clock::now();
 
 	/*** Inference ***/
 	const auto& tInference0 = std::chrono::steady_clock::now();
 	if (m_inferenceHelper->Process(m_outputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tInference1 = std::chrono::steady_clock::now();
 
@@ -158,7 +158,7 @@ int32_t DetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	/* Retrieve result */
 	int32_t outputNum = (int32_t)(m_outputTensorList[3].GetDataAsFloat()[0]);
 	std::vector<OBJECT> object_list;
-	getObject(object_list, m_outputTensorList[0].GetDataAsFloat(), m_outputTensorList[1].GetDataAsFloat(), m_outputTensorList[2].GetDataAsFloat(), outputNum, 0.5, originalMat.cols, originalMat.rows);
+	getObject(object_list, m_outputTensorList[0].GetDataAsFloat(), m_outputTensorList[1].GetDataAsFloat(), m_outputTensorList[2].GetDataAsFloat(), outputNum, 0.5, original_mat.cols, original_mat.rows);
 	const auto& tPostProcess1 = std::chrono::steady_clock::now();
 
 	/* Return the results */
@@ -167,23 +167,23 @@ int32_t DetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	result.time_inference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
 	result.time_post_process = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
-	return RET_OK;
+	return kRetOk;
 }
 
 
-int32_t DetectionEngine::readLabel(const std::string& filename, std::vector<std::string>& labelList)
+int32_t DetectionEngine::ReadLabel(const std::string& filename, std::vector<std::string>& labelList)
 {
 	std::ifstream ifs(filename);
 	if (ifs.fail()) {
 		PRINT_E("Failed to read %s\n", filename.c_str());
-		return RET_ERR;
+		return kRetErr;
 	}
 	labelList.clear();
 	std::string str;
 	while (getline(ifs, str)) {
 		labelList.push_back(str);
 	}
-	return RET_OK;
+	return kRetOk;
 }
 
 
@@ -215,5 +215,5 @@ int32_t DetectionEngine::getObject(std::vector<OBJECT>& object_list, const float
 		object.score = score;
 		object_list.push_back(object);
 	}
-	return RET_OK;
+	return kRetOk;
 }

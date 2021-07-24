@@ -42,7 +42,7 @@
 #endif
 
 /*** Function ***/
-int32_t PoseEngine::initialize(const std::string& work_dir, const int32_t num_threads)
+int32_t PoseEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
 {
 	/* Set model information */
 	std::string modelFilename = work_dir + "/model/" + MODEL_NAME;
@@ -87,44 +87,44 @@ int32_t PoseEngine::initialize(const std::string& work_dir, const int32_t num_th
 	// m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
 
 	if (!m_inferenceHelper) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (m_inferenceHelper->SetNumThreads(num_threads) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (m_inferenceHelper->Initialize(modelFilename, m_inputTensorList, m_outputTensorList) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 	/* Check if input tensor info is set */
 	for (const auto& inputTensorInfo : m_inputTensorList) {
 		if ((inputTensorInfo.tensor_dims.width <= 0) || (inputTensorInfo.tensor_dims.height <= 0) || inputTensorInfo.tensor_type == TensorInfo::kTensorTypeNone) {
 			PRINT_E("Invalid tensor size\n");
 			m_inferenceHelper.reset();
-			return RET_ERR;
+			return kRetErr;
 		}
 	}
 
-	return RET_OK;
+	return kRetOk;
 }
 
-int32_t PoseEngine::finalize()
+int32_t PoseEngine::Finalize()
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 	m_inferenceHelper->Finalize();
-	return RET_OK;
+	return kRetOk;
 }
 
 
-int32_t PoseEngine::invoke(const cv::Mat& originalMat, RESULT& result)
+int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 	/*** PreProcess ***/
 	const auto& tPreProcess0 = std::chrono::steady_clock::now();
@@ -132,7 +132,7 @@ int32_t PoseEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 #if 1
 	/* do resize and color conversion here because some inference engine doesn't support these operations */
 	cv::Mat imgSrc;
-	cv::resize(originalMat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
+	cv::resize(original_mat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
 #ifndef CV_COLOR_IS_RGB
 	cv::cvtColor(imgSrc, imgSrc, cv::COLOR_BGR2RGB);
 #endif
@@ -150,15 +150,15 @@ int32_t PoseEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 #else
 	/* Test other input format */
 	cv::Mat imgSrc;
-	inputTensorInfo.data = originalMat.data;
+	inputTensorInfo.data = original_mat.data;
 	inputTensorInfo.data_type = InputTensorInfo::kDataTypeImage;
-	inputTensorInfo.image_info.width = originalMat.cols;
-	inputTensorInfo.image_info.height = originalMat.rows;
-	inputTensorInfo.image_info.channel = originalMat.channels();
+	inputTensorInfo.image_info.width = original_mat.cols;
+	inputTensorInfo.image_info.height = original_mat.rows;
+	inputTensorInfo.image_info.channel = original_mat.channels();
 	inputTensorInfo.image_info.crop_x = 0;
 	inputTensorInfo.image_info.crop_y = 0;
-	inputTensorInfo.image_info.crop_width = originalMat.cols;
-	inputTensorInfo.image_info.crop_height = originalMat.rows;
+	inputTensorInfo.image_info.crop_width = original_mat.cols;
+	inputTensorInfo.image_info.crop_height = original_mat.rows;
 	inputTensorInfo.image_info.is_bgr = true;
 	inputTensorInfo.image_info.swap_color = true;
 #if 0
@@ -171,14 +171,14 @@ int32_t PoseEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	inputTensorInfo.data = imgSrc.data;
 #endif
 	if (m_inferenceHelper->PreProcess(m_inputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tPreProcess1 = std::chrono::steady_clock::now();
 
 	/*** Inference ***/
 	const auto& tInference0 = std::chrono::steady_clock::now();
 	if (m_inferenceHelper->Process(m_outputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tInference1 = std::chrono::steady_clock::now();
 
@@ -208,5 +208,5 @@ int32_t PoseEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	result.time_inference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
 	result.time_post_process = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
-	return RET_OK;
+	return kRetOk;
 }

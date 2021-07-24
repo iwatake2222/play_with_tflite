@@ -39,7 +39,7 @@ static void RectTransformationCalculator(const Detection& det, const float rotat
 static std::vector<Anchor> s_anchors;
 
 /*** Function ***/
-int32_t PalmDetectionEngine::initialize(const std::string& work_dir, const int32_t num_threads)
+int32_t PalmDetectionEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
 {
 	/* Set model information */
 	std::string modelFilename = work_dir + "/model/" + MODEL_NAME;
@@ -78,30 +78,30 @@ int32_t PalmDetectionEngine::initialize(const std::string& work_dir, const int32
 	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
 
 	if (!m_inferenceHelper) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (m_inferenceHelper->SetNumThreads(num_threads) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 
 	std::vector<std::pair<const char*, const void*>> customOps;
 	customOps.push_back(std::pair<const char*, const void*>("Convolution2DTransposeBias", (const void*)mediapipe::tflite_operations::RegisterConvolution2DTransposeBias()));
 	if (m_inferenceHelper->SetCustomOps(customOps) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 
 	if (m_inferenceHelper->Initialize(modelFilename, m_inputTensorList, m_outputTensorList) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 	/* Check if input tensor info is set */
 	for (const auto& inputTensorInfo : m_inputTensorList) {
 		if ((inputTensorInfo.tensor_dims.width <= 0) || (inputTensorInfo.tensor_dims.height <= 0) || inputTensorInfo.tensor_type == TensorInfo::kTensorTypeNone) {
 			PRINT_E("Invalid tensor size\n");
 			m_inferenceHelper.reset();
-			return RET_ERR;
+			return kRetErr;
 		}
 	}
 
@@ -109,29 +109,29 @@ int32_t PalmDetectionEngine::initialize(const std::string& work_dir, const int32
 	const SsdAnchorsCalculatorOptions options;
 	::mediapipe::GenerateAnchors(&s_anchors, options);
 
-	return RET_OK;
+	return kRetOk;
 }
 
-int32_t PalmDetectionEngine::finalize()
+int32_t PalmDetectionEngine::Finalize()
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 	m_inferenceHelper->Finalize();
-	return RET_OK;
+	return kRetOk;
 }
 
 
-int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
+int32_t PalmDetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 
-	int32_t imageWidth = originalMat.cols;
-	int32_t imageHeight = originalMat.rows;
+	int32_t image_width = original_mat.cols;
+	int32_t image_height = original_mat.rows;
 
 
 	/*** PreProcess ***/
@@ -139,7 +139,7 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	InputTensorInfo& inputTensorInfo = m_inputTensorList[0];
 	/* do resize and color conversion here because some inference engine doesn't support these operations */
 	cv::Mat imgSrc;
-	cv::resize(originalMat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
+	cv::resize(original_mat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
 #ifndef CV_COLOR_IS_RGB
 	cv::cvtColor(imgSrc, imgSrc, cv::COLOR_BGR2RGB);
 #endif
@@ -156,7 +156,7 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	inputTensorInfo.image_info.swap_color = false;
 
 	if (m_inferenceHelper->PreProcess(m_inputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tPreProcess1 = std::chrono::steady_clock::now();
 
@@ -164,7 +164,7 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	/*** Inference ***/
 	const auto& tInference0 = std::chrono::steady_clock::now();
 	if (m_inferenceHelper->Process(m_outputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tInference1 = std::chrono::steady_clock::now();
 
@@ -175,13 +175,13 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	std::vector<Detection> detectionList;
 	const TfLiteTensorsToDetectionsCalculatorOptions options;
 	if (options.num_boxes() != m_outputTensorList[0].tensor_dims.height) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (options.num_coords() != m_outputTensorList[0].tensor_dims.width) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (options.num_classes() != m_outputTensorList[1].tensor_dims.width) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const float* raw_boxes = m_outputTensorList[0].GetDataAsFloat();
 	const float* raw_scores = m_outputTensorList[1].GetDataAsFloat();
@@ -195,13 +195,13 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	std::vector<PALM> palmList;
 	for (auto palmDet : detectionListNMS) {
 		/* Convert the coordinate from on (0.0 - 1.0) to on the input image */
-		palmDet.x *= imageWidth;
-		palmDet.y *= imageHeight;
-		palmDet.w *= imageWidth;
-		palmDet.h *= imageHeight;
+		palmDet.x *= image_width;
+		palmDet.y *= image_height;
+		palmDet.w *= image_width;
+		palmDet.h *= image_height;
 		for (auto kp : palmDet.keypoints) {
-			kp.first *= imageWidth;
-			kp.second *= imageHeight;
+			kp.first *= image_width;
+			kp.second *= image_height;
 		}
 
 		/* Call DetectionsToRectsCalculator as described in hand_detection_gpu.pbtxt */
@@ -216,10 +216,10 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 
 		PALM palm = { 0 };
 		palm.score = palmDet.score;
-		palm.x = (std::min)(imageWidth * 1.f, (std::max)(x, 0.f));
-		palm.y = (std::min)(imageHeight * 1.f, (std::max)(y, 0.f));
-		palm.width = (std::min)(imageWidth * 1.f - palm.x, (std::max)(width, 0.f));
-		palm.height = (std::min)(imageHeight * 1.f - palm.y, (std::max)(height, 0.f));
+		palm.x = (std::min)(image_width * 1.f, (std::max)(x, 0.f));
+		palm.y = (std::min)(image_height * 1.f, (std::max)(y, 0.f));
+		palm.width = (std::min)(image_width * 1.f - palm.x, (std::max)(width, 0.f));
+		palm.height = (std::min)(image_height * 1.f - palm.y, (std::max)(height, 0.f));
 		palm.rotation = rotation;
 		palmList.push_back(palm);
 	}
@@ -232,7 +232,7 @@ int32_t PalmDetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	result.time_inference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
 	result.time_post_process = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
-	return RET_OK;
+	return kRetOk;
 }
 
 

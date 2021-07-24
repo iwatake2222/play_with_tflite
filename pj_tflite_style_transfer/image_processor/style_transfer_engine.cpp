@@ -28,7 +28,7 @@
 #define MODEL_NAME   "magenta_arbitrary-image-stylization-v1-256_fp16_transfer_1.tflite"
 
 /*** Function ***/
-int32_t StyleTransferEngine::initialize(const std::string& work_dir, const int32_t num_threads)
+int32_t StyleTransferEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
 {
 	/* Set model information */
 	std::string modelFilename = work_dir + "/model/" + MODEL_NAME;
@@ -75,15 +75,15 @@ int32_t StyleTransferEngine::initialize(const std::string& work_dir, const int32
 	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
 
 	if (!m_inferenceHelper) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (m_inferenceHelper->SetNumThreads(num_threads) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (m_inferenceHelper->Initialize(modelFilename, m_inputTensorList, m_outputTensorList) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 
 	/* Check if input tensor info is set */
@@ -91,37 +91,37 @@ int32_t StyleTransferEngine::initialize(const std::string& work_dir, const int32
 		if ((inputTensorInfo.tensor_dims.width <= 0) || (inputTensorInfo.tensor_dims.height <= 0) || inputTensorInfo.tensor_type == TensorInfo::kTensorTypeNone) {
 			PRINT_E("Invalid tensor size\n");
 			m_inferenceHelper.reset();
-			return RET_ERR;
+			return kRetErr;
 		}
 	}
 
 
-	return RET_OK;
+	return kRetOk;
 }
 
-int32_t StyleTransferEngine::finalize()
+int32_t StyleTransferEngine::Finalize()
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 	m_inferenceHelper->Finalize();
-	return RET_OK;
+	return kRetOk;
 }
 
 
-int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float styleBottleneck[], const int32_t lengthStyleBottleneck, RESULT& result)
+int32_t StyleTransferEngine::Process(const cv::Mat& original_mat, const float styleBottleneck[], const int32_t lengthStyleBottleneck, Result& result)
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 	/*** PreProcess ***/
 	const auto& tPreProcess0 = std::chrono::steady_clock::now();
 	InputTensorInfo& inputTensorInfo = m_inputTensorList[0];
 	/* do resize and color conversion here because some inference engine doesn't support these operations */
 	cv::Mat imgSrc;
-	cv::resize(originalMat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
+	cv::resize(original_mat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
 #ifndef CV_COLOR_IS_RGB
 	cv::cvtColor(imgSrc, imgSrc, cv::COLOR_BGR2RGB);
 #endif
@@ -140,14 +140,14 @@ int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float styl
 	InputTensorInfo& inputTensorInfoBottleneck = m_inputTensorList[1];
 	inputTensorInfoBottleneck.data = const_cast<float*>(styleBottleneck);
 	if (m_inferenceHelper->PreProcess(m_inputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tPreProcess1 = std::chrono::steady_clock::now();
 
 	/*** Inference ***/
 	const auto& tInference0 = std::chrono::steady_clock::now();
 	if (m_inferenceHelper->Process(m_outputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tInference1 = std::chrono::steady_clock::now();
 
@@ -164,6 +164,6 @@ int32_t StyleTransferEngine::invoke(const cv::Mat& originalMat, const float styl
 	result.time_inference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
 	result.time_post_process = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
-	return RET_OK;
+	return kRetOk;
 }
 

@@ -29,7 +29,7 @@
 #define MODEL_NAME   "hand_landmark.tflite"
 
 /*** Function ***/
-int32_t HandLandmarkEngine::initialize(const std::string& work_dir, const int32_t num_threads)
+int32_t HandLandmarkEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
 {
 	/* Set model information */
 	std::string modelFilename = work_dir + "/model/" + MODEL_NAME;
@@ -71,44 +71,44 @@ int32_t HandLandmarkEngine::initialize(const std::string& work_dir, const int32_
 	//m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
 
 	if (!m_inferenceHelper) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (m_inferenceHelper->SetNumThreads(num_threads) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 	if (m_inferenceHelper->Initialize(modelFilename, m_inputTensorList, m_outputTensorList) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
-		return RET_ERR;
+		return kRetErr;
 	}
 	/* Check if input tensor info is set */
 	for (const auto& inputTensorInfo : m_inputTensorList) {
 		if ((inputTensorInfo.tensor_dims.width <= 0) || (inputTensorInfo.tensor_dims.height <= 0) || inputTensorInfo.tensor_type == TensorInfo::kTensorTypeNone) {
 			PRINT_E("Invalid tensor size\n");
 			m_inferenceHelper.reset();
-			return RET_ERR;
+			return kRetErr;
 		}
 	}
 
-	return RET_OK;
+	return kRetOk;
 }
 
-int32_t HandLandmarkEngine::finalize()
+int32_t HandLandmarkEngine::Finalize()
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 	m_inferenceHelper->Finalize();
-	return RET_OK;
+	return kRetOk;
 }
 
 
-int32_t HandLandmarkEngine::invoke(const cv::Mat& originalMat, int32_t palmX, int32_t palmY, int32_t palmW, int32_t palmH, float palmRotation, RESULT& result)
+int32_t HandLandmarkEngine::Process(const cv::Mat& original_mat, int32_t palmX, int32_t palmY, int32_t palmW, int32_t palmH, float palmRotation, Result& result)
 {
 	if (!m_inferenceHelper) {
 		PRINT_E("Inference helper is not created\n");
-		return RET_ERR;
+		return kRetErr;
 	}
 	/*** PreProcess ***/
 	const auto& tPreProcess0 = std::chrono::steady_clock::now();
@@ -119,7 +119,7 @@ int32_t HandLandmarkEngine::invoke(const cv::Mat& originalMat, int32_t palmX, in
 	cv::RotatedRect rect(cv::Point(palmX + palmW / 2, palmY + palmH / 2), cv::Size(palmW, palmH), palmRotation * 180.f / static_cast<float>(M_PI));
 	cv::Mat trans = cv::getRotationMatrix2D(rect.center, rect.angle, 1.0);
 	cv::Mat srcRot;
-	cv::warpAffine(originalMat, srcRot, trans, originalMat.size());
+	cv::warpAffine(original_mat, srcRot, trans, original_mat.size());
 	cv::getRectSubPix(srcRot, rect.size, rect.center, rotatedImage);
 	//cv::imshow("rotatedImage", rotatedImage);
 
@@ -142,14 +142,14 @@ int32_t HandLandmarkEngine::invoke(const cv::Mat& originalMat, int32_t palmX, in
 	inputTensorInfo.image_info.swap_color = false;
 
 	if (m_inferenceHelper->PreProcess(m_inputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tPreProcess1 = std::chrono::steady_clock::now();
 
 	/*** Inference ***/
 	const auto& tInference0 = std::chrono::steady_clock::now();
 	if (m_inferenceHelper->Process(m_outputTensorList) != InferenceHelper::kRetOk) {
-		return RET_ERR;
+		return kRetErr;
 	}
 	const auto& tInference1 = std::chrono::steady_clock::now();
 
@@ -168,7 +168,7 @@ int32_t HandLandmarkEngine::invoke(const cv::Mat& originalMat, int32_t palmX, in
 		handLandmark.pos[i].y = ld21[i * 3 + 1] / inputTensorInfo.tensor_dims.height;	// 0.0 - 1.0
 		handLandmark.pos[i].z = ld21[i * 3 + 2] * 1;	 // Scale Z coordinate as X. (-100 - 100???) todo
 		//printf("%f\n", m_outputTensorLd21->GetDataAsFloat()[i]);
-		//cv::circle(originalMat, cv::Point(m_outputTensorLd21->GetDataAsFloat()[i * 3 + 0], m_outputTensorLd21->GetDataAsFloat()[i * 3 + 1]), 5, cv::Scalar(255, 255, 0), 1);
+		//cv::circle(original_mat, cv::Point(m_outputTensorLd21->GetDataAsFloat()[i * 3 + 0], m_outputTensorLd21->GetDataAsFloat()[i * 3 + 1]), 5, cv::Scalar(255, 255, 0), 1);
 	}
 
 	/* Fix landmark rotation */
@@ -196,19 +196,19 @@ int32_t HandLandmarkEngine::invoke(const cv::Mat& originalMat, int32_t palmX, in
 	result.time_inference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
 	result.time_post_process = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
-	return RET_OK;
+	return kRetOk;
 }
 
 
 
-void HandLandmarkEngine::rotateLandmark(HAND_LANDMARK& handLandmark, float rotationRad, int32_t imageWidth, int32_t imageHeight)
+void HandLandmarkEngine::rotateLandmark(HAND_LANDMARK& handLandmark, float rotationRad, int32_t image_width, int32_t image_height)
 {
 	for (int32_t i = 0; i < 21; i++) {
-		float x = handLandmark.pos[i].x - imageWidth / 2.f;
-		float y = handLandmark.pos[i].y - imageHeight / 2.f;
+		float x = handLandmark.pos[i].x - image_width / 2.f;
+		float y = handLandmark.pos[i].y - image_height / 2.f;
 
-		handLandmark.pos[i].x = x * std::cos(rotationRad) - y * std::sin(rotationRad) + imageWidth / 2.f;
-		handLandmark.pos[i].y = x * std::sin(rotationRad) + y * std::cos(rotationRad) + imageHeight / 2.f;
+		handLandmark.pos[i].x = x * std::cos(rotationRad) - y * std::sin(rotationRad) + image_width / 2.f;
+		handLandmark.pos[i].y = x * std::sin(rotationRad) + y * std::cos(rotationRad) + image_height / 2.f;
 		//handLandmark.pos[i].x = std::min(handLandmark.pos[i].x, 1.f);
 		//handLandmark.pos[i].y = std::min(handLandmark.pos[i].y, 1.f);
 	};

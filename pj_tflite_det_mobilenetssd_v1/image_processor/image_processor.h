@@ -23,7 +23,7 @@ typedef struct {
 } InputParam;
 
 typedef struct {
-	int32_t objectNum;
+	int32_t object_num;
 	struct {
 		int32_t  class_id;
 		char     label[256];

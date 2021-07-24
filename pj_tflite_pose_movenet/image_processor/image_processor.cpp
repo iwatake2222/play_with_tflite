@@ -26,10 +26,10 @@
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-std::unique_ptr<PoseEngine> s_poseEngine;
+std::unique_ptr<PoseEngine> s_pose_engine;
 
 /*** Function ***/
-static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
+static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
 #ifdef CV_COLOR_IS_RGB
 	return cv::Scalar(r, g, b);
 #else
@@ -40,13 +40,13 @@ static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
 {
-	if (s_poseEngine) {
+	if (s_pose_engine) {
 		PRINT_E("Already initialized\n");
 		return -1;
 	}
 
-	s_poseEngine.reset(new PoseEngine());
-	if (s_poseEngine->initialize(input_param->work_dir, input_param->num_threads) != PoseEngine::RET_OK) {
+	s_pose_engine.reset(new PoseEngine());
+	if (s_pose_engine->Initialize(input_param->work_dir, input_param->num_threads) != PoseEngine::kRetOk) {
 		return -1;
 	}
 	return 0;
@@ -54,12 +54,12 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param
 
 int32_t ImageProcessor::Finalize(void)
 {
-	if (!s_poseEngine) {
+	if (!s_pose_engine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
 
-	if (s_poseEngine->finalize() != PoseEngine::RET_OK) {
+	if (s_pose_engine->Finalize() != PoseEngine::kRetOk) {
 		return -1;
 	}
 
@@ -69,7 +69,7 @@ int32_t ImageProcessor::Finalize(void)
 
 int32_t ImageProcessor::Command(int32_t cmd)
 {
-	if (!s_poseEngine) {
+	if (!s_pose_engine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
@@ -107,40 +107,40 @@ static const std::vector<std::pair<int32_t, int32_t>> jointLineList {
 
 int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
 {
-	if (!s_poseEngine) {
+	if (!s_pose_engine) {
 		PRINT_E("Not initialized\n");
 		return -1;
 	}
 
-	cv::Mat& originalMat = *mat;
-	PoseEngine::RESULT result;
-	if (s_poseEngine->invoke(originalMat, result) != PoseEngine::RET_OK) {
+	cv::Mat& original_mat = *mat;
+	PoseEngine::Result result;
+	if (s_pose_engine->Process(original_mat, result) != PoseEngine::kRetOk) {
 		return -1;
 	}
 
 	/* Draw the result */
 	/* note: we have only one body with this model */
-	constexpr float scoreThreshold = 0.2;
-	const auto& scoreList = result.poseKeypointScores[0];
-	const auto& partList = result.poseKeypointCoords[0];
-	int32_t partNum = partList.size();
+	constexpr float score_threshold = 0.2F;
+	const auto& score_list = result.poseKeypointScores[0];
+	const auto& part_list = result.poseKeypointCoords[0];
+	int32_t part_num = part_list.size();
 
 	for (const auto& jointLine : jointLineList) {
-		if (scoreList[jointLine.first] >= scoreThreshold && scoreList[jointLine.second] >= scoreThreshold) {
-			int32_t x0 = static_cast<int32_t>(partList[jointLine.first].first * originalMat.cols);
-			int32_t y0 = static_cast<int32_t>(partList[jointLine.first].second * originalMat.rows);
-			int32_t x1 = static_cast<int32_t>(partList[jointLine.second].first * originalMat.cols);
-			int32_t y1 = static_cast<int32_t>(partList[jointLine.second].second * originalMat.rows);
-			cv::line(originalMat, cv::Point(x0, y0), cv::Point(x1, y1) , createCvColor(200, 200, 200), 2);
+		if (score_list[jointLine.first] >= score_threshold && score_list[jointLine.second] >= score_threshold) {
+			int32_t x0 = static_cast<int32_t>(part_list[jointLine.first].first * original_mat.cols);
+			int32_t y0 = static_cast<int32_t>(part_list[jointLine.first].second * original_mat.rows);
+			int32_t x1 = static_cast<int32_t>(part_list[jointLine.second].first * original_mat.cols);
+			int32_t y1 = static_cast<int32_t>(part_list[jointLine.second].second * original_mat.rows);
+			cv::line(original_mat, cv::Point(x0, y0), cv::Point(x1, y1) , CreateCvColor(200, 200, 200), 2);
 		}
 	}
 
-	for (int32_t i = 0; i < partNum; i++) {
-		int32_t x = static_cast<int32_t>(partList[i].first * originalMat.cols);
-		int32_t y = static_cast<int32_t>(partList[i].second * originalMat.rows);
-		float score = scoreList[i];
-		if (score >= scoreThreshold) {
-			cv::circle(originalMat, cv::Point(x, y), 5, createCvColor(0, 255, 0), -1);
+	for (int32_t i = 0; i < part_num; i++) {
+		int32_t x = static_cast<int32_t>(part_list[i].first * original_mat.cols);
+		int32_t y = static_cast<int32_t>(part_list[i].second * original_mat.rows);
+		float score = score_list[i];
+		if (score >= score_threshold) {
+			cv::circle(original_mat, cv::Point(x, y), 5, CreateCvColor(0, 255, 0), -1);
 		}
 	}
 

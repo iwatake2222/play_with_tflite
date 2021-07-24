@@ -29,7 +29,7 @@
 std::unique_ptr<DetectionEngine> s_engine;
 
 /*** Function ***/
-static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
+static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
 #ifdef CV_COLOR_IS_RGB
 	return cv::Scalar(r, g, b);
 #else
@@ -46,8 +46,8 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param
 	}
 
 	s_engine.reset(new DetectionEngine());
-	if (s_engine->initialize(input_param->work_dir, input_param->num_threads) != DetectionEngine::RET_OK) {
-		s_engine->finalize();
+	if (s_engine->Initialize(input_param->work_dir, input_param->num_threads) != DetectionEngine::kRetOk) {
+		s_engine->Finalize();
 		s_engine.reset();
 		return -1;
 	}
@@ -61,7 +61,7 @@ int32_t ImageProcessor::Finalize(void)
 		return -1;
 	}
 
-	if (s_engine->finalize() != DetectionEngine::RET_OK) {
+	if (s_engine->Finalize() != DetectionEngine::kRetOk) {
 		return -1;
 	}
 
@@ -92,35 +92,35 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 		return -1;
 	}
 
-	cv::Mat& originalMat = *mat;
-	DetectionEngine::RESULT result;
+	cv::Mat& original_mat = *mat;
+	DetectionEngine::Result result;
 	result.object_list.clear();
-	if (s_engine->invoke(originalMat, result) != DetectionEngine::RET_OK) {
+	if (s_engine->Process(original_mat, result) != DetectionEngine::kRetOk) {
 		return -1;
 	}
 
 	/* Draw the result */
 	for (const auto& object : result.object_list) {
-		cv::rectangle(originalMat, cv::Rect(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y), static_cast<int32_t>(object.width), static_cast<int32_t>(object.height)), cv::Scalar(255, 255, 0), 3);
-		cv::putText(originalMat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, createCvColor(0, 0, 0), 3);
-		cv::putText(originalMat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, createCvColor(0, 255, 0), 1);
+		cv::rectangle(original_mat, cv::Rect(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y), static_cast<int32_t>(object.width), static_cast<int32_t>(object.height)), cv::Scalar(255, 255, 0), 3);
+		cv::putText(original_mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
+		cv::putText(original_mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
 	}
 
 
 	/* Return the results */
-	int32_t objectNum = 0;
+	int32_t object_num = 0;
 	for (const auto& object : result.object_list) {
-		output_param->object_list[objectNum].class_id = object.class_id;
-		snprintf(output_param->object_list[objectNum].label, sizeof(output_param->object_list[objectNum].label), "%s", object.label.c_str());
-		output_param->object_list[objectNum].score = object.score;
-		output_param->object_list[objectNum].x = static_cast<int32_t>(object.x);
-		output_param->object_list[objectNum].y = static_cast<int32_t>(object.y);
-		output_param->object_list[objectNum].width = static_cast<int32_t>(object.width);
-		output_param->object_list[objectNum].height = static_cast<int32_t>(object.height);
-		objectNum++;
-		if (objectNum >= NUM_MAX_RESULT) break;
+		output_param->object_list[object_num].class_id = object.class_id;
+		snprintf(output_param->object_list[object_num].label, sizeof(output_param->object_list[object_num].label), "%s", object.label.c_str());
+		output_param->object_list[object_num].score = object.score;
+		output_param->object_list[object_num].x = static_cast<int32_t>(object.x);
+		output_param->object_list[object_num].y = static_cast<int32_t>(object.y);
+		output_param->object_list[object_num].width = static_cast<int32_t>(object.width);
+		output_param->object_list[object_num].height = static_cast<int32_t>(object.height);
+		object_num++;
+		if (object_num >= NUM_MAX_RESULT) break;
 	}
-	output_param->objectNum = objectNum;
+	output_param->object_num = object_num;
 	output_param->time_pre_process = result.time_pre_process;
 	output_param->time_inference = result.time_inference;
 	output_param->time_post_process = result.time_post_process;
