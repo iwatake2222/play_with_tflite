@@ -3,7 +3,7 @@
 #include <mutex>
 
 #include <opencv2/opencv.hpp>
-#include "ImageProcessor.h"
+#include "image_processor.h"
 
 //#define WORK_DIR    "/sdcard/resource/"
 //#define WORK_DIR    "/mnt/sdcard/resource"
@@ -19,10 +19,10 @@ Java_com_iwatake_viewandroidtflite_MainActivity_ImageProcessorInitialize(
 
     std::lock_guard<std::mutex> lock(g_mtx);
     int ret = 0;
-    INPUT_PARAM inputParam;
-    snprintf(inputParam.workDir, sizeof(inputParam.workDir), WORK_DIR);
-    inputParam.numThreads = 4;
-    ret = ImageProcessor_initialize(&inputParam);
+    ImageProcessor::InputParam input_param;
+    snprintf(input_param.work_dir, sizeof(input_param.work_dir), WORK_DIR);
+    input_param.num_threads = 4;
+    ret = ImageProcessor::Initialize(&input_param);
     return ret;
 }
 
@@ -35,8 +35,8 @@ Java_com_iwatake_viewandroidtflite_MainActivity_ImageProcessorProcess(
     std::lock_guard<std::mutex> lock(g_mtx);
     int ret = 0;
     cv::Mat* mat = (cv::Mat*) objMat;
-    OUTPUT_PARAM outputParam;
-    ret = ImageProcessor_process(mat, &outputParam);
+    ImageProcessor::OutputParam output_param;
+    ret = ImageProcessor::Process(mat, &output_param);
     return ret;
 }
 
@@ -47,7 +47,7 @@ Java_com_iwatake_viewandroidtflite_MainActivity_ImageProcessorFinalize(
 
     std::lock_guard<std::mutex> lock(g_mtx);
     int ret = 0;
-    ret = ImageProcessor_finalize();
+    ret = ImageProcessor::Finalize();
     return ret;
 }
 
@@ -59,7 +59,6 @@ Java_com_iwatake_viewandroidtflite_MainActivity_ImageProcessorCommand(
 
     std::lock_guard<std::mutex> lock(g_mtx);
     int ret = 0;
-    ret = ImageProcessor_command(cmd);
+    ret = ImageProcessor::Command(cmd);
     return ret;
 }
-
