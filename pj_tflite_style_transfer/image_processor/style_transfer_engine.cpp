@@ -17,7 +17,7 @@
 /* for My modules */
 #include "common_helper.h"
 #include "inference_helper.h"
-#include "StyleTransferEngine.h"
+#include "style_transfer_engine.h"
 
 /*** Macro ***/
 #define TAG "StyleTransferEngine"

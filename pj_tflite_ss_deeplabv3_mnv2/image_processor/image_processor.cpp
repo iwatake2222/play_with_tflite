@@ -17,8 +17,8 @@
 
 /* for My modules */
 #include "common_helper.h"
-#include "SemanticSegmentationEngine.h"
-#include "ImageProcessor.h"
+#include "semantic_segmentation_engine.h"
+#include "image_processor.h"
 
 /*** Macro ***/
 #define TAG "ImageProcessor"

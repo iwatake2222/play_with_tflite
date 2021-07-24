@@ -17,7 +17,7 @@
 /* for My modules */
 #include "common_helper.h"
 #include "inference_helper.h"
-#include "StylePredictionEngine.h"
+#include "style_prediction_engine.h"
 
 /*** Macro ***/
 #define TAG "StylePredictionEngine"

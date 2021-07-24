@@ -18,7 +18,7 @@
 /* for My modules */
 #include "common_helper.h"
 #include "inference_helper.h"
-#include "HandLandmarkEngine.h"
+#include "hand_landmark_engine.h"
 
 /*** Macro ***/
 #define TAG "HandLandmarkEngine"

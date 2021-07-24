@@ -14,7 +14,7 @@
 #include <opencv2/opencv.hpp>
 
 /* for My modules */
-#include "ImageProcessor.h"
+#include "image_processor.h"
 
 /*** Macro ***/
 #define IMAGE_NAME   RESOURCE_DIR"/parrot.jpg"

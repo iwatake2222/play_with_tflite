@@ -17,9 +17,9 @@
 
 /* for My modules */
 #include "common_helper.h"
-#include "PalmDetectionEngine.h"
-#include "HandLandmarkEngine.h"
-#include "ImageProcessor.h"
+#include "palm_detection_engine.h"
+#include "hand_landmark_engine.h"
+#include "image_processor.h"
 
 /*** Macro ***/
 #define TAG "ImageProcessor"

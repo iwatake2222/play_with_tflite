@@ -17,9 +17,9 @@
 
 /* for My modules */
 #include "common_helper.h"
-#include "StylePredictionEngine.h"
-#include "StyleTransferEngine.h"
-#include "ImageProcessor.h"
+#include "style_prediction_engine.h"
+#include "style_transfer_engine.h"
+#include "image_processor.h"
 
 /*** Macro ***/
 #define TAG "ImageProcessor"

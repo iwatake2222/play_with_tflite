@@ -18,11 +18,11 @@
 
 /* for My modules */
 #include "common_helper.h"
-#include "PalmDetectionEngine.h"
-#include "HandLandmarkEngine.h"
-#include "ClassificationEngine.h"
-#include "AreaSelector.h"
-#include "ImageProcessor.h"
+#include "palm_detection_engine.h"
+#include "hand_landmark_engine.h"
+#include "classification_engine.h"
+#include "area_selector.h"
+#include "image_processor.h"
 
 /*** Macro ***/
 #define TAG "ImageProcessor"

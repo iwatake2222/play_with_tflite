@@ -17,8 +17,8 @@
 
 /* for My modules */
 #include "common_helper.h"
-#include "DetectionEngine.h"
-#include "ImageProcessor.h"
+#include "detection_engine.h"
+#include "image_processor.h"
 
 /*** Macro ***/
 #define TAG "ImageProcessor"

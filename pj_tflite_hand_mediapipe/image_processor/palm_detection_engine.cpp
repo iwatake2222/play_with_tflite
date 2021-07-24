@@ -23,7 +23,7 @@
 /* for My modules */
 #include "common_helper.h"
 #include "inference_helper.h"
-#include "PalmDetectionEngine.h"
+#include "palm_detection_engine.h"
 
 /*** Macro ***/
 #define TAG "PalmDetectionEngine"

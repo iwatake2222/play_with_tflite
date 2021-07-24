@@ -16,7 +16,7 @@
 
 /* for My modules */
 #include "common_helper.h"
-#include "AreaSelector.h"
+#include "area_selector.h"
 
 /*** Macro ***/
 #define TAG "AreaSelector"

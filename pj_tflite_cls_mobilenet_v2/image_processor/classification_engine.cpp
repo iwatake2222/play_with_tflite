@@ -17,7 +17,7 @@
 /* for My modules */
 #include "common_helper.h"
 #include "inference_helper.h"
-#include "ClassificationEngine.h"
+#include "classification_engine.h"
 
 /*** Macro ***/
 #define TAG "ClassificationEngine"

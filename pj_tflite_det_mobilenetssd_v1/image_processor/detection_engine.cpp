@@ -17,7 +17,7 @@
 /* for My modules */
 #include "common_helper.h"
 #include "inference_helper.h"
-#include "DetectionEngine.h"
+#include "detection_engine.h"
 
 /*** Macro ***/
 #define TAG "DetectionEngine"

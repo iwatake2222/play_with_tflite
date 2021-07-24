@@ -17,7 +17,7 @@
 /* for My modules */
 #include "common_helper.h"
 #include "inference_helper.h"
-#include "SemanticSegmentationEngine.h"
+#include "semantic_segmentation_engine.h"
 
 /*** Macro ***/
 #define TAG "SemanticSegmentationEngine"
