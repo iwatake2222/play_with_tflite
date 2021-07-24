@@ -33,13 +33,13 @@ int32_t main()
 
 #ifdef SPEED_TEST_ONLY
 	/* Read an input image */
-	cv::Mat originalImage = cv::imread(IMAGE_NAME);
+	cv::Mat original_image = cv::imread(IMAGE_NAME);
 
 	/* Call image processor library */
 	ImageProcessor::OutputParam output_param;
-	ImageProcessor::Process(&originalImage, &output_param);
+	ImageProcessor::Process(&original_image, &output_param);
 
-	cv::imshow("originalImage", originalImage);
+	cv::imshow("original_image", original_image);
 	cv::waitKey(1);
 
 	/*** (Optional) Measure inference time ***/
@@ -48,7 +48,7 @@ int32_t main()
 	double time_post_process = 0;
 	const auto& t0 = std::chrono::steady_clock::now();
 	for (int32_t i = 0; i < LOOP_NUM_FOR_TIME_MEASUREMENT; i++) {
-		ImageProcessor::Process(&originalImage, &output_param);
+		ImageProcessor::Process(&original_image, &output_param);
 		time_pre_process += output_param.time_pre_process;
 		time_inference += output_param.time_inference;
 		time_post_process += output_param.time_post_process;
@@ -63,36 +63,33 @@ int32_t main()
 
 #else
 	/* Initialize camera */
-	int32_t originalImageWidth = 1280;
-	int32_t originalImageHeight = 720;
-
 	static cv::VideoCapture cap;
 	cap = cv::VideoCapture(0);
-	cap.set(cv::CAP_PROP_FRAME_WIDTH, originalImageWidth);
-	cap.set(cv::CAP_PROP_FRAME_HEIGHT, originalImageHeight);
+	cap.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
+	cap.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
 	// cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('B', 'G', 'R', '3'));
 	cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
 	while (1) {
-		const auto& timeAll0 = std::chrono::steady_clock::now();
+		const auto& time_all0 = std::chrono::steady_clock::now();
 		/*** Read image ***/
-		const auto& timeCap0 = std::chrono::steady_clock::now();
-		cv::Mat originalImage;
-		cap.read(originalImage);
-		const auto& timeCap1 = std::chrono::steady_clock::now();
+		const auto& time_cap0 = std::chrono::steady_clock::now();
+		cv::Mat original_image;
+		cap.read(original_image);
+		const auto& time_cap1 = std::chrono::steady_clock::now();
 
 		/* Call image processor library */
-		const auto& timeProcess0 = std::chrono::steady_clock::now();
+		const auto& time_process0 = std::chrono::steady_clock::now();
 		ImageProcessor::OutputParam output_param;
-		ImageProcessor::Process(&originalImage, &output_param);
-		const auto& timeProcess1 = std::chrono::steady_clock::now();
+		ImageProcessor::Process(&original_image, &output_param);
+		const auto& time_process1 = std::chrono::steady_clock::now();
 
-		cv::imshow("test", originalImage);
+		cv::imshow("test", original_image);
 		if (cv::waitKey(1) == 'q') break;
 
-		const auto& timeAll1 = std::chrono::steady_clock::now();
-		printf("Total time = %.3lf [msec]\n", (timeAll1 - timeAll0).count() / 1000000.0);
-		printf("Capture time = %.3lf [msec]\n", (timeCap1 - timeCap0).count() / 1000000.0);
-		printf("Image processing time = %.3lf [msec]\n", (timeProcess1 - timeProcess0).count() / 1000000.0);
+		const auto& time_all1 = std::chrono::steady_clock::now();
+		printf("Total time = %.3lf [msec]\n", (time_all1 - time_all0).count() / 1000000.0);
+		printf("Capture time = %.3lf [msec]\n", (time_cap1 - time_cap0).count() / 1000000.0);
+		printf("Image processing time = %.3lf [msec]\n", (time_process1 - time_process0).count() / 1000000.0);
 		printf("========\n");
 	}
 
