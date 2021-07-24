@@ -1,3 +1,2 @@
-include ':sdk'
 include ':app'
 rootProject.name = "ViewAndroidTflite"
