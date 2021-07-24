@@ -26,38 +26,38 @@ int32_t main()
 {
 	/*** Initialize ***/
 	/* Initialize image processor library */
-	INPUT_PARAM inputParam;
-	snprintf(inputParam.workDir, sizeof(inputParam.workDir), WORK_DIR);
-	inputParam.numThreads = 4;
-	ImageProcessor_initialize(&inputParam);
+	ImageProcessor::InputParam input_param;
+	snprintf(input_param.work_dir, sizeof(input_param.work_dir), WORK_DIR);
+	input_param.num_threads = 4;
+	ImageProcessor::Initialize(&input_param);
 
 #ifdef SPEED_TEST_ONLY
 	/* Read an input image */
 	cv::Mat originalImage = cv::imread(IMAGE_NAME);
 
 	/* Call image processor library */
-	OUTPUT_PARAM outputParam;
-	ImageProcessor_process(&originalImage, &outputParam);
+	ImageProcessor::OutputParam output_param;
+	ImageProcessor::Process(&originalImage, &output_param);
 
 	cv::imshow("originalImage", originalImage);
 	cv::waitKey(1);
 
 	/*** (Optional) Measure inference time ***/
-	double timePreProcess = 0;
-	double timeInference = 0;
-	double timePostProcess = 0;
+	double time_pre_process = 0;
+	double time_inference = 0;
+	double time_post_process = 0;
 	const auto& t0 = std::chrono::steady_clock::now();
 	for (int32_t i = 0; i < LOOP_NUM_FOR_TIME_MEASUREMENT; i++) {
-		ImageProcessor_process(&originalImage, &outputParam);
-		timePreProcess += outputParam.timePreProcess;
-		timeInference += outputParam.timeInference;
-		timePostProcess += outputParam.timePostProcess;
+		ImageProcessor::Process(&originalImage, &output_param);
+		time_pre_process += output_param.time_pre_process;
+		time_inference += output_param.time_inference;
+		time_post_process += output_param.time_post_process;
 	}
 	const auto& t1 = std::chrono::steady_clock::now();
 	std::chrono::duration<double> timeSpan = t1 - t0;
-	printf("PreProcessing time  = %.3lf [msec]\n", timePreProcess / LOOP_NUM_FOR_TIME_MEASUREMENT);
-	printf("Inference time  = %.3lf [msec]\n", timeInference / LOOP_NUM_FOR_TIME_MEASUREMENT);
-	printf("PostProcessing time  = %.3lf [msec]\n", timePostProcess / LOOP_NUM_FOR_TIME_MEASUREMENT);
+	printf("PreProcessing time  = %.3lf [msec]\n", time_pre_process / LOOP_NUM_FOR_TIME_MEASUREMENT);
+	printf("Inference time  = %.3lf [msec]\n", time_inference / LOOP_NUM_FOR_TIME_MEASUREMENT);
+	printf("PostProcessing time  = %.3lf [msec]\n", time_post_process / LOOP_NUM_FOR_TIME_MEASUREMENT);
 	printf("Total Image processing time  = %.3lf [msec]\n", timeSpan.count() * 1000.0 / LOOP_NUM_FOR_TIME_MEASUREMENT);
 	cv::waitKey(-1);
 
@@ -82,8 +82,8 @@ int32_t main()
 
 		/* Call image processor library */
 		const auto& timeProcess0 = std::chrono::steady_clock::now();
-		OUTPUT_PARAM outputParam;
-		ImageProcessor_process(&originalImage, &outputParam);
+		ImageProcessor::OutputParam output_param;
+		ImageProcessor::Process(&originalImage, &output_param);
 		const auto& timeProcess1 = std::chrono::steady_clock::now();
 
 		cv::imshow("test", originalImage);
@@ -99,7 +99,7 @@ int32_t main()
 #endif
 
 	/* Fianlize image processor library */
-	ImageProcessor_finalize();
+	ImageProcessor::Finalize();
 
 	return 0;
 }

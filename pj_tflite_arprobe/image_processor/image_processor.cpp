@@ -196,7 +196,7 @@ static std::string classify(cv::Mat &originalMat, const cv::Rect &selectedArea)
 	return (resultWithoutPadding.score > resultWithPadding.score) ? resultWithoutPadding.labelName : resultWithPadding.labelName;
 }
 
-int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
 {
 	if (s_palmDetectionEngine || s_handLandmarkEngine || s_classificationEngine) {
 		PRINT_E("Already initialized\n");
@@ -204,24 +204,24 @@ int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 	}
 
 	s_palmDetectionEngine.reset(new PalmDetectionEngine());
-	if (s_palmDetectionEngine->initialize(inputParam->workDir, inputParam->numThreads) != PalmDetectionEngine::RET_OK) {
+	if (s_palmDetectionEngine->initialize(input_param->work_dir, input_param->num_threads) != PalmDetectionEngine::RET_OK) {
 		return -1;
 	}
 	s_handLandmarkEngine.reset(new HandLandmarkEngine());
-	if (s_handLandmarkEngine->initialize(inputParam->workDir, inputParam->numThreads) != HandLandmarkEngine::RET_OK) {
+	if (s_handLandmarkEngine->initialize(input_param->work_dir, input_param->num_threads) != HandLandmarkEngine::RET_OK) {
 		return -1;
 	}
 	s_classificationEngine.reset(new ClassificationEngine());
-	if (s_classificationEngine->initialize(inputParam->workDir, inputParam->numThreads) != HandLandmarkEngine::RET_OK) {
+	if (s_classificationEngine->initialize(input_param->work_dir, input_param->num_threads) != HandLandmarkEngine::RET_OK) {
 		return -1;
 	}
 
-	cv::setNumThreads(inputParam->numThreads);
+	cv::setNumThreads(input_param->num_threads);
 
 	return 0;
 }
 
-int32_t ImageProcessor_finalize(void)
+int32_t ImageProcessor::Finalize(void)
 {
 	if (!s_palmDetectionEngine || !s_handLandmarkEngine || !s_classificationEngine) {
 		PRINT_E("Not initialized\n");
@@ -245,7 +245,7 @@ int32_t ImageProcessor_finalize(void)
 }
 
 
-int32_t ImageProcessor_command(int32_t cmd)
+int32_t ImageProcessor::Command(int32_t cmd)
 {
 	if (!s_palmDetectionEngine || !s_handLandmarkEngine || !s_classificationEngine) {
 		PRINT_E("Not initialized\n");
@@ -264,7 +264,7 @@ int32_t ImageProcessor_command(int32_t cmd)
 }
 
 
-int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
+int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
 {
 	if (!s_palmDetectionEngine || !s_handLandmarkEngine || !s_classificationEngine) {
 		PRINT_E("Not initialized\n");
@@ -419,9 +419,9 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 	}
 
 	/* Return the results */
-	outputParam->timePreProcess = palmResult.timePreProcess + landmarkResult.timePreProcess;
-	outputParam->timeInference = palmResult.timeInference + landmarkResult.timeInference;
-	outputParam->timePostProcess = palmResult.timePostProcess  + landmarkResult.timePostProcess;
+	output_param->time_pre_process = palmResult.time_pre_process + landmarkResult.time_pre_process;
+	output_param->time_inference = palmResult.time_inference + landmarkResult.time_inference;
+	output_param->time_post_process = palmResult.time_post_process  + landmarkResult.time_post_process;
 
 	return 0;
 }

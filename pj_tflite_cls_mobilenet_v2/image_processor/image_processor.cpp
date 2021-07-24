@@ -38,7 +38,7 @@ static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
 }
 
 
-int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
 {
 	if (s_classificationEngine) {
 		PRINT_E("Already initialized\n");
@@ -46,13 +46,13 @@ int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 	}
 
 	s_classificationEngine.reset(new ClassificationEngine());
-	if (s_classificationEngine->initialize(inputParam->workDir, inputParam->numThreads) != ClassificationEngine::RET_OK) {
+	if (s_classificationEngine->initialize(input_param->work_dir, input_param->num_threads) != ClassificationEngine::RET_OK) {
 		return -1;
 	}
 	return 0;
 }
 
-int32_t ImageProcessor_finalize(void)
+int32_t ImageProcessor::Finalize(void)
 {
 	if (!s_classificationEngine) {
 		PRINT_E("Not initialized\n");
@@ -67,7 +67,7 @@ int32_t ImageProcessor_finalize(void)
 }
 
 
-int32_t ImageProcessor_command(int32_t cmd)
+int32_t ImageProcessor::Command(int32_t cmd)
 {
 	if (!s_classificationEngine) {
 		PRINT_E("Not initialized\n");
@@ -83,7 +83,7 @@ int32_t ImageProcessor_command(int32_t cmd)
 }
 
 
-int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
+int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
 {
 	if (!s_classificationEngine) {
 		PRINT_E("Not initialized\n");
@@ -103,12 +103,12 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 	cv::putText(originalMat, resultStr, cv::Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, createCvColor(0, 255, 0), 1);
 
 	/* Return the results */
-	outputParam->classId = result.labelIndex;
-	snprintf(outputParam->label, sizeof(outputParam->label), "%s", result.labelName.c_str());
-	outputParam->score = result.score;
-	outputParam->timePreProcess = result.timePreProcess;
-	outputParam->timeInference = result.timeInference;
-	outputParam->timePostProcess = result.timePostProcess;
+	output_param->class_id = result.labelIndex;
+	snprintf(output_param->label, sizeof(output_param->label), "%s", result.labelName.c_str());
+	output_param->score = result.score;
+	output_param->time_pre_process = result.time_pre_process;
+	output_param->time_inference = result.time_inference;
+	output_param->time_post_process = result.time_post_process;
 
 	return 0;
 }

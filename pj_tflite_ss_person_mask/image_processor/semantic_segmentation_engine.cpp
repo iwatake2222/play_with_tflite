@@ -28,10 +28,10 @@
 #define MODEL_NAME   "mobilenet_v3_segm_256.tflite"
 
 /*** Function ***/
-int32_t SemanticSegmentationEngine::initialize(const std::string& workDir, const int32_t numThreads)
+int32_t SemanticSegmentationEngine::initialize(const std::string& work_dir, const int32_t num_threads)
 {
 	/* Set model information */
-	std::string modelFilename = workDir + "/model/" + MODEL_NAME;
+	std::string modelFilename = work_dir + "/model/" + MODEL_NAME;
 
 	/* Set input tensor info */
 	m_inputTensorList.clear();
@@ -68,7 +68,7 @@ int32_t SemanticSegmentationEngine::initialize(const std::string& workDir, const
 	if (!m_inferenceHelper) {
 		return RET_ERR;
 	}
-	if (m_inferenceHelper->SetNumThreads(numThreads) != InferenceHelper::kRetOk) {
+	if (m_inferenceHelper->SetNumThreads(num_threads) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
 		return RET_ERR;
 	}
@@ -152,9 +152,9 @@ int32_t SemanticSegmentationEngine::invoke(const cv::Mat& originalMat, RESULT& r
 
 	/* Return the results */
 	result.maskImage = maskImage;
-	result.timePreProcess = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
-	result.timeInference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
-	result.timePostProcess = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
+	result.time_pre_process = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
+	result.time_inference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
+	result.time_post_process = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
 	return RET_OK;
 }

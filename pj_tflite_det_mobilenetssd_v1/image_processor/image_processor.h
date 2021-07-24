@@ -14,30 +14,35 @@ namespace cv {
 
 #define NUM_MAX_RESULT 100
 
+namespace ImageProcessor
+{
+
 typedef struct {
-	char     workDir[256];
-	int32_t  numThreads;
-} INPUT_PARAM;
+	char     work_dir[256];
+	int32_t  num_threads;
+} InputParam;
 
 typedef struct {
 	int32_t objectNum;
 	struct {
-		int32_t  classId;
+		int32_t  class_id;
 		char     label[256];
-		double score;
+		double   score;
 		int32_t  x;
 		int32_t  y;
 		int32_t  width;
 		int32_t  height;
-	} objectList[NUM_MAX_RESULT];
-	double timePreProcess;   // [msec]
-	double timeInference;    // [msec]
-	double timePostProcess;  // [msec]
-} OUTPUT_PARAM;
+	} object_list[NUM_MAX_RESULT];
+	double time_pre_process;   // [msec]
+	double time_inference;    // [msec]
+	double time_post_process;  // [msec]
+} OutputParam;
 
-int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam);
-int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam);
-int32_t ImageProcessor_finalize(void);
-int32_t ImageProcessor_command(int32_t cmd);
+int32_t Initialize(const InputParam* input_param);
+int32_t Process(cv::Mat* mat, OutputParam* output_param);
+int32_t Finalize(void);
+int32_t Command(int32_t cmd);
+
+}
 
 #endif

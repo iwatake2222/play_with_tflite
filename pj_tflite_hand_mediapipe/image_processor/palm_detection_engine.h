@@ -34,17 +34,17 @@ public:
 
 	typedef struct RESULT_ {
 		std::vector<PALM> palmList;
-		double          timePreProcess;		// [msec]
-		double          timeInference;		// [msec]
-		double          timePostProcess;		// [msec]
-		RESULT_() : timePreProcess(0), timeInference(0), timePostProcess(0)
+		double          time_pre_process;		// [msec]
+		double          time_inference;		// [msec]
+		double          time_post_process;		// [msec]
+		RESULT_() : time_pre_process(0), time_inference(0), time_post_process(0)
 		{}
 	} RESULT;
 
 public:
 	PalmDetectionEngine() {}
 	~PalmDetectionEngine() {}
-	int32_t initialize(const std::string& workDir, const int32_t numThreads);
+	int32_t initialize(const std::string& work_dir, const int32_t num_threads);
 	int32_t finalize(void);
 	int32_t invoke(const cv::Mat& originalMat, RESULT& result);
 

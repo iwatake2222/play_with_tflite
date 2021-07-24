@@ -30,11 +30,11 @@
 
 
 /*** Function ***/
-int32_t DetectionEngine::initialize(const std::string& workDir, const int32_t numThreads)
+int32_t DetectionEngine::initialize(const std::string& work_dir, const int32_t num_threads)
 {
 	/* Set model information */
-	std::string modelFilename = workDir + "/model/" + MODEL_NAME;
-	std::string labelFilename = workDir + "/model/" + LABEL_NAME;
+	std::string modelFilename = work_dir + "/model/" + MODEL_NAME;
+	std::string labelFilename = work_dir + "/model/" + LABEL_NAME;
 
 	/* Set input tensor info */
 	m_inputTensorList.clear();
@@ -78,7 +78,7 @@ int32_t DetectionEngine::initialize(const std::string& workDir, const int32_t nu
 	if (!m_inferenceHelper) {
 		return RET_ERR;
 	}
-	if (m_inferenceHelper->SetNumThreads(numThreads) != InferenceHelper::kRetOk) {
+	if (m_inferenceHelper->SetNumThreads(num_threads) != InferenceHelper::kRetOk) {
 		m_inferenceHelper.reset();
 		return RET_ERR;
 	}
@@ -157,15 +157,15 @@ int32_t DetectionEngine::invoke(const cv::Mat& originalMat, RESULT& result)
 	const auto& tPostProcess0 = std::chrono::steady_clock::now();
 	/* Retrieve result */
 	int32_t outputNum = (int32_t)(m_outputTensorList[3].GetDataAsFloat()[0]);
-	std::vector<OBJECT> objectList;
-	getObject(objectList, m_outputTensorList[0].GetDataAsFloat(), m_outputTensorList[1].GetDataAsFloat(), m_outputTensorList[2].GetDataAsFloat(), outputNum, 0.5, originalMat.cols, originalMat.rows);
+	std::vector<OBJECT> object_list;
+	getObject(object_list, m_outputTensorList[0].GetDataAsFloat(), m_outputTensorList[1].GetDataAsFloat(), m_outputTensorList[2].GetDataAsFloat(), outputNum, 0.5, originalMat.cols, originalMat.rows);
 	const auto& tPostProcess1 = std::chrono::steady_clock::now();
 
 	/* Return the results */
-	result.objectList = objectList;
-	result.timePreProcess = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
-	result.timeInference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
-	result.timePostProcess = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
+	result.object_list = object_list;
+	result.time_pre_process = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
+	result.time_inference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
+	result.time_post_process = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
 
 	return RET_OK;
 }
@@ -187,11 +187,11 @@ int32_t DetectionEngine::readLabel(const std::string& filename, std::vector<std:
 }
 
 
-int32_t DetectionEngine::getObject(std::vector<OBJECT>& objectList, const float *outputBoxList, const float *outputClassList, const float *outputScoreList, const int32_t outputNum,
+int32_t DetectionEngine::getObject(std::vector<OBJECT>& object_list, const float *outputBoxList, const float *outputClassList, const float *outputScoreList, const int32_t outputNum,
 	const double threshold, const int32_t width, const int32_t height)
 {
 	for (int32_t i = 0; i < outputNum; i++) {
-		int32_t classId = static_cast<int32_t>(outputClassList[i] + 1);
+		int32_t class_id = static_cast<int32_t>(outputClassList[i] + 1);
 		float score = outputScoreList[i];
 		if (score < threshold) continue;
 		float y0 = outputBoxList[4 * i + 0];
@@ -204,16 +204,16 @@ int32_t DetectionEngine::getObject(std::vector<OBJECT>& objectList, const float 
 			y0 *= height;
 			y1 *= height;
 		}
-		//PRINT("%d[%.2f]: %.3f %.3f %.3f %.3f\n", classId, score, x0, y0, x1, y1);
+		//PRINT("%d[%.2f]: %.3f %.3f %.3f %.3f\n", class_id, score, x0, y0, x1, y1);
 		OBJECT object;
 		object.x = x0;
 		object.y = y0;
 		object.width = x1 - x0;
 		object.height = y1 - y0;
-		object.classId = classId;
-		object.label = m_labelList[classId];
+		object.class_id = class_id;
+		object.label = m_labelList[class_id];
 		object.score = score;
-		objectList.push_back(object);
+		object_list.push_back(object);
 	}
 	return RET_OK;
 }

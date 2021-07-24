@@ -60,35 +60,35 @@ static int32_t calculateStyleBottleneck(std::string styleFilename)
 	return 0;
 }
 
-int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
 {
 	if (s_stylePredictionEngine || s_styleTransferEngine) {
 		PRINT_E("Already initialized\n");
 		return -1;
 	}
 
-	s_workDir = inputParam->workDir;
+	s_workDir = input_param->work_dir;
 
 	s_stylePredictionEngine.reset(new StylePredictionEngine());
-	if (s_stylePredictionEngine->initialize(inputParam->workDir, inputParam->numThreads) != StylePredictionEngine::RET_OK) {
+	if (s_stylePredictionEngine->initialize(input_param->work_dir, input_param->num_threads) != StylePredictionEngine::RET_OK) {
 		s_stylePredictionEngine->finalize();
 		s_stylePredictionEngine.reset();
 		return -1;
 	}
 
 	s_styleTransferEngine.reset(new StyleTransferEngine());
-	if (s_styleTransferEngine->initialize(inputParam->workDir, inputParam->numThreads) != StyleTransferEngine::RET_OK) {
+	if (s_styleTransferEngine->initialize(input_param->work_dir, input_param->num_threads) != StyleTransferEngine::RET_OK) {
 		s_styleTransferEngine->finalize();
 		s_styleTransferEngine.reset();
 		return -1;
 	}
 
-	ImageProcessor_command(0);
+	ImageProcessor::Command(0);
 
 	return 0;
 }
 
-int32_t ImageProcessor_finalize(void)
+int32_t ImageProcessor::Finalize(void)
 {
 	if (!s_stylePredictionEngine || !s_styleTransferEngine) {
 		PRINT_E("Not initialized\n");
@@ -107,7 +107,7 @@ int32_t ImageProcessor_finalize(void)
 }
 
 
-int32_t ImageProcessor_command(int32_t cmd)
+int32_t ImageProcessor::Command(int32_t cmd)
 {
 	if (!s_stylePredictionEngine || !s_styleTransferEngine) {
 		PRINT_E("Not initialized\n");
@@ -138,7 +138,7 @@ int32_t ImageProcessor_command(int32_t cmd)
 }
 
 
-int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
+int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
 {
 	if (!s_stylePredictionEngine || !s_styleTransferEngine) {
 		PRINT_E("Not initialized\n");
@@ -165,9 +165,9 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 
 	/* Return the results */
 	originalMat = styleTransferResult.image;
-	outputParam->timePreProcess = styleTransferResult.timePreProcess;
-	outputParam->timeInference = styleTransferResult.timeInference;
-	outputParam->timePostProcess = styleTransferResult.timePostProcess;
+	output_param->time_pre_process = styleTransferResult.time_pre_process;
+	output_param->time_inference = styleTransferResult.time_inference;
+	output_param->time_post_process = styleTransferResult.time_post_process;
 
 	return 0;
 }

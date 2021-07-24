@@ -38,7 +38,7 @@ static cv::Scalar createCvColor(int32_t b, int32_t g, int32_t r) {
 }
 
 
-int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
 {
 	if (s_engine) {
 		PRINT_E("Already initialized\n");
@@ -46,7 +46,7 @@ int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 	}
 
 	s_engine.reset(new SemanticSegmentationEngine());
-	if (s_engine->initialize(inputParam->workDir, inputParam->numThreads) != SemanticSegmentationEngine::RET_OK) {
+	if (s_engine->initialize(input_param->work_dir, input_param->num_threads) != SemanticSegmentationEngine::RET_OK) {
 		s_engine->finalize();
 		s_engine.reset();
 		return -1;
@@ -54,7 +54,7 @@ int32_t ImageProcessor_initialize(const INPUT_PARAM* inputParam)
 	return 0;
 }
 
-int32_t ImageProcessor_finalize(void)
+int32_t ImageProcessor::Finalize(void)
 {
 	if (!s_engine) {
 		PRINT_E("Not initialized\n");
@@ -69,7 +69,7 @@ int32_t ImageProcessor_finalize(void)
 }
 
 
-int32_t ImageProcessor_command(int32_t cmd)
+int32_t ImageProcessor::Command(int32_t cmd)
 {
 	if (!s_engine) {
 		PRINT_E("Not initialized\n");
@@ -85,7 +85,7 @@ int32_t ImageProcessor_command(int32_t cmd)
 }
 
 
-int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
+int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
 {
 	if (!s_engine) {
 		PRINT_E("Not initialized\n");
@@ -106,9 +106,9 @@ int32_t ImageProcessor_process(cv::Mat* mat, OUTPUT_PARAM* outputParam)
 	cv::add(originalMat, result.maskImage, originalMat);		// Fill out masked area
 
 	/* Return the results */
-	outputParam->timePreProcess = result.timePreProcess;
-	outputParam->timeInference = result.timeInference;
-	outputParam->timePostProcess = result.timePostProcess;
+	output_param->time_pre_process = result.time_pre_process;
+	output_param->time_inference = result.time_inference;
+	output_param->time_post_process = result.time_post_process;
 
 	return 0;
 }
