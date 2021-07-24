@@ -23,7 +23,7 @@ public:
 		kRetErr = -1,
 	};
 
-	typedef struct {
+	typedef struct Object_ {
 		int32_t     class_id;
 		std::string label;
 		float  score;
@@ -31,10 +31,12 @@ public:
 		float  y;
 		float  width;
 		float  height;
-	} OBJECT;
+		Object_() : class_id(0), label(""), score(0), x(0), y(0), width(0), height(0)
+		{}
+	} Object;
 
 	typedef struct Result_ {
-		std::vector<OBJECT> object_list;
+		std::vector<Object> object_list;
 		double            time_pre_process;		// [msec]
 		double            time_inference;		// [msec]
 		double            time_post_process;	// [msec]
@@ -50,15 +52,15 @@ public:
 	int32_t Process(const cv::Mat& original_mat, Result& result);
 
 private:
-	int32_t ReadLabel(const std::string& filename, std::vector<std::string>& labelList);
-	int32_t getObject(std::vector<OBJECT>& object_list, const float *outputBoxList, const float *outputClassList, const float *outputScoreList, const int32_t outputNum,
+	int32_t ReadLabel(const std::string& filename, std::vector<std::string>& label_list);
+	int32_t GetObject(std::vector<Object>& object_list, const float *output_box_list, const float *output_class_list, const float *output_score_list, const int32_t output_num,
 		const double threshold, const int32_t width, const int32_t height);
 
 private:
-	std::unique_ptr<InferenceHelper> m_inferenceHelper;
-	std::vector<InputTensorInfo> m_inputTensorList;
-	std::vector<OutputTensorInfo> m_outputTensorList;
-	std::vector<std::string> m_labelList;
+	std::unique_ptr<InferenceHelper> inference_helper_;
+	std::vector<InputTensorInfo> input_tensor_info_list_;
+	std::vector<OutputTensorInfo> output_tensor_info_list_;
+	std::vector<std::string> label_list_;
 };
 
 #endif

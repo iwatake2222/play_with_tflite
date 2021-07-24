@@ -312,8 +312,8 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 		/* Get landmark */
 		s_hand_landmark_engine->Process(original_mat, palm.x, palm.y, palm.width, palm.height, palm.rotation, landmark_result);
 
-		if (landmark_result.handLandmark.handflag >= 0.8) {
-			CalcAverageRect(s_palm_by_lm, landmark_result.handLandmark, 0.6f, 0.4f);
+		if (landmark_result.hand_landmark.handflag >= 0.8) {
+			CalcAverageRect(s_palm_by_lm, landmark_result.hand_landmark, 0.6f, 0.4f);
 			if (s_isDebug) {
 				cv::rectangle(original_mat, cv::Rect(s_palm_by_lm.x, s_palm_by_lm.y, s_palm_by_lm.width, s_palm_by_lm.height), CreateCvColor(255, 0, 0), 3);
 			}
@@ -321,20 +321,20 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 			/* Display hand landmark */
 			if (s_isDebug) {
 				for (int32_t i = 0; i < 21; i++) {
-					cv::circle(original_mat, cv::Point((int32_t)landmark_result.handLandmark.pos[i].x, (int32_t)landmark_result.handLandmark.pos[i].y), 3, CreateCvColor(255, 255, 0), 1);
-					cv::putText(original_mat, std::to_string(i), cv::Point((int32_t)landmark_result.handLandmark.pos[i].x - 10, (int32_t)landmark_result.handLandmark.pos[i].y - 10), 1, 1, CreateCvColor(255, 255, 0));
+					cv::circle(original_mat, cv::Point((int32_t)landmark_result.hand_landmark.pos[i].x, (int32_t)landmark_result.hand_landmark.pos[i].y), 3, CreateCvColor(255, 255, 0), 1);
+					cv::putText(original_mat, std::to_string(i), cv::Point((int32_t)landmark_result.hand_landmark.pos[i].x - 10, (int32_t)landmark_result.hand_landmark.pos[i].y - 10), 1, 1, CreateCvColor(255, 255, 0));
 				}
 				for (int32_t i = 0; i < 5; i++) {
 					for (int32_t j = 0; j < 3; j++) {
 						int32_t indexStart = 4 * i + 1 + j;
 						int32_t indexEnd = indexStart + 1;
-						int32_t color = std::min((int32_t)std::max((landmark_result.handLandmark.pos[indexStart].z + landmark_result.handLandmark.pos[indexEnd].z) / 2.0f * -4, 0.f), 255);
-						cv::line(original_mat, cv::Point((int32_t)landmark_result.handLandmark.pos[indexStart].x, (int32_t)landmark_result.handLandmark.pos[indexStart].y), cv::Point((int32_t)landmark_result.handLandmark.pos[indexEnd].x, (int32_t)landmark_result.handLandmark.pos[indexEnd].y), CreateCvColor(color, color, color), 3);
+						int32_t color = std::min((int32_t)std::max((landmark_result.hand_landmark.pos[indexStart].z + landmark_result.hand_landmark.pos[indexEnd].z) / 2.0f * -4, 0.f), 255);
+						cv::line(original_mat, cv::Point((int32_t)landmark_result.hand_landmark.pos[indexStart].x, (int32_t)landmark_result.hand_landmark.pos[indexStart].y), cv::Point((int32_t)landmark_result.hand_landmark.pos[indexEnd].x, (int32_t)landmark_result.hand_landmark.pos[indexEnd].y), CreateCvColor(color, color, color), 3);
 					}
 				}
 			} else {
 				for (int i = 0; i < 21; i++) {
-					cv::circle(*mat, cv::Point((int)landmark_result.handLandmark.pos[i].x, (int)landmark_result.handLandmark.pos[i].y), 3, CreateCvColor(255, 255, 0), 1);
+					cv::circle(*mat, cv::Point((int)landmark_result.hand_landmark.pos[i].x, (int)landmark_result.hand_landmark.pos[i].y), 3, CreateCvColor(255, 255, 0), 1);
 				}
 			}
 			s_is_palm_by_lm_valid = true;
@@ -344,9 +344,9 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 	}
 
 	/* Select area according to finger pose and position */
-	s_areaSelector.run(landmark_result.handLandmark);
+	s_areaSelector.run(landmark_result.hand_landmark);
 	PRINT("areaSelector.m_status = %d \n", s_areaSelector.m_status);
-	if (landmark_result.handLandmark.handflag >= 0.8) {
+	if (landmark_result.hand_landmark.handflag >= 0.8) {
 		s_areaSelector.m_selectedArea.x = std::min(std::max(0, s_areaSelector.m_selectedArea.x), mat->cols);
 		s_areaSelector.m_selectedArea.y = std::min(std::max(0, s_areaSelector.m_selectedArea.y), mat->rows);
 		s_areaSelector.m_selectedArea.width = std::min(std::max(1, s_areaSelector.m_selectedArea.width), mat->cols - s_areaSelector.m_selectedArea.x);

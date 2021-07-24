@@ -121,8 +121,8 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 	/* Draw the result */
 	/* note: we have only one body with this model */
 	constexpr float score_threshold = 0.2F;
-	const auto& score_list = result.poseKeypointScores[0];
-	const auto& part_list = result.poseKeypointCoords[0];
+	const auto& score_list = result.pose_keypoint_scores[0];
+	const auto& part_list = result.pose_keypoint_coords[0];
 	int32_t part_num = part_list.size();
 
 	for (const auto& jointLine : jointLineList) {

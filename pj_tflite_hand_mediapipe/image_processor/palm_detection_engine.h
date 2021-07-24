@@ -49,9 +49,9 @@ public:
 	int32_t Process(const cv::Mat& original_mat, Result& result);
 
 private:
-	std::unique_ptr<InferenceHelper> m_inferenceHelper;
-	std::vector<InputTensorInfo> m_inputTensorList;
-	std::vector<OutputTensorInfo> m_outputTensorList;
+	std::unique_ptr<InferenceHelper> inference_helper_;
+	std::vector<InputTensorInfo> input_tensor_info_list_;
+	std::vector<OutputTensorInfo> output_tensor_info_list_;
 };
 
 #endif

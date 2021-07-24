@@ -29,14 +29,14 @@ public:
 public:
 	AreaSelector();
 	~AreaSelector();
-	void run(const HandLandmarkEngine::HAND_LANDMARK &handLandmark);
+	void run(const HandLandmarkEngine::HAND_LANDMARK &hand_landmark);
 
 private:
 	// 0: open, 1: closed, -1 invalid
-	//int32_t checkIfClosed(HandLandmark::HAND_LANDMARK &handLandmark);
+	//int32_t checkIfClosed(HandLandmark::HAND_LANDMARK &hand_landmark);
 
 	// 0: index and middle, 1: index only, -1 other
-	int32_t checkIfPointing(const HandLandmarkEngine::HAND_LANDMARK &handLandmark);
+	int32_t checkIfPointing(const HandLandmarkEngine::HAND_LANDMARK &hand_landmark);
 	int32_t removeChattering(int32_t fingerStatus);
 
 public:

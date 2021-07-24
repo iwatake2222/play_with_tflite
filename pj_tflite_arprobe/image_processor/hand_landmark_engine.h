@@ -41,7 +41,7 @@ public:
 	} HAND_LANDMARK;
 
 	typedef struct Result_ {
-		HAND_LANDMARK  handLandmark;
+		HAND_LANDMARK  hand_landmark;
 		double       time_pre_process;		// [msec]
 		double       time_inference;		// [msec]
 		double       time_post_process;		// [msec]
@@ -57,14 +57,14 @@ public:
 	int32_t Process(const cv::Mat& original_mat, int32_t palmX, int32_t palmY, int32_t palmW, int32_t palmH, float palmRotation, Result& result);
 
 public:
-	void rotateLandmark(HAND_LANDMARK& handLandmark, float rotationRad, int32_t image_width, int32_t image_height);
-	float calculateRotation(const HAND_LANDMARK& handLandmark);
-	void transformLandmarkToRect(HAND_LANDMARK& handLandmark);
+	void RotateLandmark(HAND_LANDMARK& hand_landmark, float rotationRad, int32_t image_width, int32_t image_height);
+	float CalculateRotation(const HAND_LANDMARK& hand_landmark);
+	void TransformLandmarkToRect(HAND_LANDMARK& hand_landmark);
 
 private:
-	std::unique_ptr<InferenceHelper> m_inferenceHelper;
-	std::vector<InputTensorInfo> m_inputTensorList;
-	std::vector<OutputTensorInfo> m_outputTensorList;
+	std::unique_ptr<InferenceHelper> inference_helper_;
+	std::vector<InputTensorInfo> input_tensor_info_list_;
+	std::vector<OutputTensorInfo> output_tensor_info_list_;
 };
 
 #endif

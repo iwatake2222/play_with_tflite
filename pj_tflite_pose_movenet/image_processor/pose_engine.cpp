@@ -45,63 +45,55 @@
 int32_t PoseEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
 {
 	/* Set model information */
-	std::string modelFilename = work_dir + "/model/" + MODEL_NAME;
+	std::string model_filename = work_dir + "/model/" + MODEL_NAME;
 
 	/* Set input tensor info */
-	m_inputTensorList.clear();
-	InputTensorInfo inputTensorInfo;
-	inputTensorInfo.name = INPUT_NAME;
-	inputTensorInfo.tensor_type= TENSORTYPE;
-	inputTensorInfo.tensor_dims.batch = 1;
-	inputTensorInfo.tensor_dims.width = 192;
-	inputTensorInfo.tensor_dims.height = 192;
-	inputTensorInfo.tensor_dims.channel = 3;
-	inputTensorInfo.data_type = InputTensorInfo::kDataTypeImage;
-	// inputTensorInfo.normalize.mean[0] = 0.485f;   	/* https://github.com/onnx/models/tree/master/vision/classification/mobilenet#preprocessing */
-	// inputTensorInfo.normalize.mean[1] = 0.456f;
-	// inputTensorInfo.normalize.mean[2] = 0.406f;
-	// inputTensorInfo.normalize.norm[0] = 0.229f;
-	// inputTensorInfo.normalize.norm[1] = 0.224f;
-	// inputTensorInfo.normalize.norm[2] = 0.225f;
+	input_tensor_info_list_.clear();
+    InputTensorInfo input_tensor_info(INPUT_NAME, TENSORTYPE);
+    input_tensor_info.tensor_dims = { 1, 192, 192, 3 };
+	input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
+	// input_tensor_info.normalize.mean[0] = 0.485f;   	/* https://github.com/onnx/models/tree/master/vision/classification/mobilenet#preprocessing */
+	// input_tensor_info.normalize.mean[1] = 0.456f;
+	// input_tensor_info.normalize.mean[2] = 0.406f;
+	// input_tensor_info.normalize.norm[0] = 0.229f;
+	// input_tensor_info.normalize.norm[1] = 0.224f;
+	// input_tensor_info.normalize.norm[2] = 0.225f;
 	/* 0 - 255 (https://tfhub.dev/google/lite-model/movenet/singlepose/lightning/3) */
-	inputTensorInfo.normalize.mean[0] = 0;
-	inputTensorInfo.normalize.mean[1] = 0;
-	inputTensorInfo.normalize.mean[2] = 0;
-	inputTensorInfo.normalize.norm[0] = 1/255.f;
-	inputTensorInfo.normalize.norm[1] = 1/255.f;
-	inputTensorInfo.normalize.norm[2] = 1/255.f;
-	m_inputTensorList.push_back(inputTensorInfo);
+	input_tensor_info.normalize.mean[0] = 0;
+	input_tensor_info.normalize.mean[1] = 0;
+	input_tensor_info.normalize.mean[2] = 0;
+	input_tensor_info.normalize.norm[0] = 1/255.f;
+	input_tensor_info.normalize.norm[1] = 1/255.f;
+	input_tensor_info.normalize.norm[2] = 1/255.f;
+	input_tensor_info_list_.push_back(input_tensor_info);
 
 	/* Set output tensor info */
-	m_outputTensorList.clear();
-	OutputTensorInfo outputTensorInfo;
-	outputTensorInfo.tensor_type = TENSORTYPE;
-	outputTensorInfo.name = OUTPUT_NAME;
-	m_outputTensorList.push_back(outputTensorInfo);
+	output_tensor_info_list_.clear();
+	output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME, TENSORTYPE));
 
 	/* Create and Initialize Inference Helper */
-	m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
-	// m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
-	// m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu));
-	// m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
-	// m_inferenceHelper.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
+	inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
+	// inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
+	// inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu));
+	// inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
+	// inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
 
-	if (!m_inferenceHelper) {
+	if (!inference_helper_) {
 		return kRetErr;
 	}
-	if (m_inferenceHelper->SetNumThreads(num_threads) != InferenceHelper::kRetOk) {
-		m_inferenceHelper.reset();
+	if (inference_helper_->SetNumThreads(num_threads) != InferenceHelper::kRetOk) {
+		inference_helper_.reset();
 		return kRetErr;
 	}
-	if (m_inferenceHelper->Initialize(modelFilename, m_inputTensorList, m_outputTensorList) != InferenceHelper::kRetOk) {
-		m_inferenceHelper.reset();
+	if (inference_helper_->Initialize(model_filename, input_tensor_info_list_, output_tensor_info_list_) != InferenceHelper::kRetOk) {
+		inference_helper_.reset();
 		return kRetErr;
 	}
 	/* Check if input tensor info is set */
-	for (const auto& inputTensorInfo : m_inputTensorList) {
-		if ((inputTensorInfo.tensor_dims.width <= 0) || (inputTensorInfo.tensor_dims.height <= 0) || inputTensorInfo.tensor_type == TensorInfo::kTensorTypeNone) {
+	for (const auto& input_tensor_info : input_tensor_info_list_) {
+		if ((input_tensor_info.tensor_dims.width <= 0) || (input_tensor_info.tensor_dims.height <= 0) || input_tensor_info.tensor_type == TensorInfo::kTensorTypeNone) {
 			PRINT_E("Invalid tensor size\n");
-			m_inferenceHelper.reset();
+			inference_helper_.reset();
 			return kRetErr;
 		}
 	}
@@ -111,102 +103,102 @@ int32_t PoseEngine::Initialize(const std::string& work_dir, const int32_t num_th
 
 int32_t PoseEngine::Finalize()
 {
-	if (!m_inferenceHelper) {
+	if (!inference_helper_) {
 		PRINT_E("Inference helper is not created\n");
 		return kRetErr;
 	}
-	m_inferenceHelper->Finalize();
+	inference_helper_->Finalize();
 	return kRetOk;
 }
 
 
 int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
 {
-	if (!m_inferenceHelper) {
+	if (!inference_helper_) {
 		PRINT_E("Inference helper is not created\n");
 		return kRetErr;
 	}
 	/*** PreProcess ***/
-	const auto& tPreProcess0 = std::chrono::steady_clock::now();
-	InputTensorInfo& inputTensorInfo = m_inputTensorList[0];
+	const auto& t_pre_process0 = std::chrono::steady_clock::now();
+	InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
 #if 1
 	/* do resize and color conversion here because some inference engine doesn't support these operations */
-	cv::Mat imgSrc;
-	cv::resize(original_mat, imgSrc, cv::Size(inputTensorInfo.tensor_dims.width, inputTensorInfo.tensor_dims.height));
+	cv::Mat img_src;
+	cv::resize(original_mat, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
 #ifndef CV_COLOR_IS_RGB
-	cv::cvtColor(imgSrc, imgSrc, cv::COLOR_BGR2RGB);
+	cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
-	inputTensorInfo.data = imgSrc.data;
-	inputTensorInfo.data_type = InputTensorInfo::kDataTypeImage;
-	inputTensorInfo.image_info.width = imgSrc.cols;
-	inputTensorInfo.image_info.height = imgSrc.rows;
-	inputTensorInfo.image_info.channel = imgSrc.channels();
-	inputTensorInfo.image_info.crop_x = 0;
-	inputTensorInfo.image_info.crop_y = 0;
-	inputTensorInfo.image_info.crop_width = imgSrc.cols;
-	inputTensorInfo.image_info.crop_height = imgSrc.rows;
-	inputTensorInfo.image_info.is_bgr = false;
-	inputTensorInfo.image_info.swap_color = false;
+	input_tensor_info.data = img_src.data;
+	input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
+	input_tensor_info.image_info.width = img_src.cols;
+	input_tensor_info.image_info.height = img_src.rows;
+	input_tensor_info.image_info.channel = img_src.channels();
+	input_tensor_info.image_info.crop_x = 0;
+	input_tensor_info.image_info.crop_y = 0;
+	input_tensor_info.image_info.crop_width = img_src.cols;
+	input_tensor_info.image_info.crop_height = img_src.rows;
+	input_tensor_info.image_info.is_bgr = false;
+	input_tensor_info.image_info.swap_color = false;
 #else
 	/* Test other input format */
-	cv::Mat imgSrc;
-	inputTensorInfo.data = original_mat.data;
-	inputTensorInfo.data_type = InputTensorInfo::kDataTypeImage;
-	inputTensorInfo.image_info.width = original_mat.cols;
-	inputTensorInfo.image_info.height = original_mat.rows;
-	inputTensorInfo.image_info.channel = original_mat.channels();
-	inputTensorInfo.image_info.crop_x = 0;
-	inputTensorInfo.image_info.crop_y = 0;
-	inputTensorInfo.image_info.crop_width = original_mat.cols;
-	inputTensorInfo.image_info.crop_height = original_mat.rows;
-	inputTensorInfo.image_info.is_bgr = true;
-	inputTensorInfo.image_info.swap_color = true;
+	cv::Mat img_src;
+	input_tensor_info.data = original_mat.data;
+	input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
+	input_tensor_info.image_info.width = original_mat.cols;
+	input_tensor_info.image_info.height = original_mat.rows;
+	input_tensor_info.image_info.channel = original_mat.channels();
+	input_tensor_info.image_info.crop_x = 0;
+	input_tensor_info.image_info.crop_y = 0;
+	input_tensor_info.image_info.crop_width = original_mat.cols;
+	input_tensor_info.image_info.crop_height = original_mat.rows;
+	input_tensor_info.image_info.is_bgr = true;
+	input_tensor_info.image_info.swap_color = true;
 #if 0
-	InferenceHelper::preProcessByOpenCV(inputTensorInfo, false, imgSrc);
-	inputTensorInfo.data_type = InputTensorInfo::DATA_TYPE_BLOB_NHWC;
+	InferenceHelper::PreProcessByOpenCV(input_tensor_info, false, img_src);
+	input_tensor_info.data_type = InputTensorInfo::DATA_TYPE_BLOB_NHWC;
 #else
-	InferenceHelper::preProcessByOpenCV(inputTensorInfo, true, imgSrc);
-	inputTensorInfo.data_type = InputTensorInfo::DATA_TYPE_BLOB_NCHW;
+	InferenceHelper::PreProcessByOpenCV(input_tensor_info, true, img_src);
+	input_tensor_info.data_type = InputTensorInfo::DATA_TYPE_BLOB_NCHW;
 #endif
-	inputTensorInfo.data = imgSrc.data;
+	input_tensor_info.data = img_src.data;
 #endif
-	if (m_inferenceHelper->PreProcess(m_inputTensorList) != InferenceHelper::kRetOk) {
+	if (inference_helper_->PreProcess(input_tensor_info_list_) != InferenceHelper::kRetOk) {
 		return kRetErr;
 	}
-	const auto& tPreProcess1 = std::chrono::steady_clock::now();
+	const auto& t_pre_process1 = std::chrono::steady_clock::now();
 
 	/*** Inference ***/
-	const auto& tInference0 = std::chrono::steady_clock::now();
-	if (m_inferenceHelper->Process(m_outputTensorList) != InferenceHelper::kRetOk) {
+	const auto& t_inference0 = std::chrono::steady_clock::now();
+	if (inference_helper_->Process(output_tensor_info_list_) != InferenceHelper::kRetOk) {
 		return kRetErr;
 	}
-	const auto& tInference1 = std::chrono::steady_clock::now();
+	const auto& t_inference1 = std::chrono::steady_clock::now();
 
 	/*** PostProcess ***/
-	const auto& tPostProcess0 = std::chrono::steady_clock::now();
+	const auto& t_post_process0 = std::chrono::steady_clock::now();
 
 	/* Retrieve the result */
-	float* valFloat = m_outputTensorList[0].GetDataAsFloat();
-	std::vector<float> poseKeypointScores;	// z
-	std::vector<std::pair<float,float>> poseKeypointCoords;	// x, y
-	for (int32_t partIndex = 0; partIndex < m_outputTensorList[0].tensor_dims.width; partIndex++) {
-		// PRINT("%f, %f, %f\n", valFloat[1], valFloat[0], valFloat[2]);
-		poseKeypointCoords.push_back(std::pair<float,float>(valFloat[1], valFloat[0]));
-		poseKeypointScores.push_back(valFloat[2]);
-		valFloat += 3;
+	float* val_float = output_tensor_info_list_[0].GetDataAsFloat();
+	std::vector<float> pose_keypoint_scores;	// z
+	std::vector<std::pair<float,float>> pose_keypoint_coords;	// x, y
+	for (int32_t partIndex = 0; partIndex < output_tensor_info_list_[0].tensor_dims.width; partIndex++) {
+		// PRINT("%f, %f, %f\n", val_float[1], val_float[0], val_float[2]);
+		pose_keypoint_coords.push_back(std::pair<float,float>(val_float[1], val_float[0]));
+		pose_keypoint_scores.push_back(val_float[2]);
+		val_float += 3;
 	}
 
 	/* Find the max score */
 	/* note: we have only one body with this model */
-	result.poseScores.push_back(1.0);
-	result.poseKeypointScores.push_back(poseKeypointScores);
-	result.poseKeypointCoords.push_back(poseKeypointCoords);
-	const auto& tPostProcess1 = std::chrono::steady_clock::now();
+	result.pose_scores.push_back(1.0);
+	result.pose_keypoint_scores.push_back(pose_keypoint_scores);
+	result.pose_keypoint_coords.push_back(pose_keypoint_coords);
+	const auto& t_post_process1 = std::chrono::steady_clock::now();
 
 	/* Return the results */
-	result.time_pre_process = static_cast<std::chrono::duration<double>>(tPreProcess1 - tPreProcess0).count() * 1000.0;
-	result.time_inference = static_cast<std::chrono::duration<double>>(tInference1 - tInference0).count() * 1000.0;
-	result.time_post_process = static_cast<std::chrono::duration<double>>(tPostProcess1 - tPostProcess0).count() * 1000.0;;
+	result.time_pre_process = static_cast<std::chrono::duration<double>>(t_pre_process1 - t_pre_process0).count() * 1000.0;
+	result.time_inference = static_cast<std::chrono::duration<double>>(t_inference1 - t_inference0).count() * 1000.0;
+	result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;
 
 	return kRetOk;
 }

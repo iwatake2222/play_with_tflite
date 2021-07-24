@@ -99,11 +99,11 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 	}
 
 	/* Draw the result */
-	cv::cvtColor(result.maskImage, result.maskImage, cv::COLOR_GRAY2BGR);
-	cv::resize(result.maskImage, result.maskImage, original_mat.size());
-	cv::subtract(original_mat, result.maskImage, original_mat);		// Fill out masked area
-	cv::multiply(result.maskImage, cv::Scalar(0, 255, 0), result.maskImage);	// optional: change mask color
-	cv::add(original_mat, result.maskImage, original_mat);		// Fill out masked area
+	cv::cvtColor(result.image_mask, result.image_mask, cv::COLOR_GRAY2BGR);
+	cv::resize(result.image_mask, result.image_mask, original_mat.size());
+	cv::subtract(original_mat, result.image_mask, original_mat);		// Fill out masked area
+	cv::multiply(result.image_mask, cv::Scalar(0, 255, 0), result.image_mask);	// optional: change mask color
+	cv::add(original_mat, result.image_mask, original_mat);		// Fill out masked area
 
 	/* Return the results */
 	output_param->time_pre_process = result.time_pre_process;

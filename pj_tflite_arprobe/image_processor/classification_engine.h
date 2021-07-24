@@ -45,13 +45,13 @@ public:
 	int32_t Process(const cv::Mat& original_mat, Result& result);
 
 private:
-	int32_t ReadLabel(const std::string& filename, std::vector<std::string>& labelList);
+	int32_t ReadLabel(const std::string& filename, std::vector<std::string>& label_list);
 
 private:
-	std::unique_ptr<InferenceHelper> m_inferenceHelper;
-	std::vector<InputTensorInfo> m_inputTensorList;
-	std::vector<OutputTensorInfo> m_outputTensorList;
-	std::vector<std::string> m_labelList;
+	std::unique_ptr<InferenceHelper> inference_helper_;
+	std::vector<InputTensorInfo> input_tensor_info_list_;
+	std::vector<OutputTensorInfo> output_tensor_info_list_;
+	std::vector<std::string> label_list_;
 };
 
 #endif

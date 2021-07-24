@@ -99,8 +99,8 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 	}
 
 	/* Draw the result */
-	cv::resize(result.maskImage, result.maskImage, original_mat.size());
-	cv::add(original_mat, result.maskImage, original_mat);
+	cv::resize(result.image_mask, result.image_mask, original_mat.size());
+	cv::add(original_mat, result.image_mask, original_mat);
 
 	/* Return the results */
 	output_param->time_pre_process = result.time_pre_process;

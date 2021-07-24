@@ -54,7 +54,7 @@ static int32_t CalculateStyleBottleneck(std::string style_filename)
 	StylePredictionEngine::Result style_prediction_result;
 	s_style_prediction_engine->Process(style_image, style_prediction_result);
 	for (int32_t i = 0; i < StylePredictionEngine::SIZE_STYLE_BOTTLENECK; i++) {
-		s_style_bottleneck[i] = style_prediction_result.styleBottleneck[i];
+		s_style_bottleneck[i] = style_prediction_result.style_bottleneck[i];
 	}
 	s_style_bottleneck_updated = true;
 	return 0;
@@ -156,7 +156,7 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 		StylePredictionEngine::Result style_prediction_result;
 		s_style_prediction_engine->Process(original_mat, style_prediction_result);
 		for (int32_t i = 0; i < StylePredictionEngine::SIZE_STYLE_BOTTLENECK; i++) {
-			s_merged_style_bottleneck[i] = ratio * style_prediction_result.styleBottleneck[i] + (1 - ratio) * s_style_bottleneck[i];
+			s_merged_style_bottleneck[i] = ratio * style_prediction_result.style_bottleneck[i] + (1 - ratio) * s_style_bottleneck[i];
 		}
 	}
 

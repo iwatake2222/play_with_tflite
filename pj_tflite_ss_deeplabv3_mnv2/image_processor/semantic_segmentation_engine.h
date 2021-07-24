@@ -24,7 +24,7 @@ public:
 	};
 
 	typedef struct Result_ {
-		cv::Mat             maskImage;
+		cv::Mat             image_mask;
 		double            time_pre_process;		// [msec]
 		double            time_inference;		// [msec]
 		double            time_post_process;	// [msec]
@@ -41,9 +41,9 @@ public:
 
 
 private:
-	std::unique_ptr<InferenceHelper> m_inferenceHelper;
-	std::vector<InputTensorInfo> m_inputTensorList;
-	std::vector<OutputTensorInfo> m_outputTensorList;
+	std::unique_ptr<InferenceHelper> inference_helper_;
+	std::vector<InputTensorInfo> input_tensor_info_list_;
+	std::vector<OutputTensorInfo> output_tensor_info_list_;
 };
 
 #endif
