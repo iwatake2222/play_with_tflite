@@ -27,13 +27,55 @@ limitations under the License.
 #include "bounding_box.h"
 #include "tracker.h"
 
+
+static int32_t GetCenterX(const BoundingBox& bbox)
+{
+    return bbox.x + bbox.w / 2;
+}
+
+static int32_t GetCenterY(const BoundingBox& bbox)
+{
+    return bbox.y + bbox.h / 2;
+}
+
+void KalmanFilter::Initialize(int32_t start_value, float start_deviation, float deviation_true, float deviation_noise)
+{
+    start_deviation_ = start_deviation;
+    deviation_true_ = deviation_true;
+    deviation_noise_ = deviation_noise;
+
+    x_prev_ = static_cast<float>(start_value);
+    P_prev_ = start_deviation_;
+    K_ = P_prev_ / (P_prev_ + deviation_noise_);
+    P_ = deviation_noise_ * P_prev_ / (P_prev_ + deviation_noise_);
+    x_ = x_prev_ + K_ * (start_value - x_prev_);
+}
+
+int32_t KalmanFilter::Update(int32_t observation_value)
+{
+    x_prev_ = x_;
+    P_prev_ = P_ + deviation_true_;
+    K_ = P_prev_ / (P_prev_ + deviation_noise_);
+    x_ = x_prev_ + K_ * (observation_value - x_prev_);
+    P_ = deviation_noise_ * P_prev_ / (P_prev_ + deviation_noise_);
+
+    return static_cast<int32_t>(x_);
+}
+
+
+
 Track::Track(const int32_t id, const BoundingBox& bbox)
 {
     Data data;
     data.bbox = bbox;
     data.bbox_raw = bbox;
-    data.is_detected = true;
     data_history_.push_back(data);
+
+    kf_w.Initialize(bbox.w, 1, 1, 10);
+    kf_h.Initialize(bbox.h, 1, 1, 10);
+    kf_cx.Initialize(GetCenterX(bbox), 1, 1, 10);
+    kf_cy.Initialize(GetCenterY(bbox), 1, 1, 10);
+
 
     cnt_detected_ = 1;
     cnt_undetected_ = 0;
@@ -49,17 +91,33 @@ Track::~Track()
 
 void Track::PreUpdate()
 {
+    auto& previous_bbox = GetLatestBoundingBox();
     Data data;
-    data.bbox = GetLatestBoundingBox();
-    data.bbox_raw = GetLatestBoundingBox();
-    data.is_detected = false;
+    data.bbox = previous_bbox;
+    data.bbox_raw = previous_bbox;
+
+    data.bbox.w = kf_w.Update(previous_bbox.w);
+    data.bbox.h = kf_h.Update(previous_bbox.h);
+    data.bbox.x = kf_cx.Update(GetCenterX(previous_bbox)) - data.bbox.w / 2;
+    data.bbox.y = kf_cy.Update(GetCenterY(previous_bbox)) - data.bbox.h / 2;
+
     data_history_.push_back(data);
+
+    if (data_history_.size() > 400) {
+        data_history_.pop_front();
+    }
 }
 
 void Track::Update(const BoundingBox& bbox)
 {
-    data_history_.back().bbox = bbox;
-    data_history_.back().bbox_raw = bbox;
+    auto& latest_track_data = data_history_.back();
+    latest_track_data.bbox = bbox;
+    latest_track_data.bbox_raw = bbox;
+
+    latest_track_data.bbox.w = kf_w.Update(bbox.w);
+    latest_track_data.bbox.h = kf_h.Update(bbox.h);
+    latest_track_data.bbox.x = kf_cx.Update(GetCenterX(bbox)) - latest_track_data.bbox.w / 2;
+    latest_track_data.bbox.y = kf_cy.Update(GetCenterY(bbox)) - latest_track_data.bbox.h / 2;
 
     cnt_detected_++;
     cnt_undetected_ = 0;
@@ -67,6 +125,10 @@ void Track::Update(const BoundingBox& bbox)
 
 void Track::UpdateNoDet()
 {
+    auto& latest_track_data = data_history_.back();
+    latest_track_data.bbox.score = 0.0F;
+    latest_track_data.bbox_raw.score = 0.0F;
+
     cnt_undetected_++;
 }
 
@@ -78,6 +140,12 @@ int32_t Track::GetUndetectedCount() const
 BoundingBox& Track::GetLatestBoundingBox()
 {
     return data_history_.back().bbox;
+}
+
+
+Track::Data& Track::GetLatestData()
+{
+    return data_history_.back();
 }
 
 std::deque<Track::Data>& Track::GetTrackHistory()
@@ -107,23 +175,6 @@ std::list<Track>& Tracker::GetTrackList()
     return track_list_;
 }
 
-float CalculateIoU(const BoundingBox& obj0, const BoundingBox& obj1)
-{
-    int32_t interx0 = (std::max)(obj0.x, obj1.x);
-    int32_t intery0 = (std::max)(obj0.y, obj1.y);
-    int32_t interx1 = (std::min)(obj0.x + obj0.w, obj1.x + obj1.w);
-    int32_t intery1 = (std::min)(obj0.y + obj0.h, obj1.y + obj1.h);
-    if (interx1 < interx0 || intery1 < intery0) return 0;
-
-    int32_t area0 = obj0.w * obj0.h;
-    int32_t area1 = obj1.w * obj1.h;
-    int32_t areaInter = (interx1 - interx0) * (intery1 - intery0);
-    int32_t areaSum = area0 + area1 - areaInter;
-
-    return static_cast<float>(areaInter) / areaSum;
-}
-
-
 
 void Tracker::Update(const std::vector<BoundingBox>& det_list)
 {
@@ -141,7 +192,7 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
         const auto& track_bbox = track.GetLatestBoundingBox();
         for (int32_t det_index = 0; det_index < det_list.size(); det_index++) {
             if (track_bbox.class_id == det_list[det_index].class_id) {
-                float similarity = CalculateIoU(track_bbox, det_list[det_index]);
+                float similarity = BoundingBoxUtils::CalculateIoU(track_bbox, det_list[det_index]);
                 similarity_table[track_index][det_index] = similarity;
             }
         }
@@ -153,16 +204,17 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     track_index = 0;
     for (auto& track : track_list_) {
         float similality_max = 0.5;
-        int32_t index_max = -1;
+        int32_t index_det_max = -1;
         for (int32_t det_index = 0; det_index < det_list.size(); det_index++) {
             if (similarity_table[track_index][det_index] > similality_max) {
                 similality_max = similarity_table[track_index][det_index];
-                index_max = det_index;
+                index_det_max = det_index;
             }
         }
-        if (index_max >= 0) {
-            det_index_for_track[track_index] = index_max;
-            track_index_for_det[index_max] = track_index;
+
+        if (index_det_max >= 0) {
+            det_index_for_track[track_index] = index_det_max;
+            track_index_for_det[index_det_max] = track_index;
         }
         track_index++;
     }
@@ -200,7 +252,7 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     }
 
     track_list_.remove_if([](Track& track) {
-        if (track.GetUndetectedCount() > 2) {
+        if (track.GetUndetectedCount() >= 2) {
             return true;
         } else {
             return false;

@@ -79,7 +79,7 @@ int32_t main()
 #else
     /* Initialize camera */
     static cv::VideoCapture cap;
-#if 1
+#if 0
     cap = cv::VideoCapture(0);
     cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);

@@ -102,6 +102,7 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
+
 int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
 {
     if (!s_engine) {
@@ -115,16 +116,37 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
         return -1;
     }
 
+    std::vector<BoundingBox> bbox_result_list;
     s_tracker.Update(result.bbox_list);
     auto& track_list = s_tracker.GetTrackList();
+#if 0
+#if 0
+    std::vector<BoundingBox> bbox_list;
     for (auto& track : track_list) {
         if (track.cnt_detected_ < 3) continue;
-        auto& object = track.GetLatestBoundingBox();
-        cv::rectangle(original_mat, cv::Rect(object.x, object.y, object.w, object.h), cv::Scalar(255, 255, 0), 3);
-        cv::putText(original_mat, object.label, cv::Point(object.x, object.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
-        cv::putText(original_mat, object.label, cv::Point(object.x, object.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
-
-
+        const auto& track_data = track.GetLatestData();
+        bbox_list.push_back(track_data.bbox);
+    }
+    BoundingBoxUtils::Nms(bbox_list, bbox_result_list, 0.5F);
+#else
+    bbox_result_list = result.bbox_list;
+#endif
+    /* Draw the result */
+    for (const auto& bbox : bbox_result_list) {
+        cv::rectangle(original_mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), cv::Scalar(255, 255, 0), 3);
+        cv::putText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
+        cv::putText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
+    }
+#else
+    for (auto& track : track_list) {
+        if (track.cnt_detected_ < 3) continue;
+        
+        auto& bbox = track.GetLatestBoundingBox();
+        cv::Scalar color = bbox.score == 0 ? CreateCvColor(100, 100, 100) : CreateCvColor(255, 255, 0);
+        cv::rectangle(original_mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 3);
+        cv::putText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
+        cv::putText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
+        
         auto& track_history = track.GetTrackHistory();
         for (int32_t i = 1; i < track_history.size(); i++) {
             cv::Point p0(track_history[i].bbox.x + track_history[i].bbox.w / 2, track_history[i].bbox.y + track_history[i].bbox.h);
@@ -132,29 +154,24 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
             cv::line(original_mat, p0, p1, CreateCvColor(255, 0, 0));
         }
     }
+#endif
 
-    /* Draw the result */
-    //for (const auto& object : result.bbox_list) {
-    //    cv::rectangle(original_mat, cv::Rect(object.x, object.y, object.w, object.h), cv::Scalar(255, 255, 0), 3);
-    //    cv::putText(original_mat, object.label, cv::Point(object.x, object.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
-    //    cv::putText(original_mat, object.label, cv::Point(object.x, object.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
-    //}
+    /* Return the results */
+    int32_t bbox_num = 0;
+    for (const auto& bbox : bbox_result_list) {
+        output_param->object_list[bbox_num].class_id = bbox.class_id;
+        snprintf(output_param->object_list[bbox_num].label, sizeof(output_param->object_list[bbox_num].label), "%s", bbox.label.c_str());
+        output_param->object_list[bbox_num].score = bbox.score;
+        output_param->object_list[bbox_num].x = bbox.x;
+        output_param->object_list[bbox_num].y = bbox.y;
+        output_param->object_list[bbox_num].width = bbox.w;
+        output_param->object_list[bbox_num].height = bbox.h;
+        bbox_num++;
+        if (bbox_num >= NUM_MAX_RESULT) break;
+    }
+    output_param->object_num = bbox_num;
 
 
-    ///* Return the results */
-    //int32_t object_num = 0;
-    //for (const auto& object : result.bbox_list) {
-    //    output_param->object_list[object_num].class_id = object.class_id;
-    //    snprintf(output_param->object_list[object_num].label, sizeof(output_param->object_list[object_num].label), "%s", object.label.c_str());
-    //    output_param->object_list[object_num].score = object.score;
-    //    output_param->object_list[object_num].x = object.x;
-    //    output_param->object_list[object_num].y = object.y;
-    //    output_param->object_list[object_num].width = object.w;
-    //    output_param->object_list[object_num].height = object.h;
-    //    object_num++;
-    //    if (object_num >= NUM_MAX_RESULT) break;
-    //}
-    //output_param->object_num = object_num;
     output_param->time_pre_process = result.time_pre_process;
     output_param->time_inference = result.time_inference;
     output_param->time_post_process = result.time_post_process;

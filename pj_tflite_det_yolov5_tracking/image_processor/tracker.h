@@ -29,14 +29,30 @@ limitations under the License.
 #include "inference_helper.h"
 #include "bounding_box.h"
 
+class KalmanFilter {
+public:
+    KalmanFilter() {}
+    ~KalmanFilter() {}
+    void Initialize(int32_t start_value, float start_deviation, float deviation_true, float deviation_noise);
+    int32_t Update(int32_t observation_value);
+
+private:
+    float x_prev_;
+    float P_prev_;
+    float K_;
+    float P_;
+    float x_;
+
+    float start_deviation_;
+    float deviation_true_;
+    float deviation_noise_;
+};
+
 class Track {
 public:
     typedef struct Data_ {
         BoundingBox bbox;
         BoundingBox bbox_raw;
-        bool        is_detected;
-        Data_(): is_detected(false)
-        {}
     } Data;
 
 public:
@@ -47,6 +63,7 @@ public:
     void Update(const BoundingBox& bbox);
     void UpdateNoDet();
 
+    Data& Track::GetLatestData();
     BoundingBox& GetLatestBoundingBox();
     std::deque<Data>& GetTrackHistory();
 
@@ -54,6 +71,10 @@ public:
 
 public:
     std::deque<Data> data_history_;
+    KalmanFilter kf_cx;
+    KalmanFilter kf_cy;
+    KalmanFilter kf_w;
+    KalmanFilter kf_h;
     int32_t id_;
     int32_t cnt_detected_;
     int32_t cnt_undetected_;

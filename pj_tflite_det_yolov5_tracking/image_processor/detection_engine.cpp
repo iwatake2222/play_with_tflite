@@ -52,8 +52,8 @@ static constexpr int32_t kElementNumOfAnchor = kNumberOfClass + 5;    // x, y, w
 #define LABEL_NAME   "label_coco_80.txt"
 
 
-static constexpr float threshold_score = 0.2f;
-static constexpr float threshold_nms_iou = 0.5f;
+static constexpr float kThresholdScore = 0.2f;
+static constexpr float kThresholdNmsIou = 0.5f;
 
 /*** Function ***/
 int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
@@ -80,8 +80,8 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
     output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME, TENSORTYPE));
 
     /* Create and Initialize Inference Helper */
-    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
-    // inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
+    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
+    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
     // inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
@@ -176,7 +176,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
         float* output_data = output_tensor_info_list_[index_scale].GetDataAsFloat();
         for (int32_t i = 0; i < kNumberOfAnchor[index_scale]; i++) {
             int32_t index_begin = i * kElementNumOfAnchor;
-            if (output_data[index_begin + 4] < threshold_score) continue;
+            if (output_data[index_begin + 4] < kThresholdScore) continue;
 
             int32_t class_id = 0;
             float confidence = 0;
@@ -188,7 +188,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
                 }
             }
 
-            if (confidence > threshold_score) {
+            if (confidence > kThresholdScore) {
                 int32_t cx = static_cast<int32_t>(output_data[index_begin + 0] * original_mat.cols);
                 int32_t cy = static_cast<int32_t>(output_data[index_begin + 1] * original_mat.rows);
                 int32_t w = static_cast<int32_t>(output_data[index_begin + 2] * original_mat.cols);
@@ -204,7 +204,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 
     /* NMS */
     std::vector<BoundingBox> bbox_nms_list;
-    Nms(bbox_list, bbox_nms_list);
+    BoundingBoxUtils::Nms(bbox_list, bbox_nms_list, kThresholdNmsIou);
 
    
     const auto& t_post_process1 = std::chrono::steady_clock::now();
@@ -234,47 +234,3 @@ int32_t DetectionEngine::ReadLabel(const std::string& filename, std::vector<std:
     return kRetOk;
 }
 
-
-float DetectionEngine::CalculateIoU(const BoundingBox& obj0, const BoundingBox& obj1)
-{
-    int32_t interx0 = (std::max)(obj0.x, obj1.x);
-    int32_t intery0 = (std::max)(obj0.y, obj1.y);
-    int32_t interx1 = (std::min)(obj0.x + obj0.w, obj1.x + obj1.w);
-    int32_t intery1 = (std::min)(obj0.y + obj0.h, obj1.y + obj1.h);
-    if (interx1 < interx0 || intery1 < intery0) return 0;
-
-    int32_t area0 = obj0.w * obj0.h;
-    int32_t area1 = obj1.w * obj1.h;
-    int32_t areaInter = (interx1 - interx0) * (intery1 - intery0);
-    int32_t areaSum = area0 + area1 - areaInter;
-
-    return static_cast<float>(areaInter) / areaSum;
-}
-
-
-void DetectionEngine::Nms(std::vector<BoundingBox>& bbox_list, std::vector<BoundingBox>& bbox_nms_list)
-{
-    std::sort(bbox_list.begin(), bbox_list.end(), [](BoundingBox const& lhs, BoundingBox const& rhs) {
-        //if (lhs.w * lhs.h > rhs.w * rhs.h) return true;
-        if (lhs.score > rhs.score) return true;
-        return false;
-        });
-
-    std::unique_ptr<bool[]> is_merged(new bool[bbox_list.size()]);
-    for (int32_t i = 0; i < bbox_list.size(); i++) is_merged[i] = false;
-    for (int32_t index_high_score = 0; index_high_score < bbox_list.size(); index_high_score++) {
-        std::vector<BoundingBox> candidates;
-        if (is_merged[index_high_score]) continue;
-        candidates.push_back(bbox_list[index_high_score]);
-        for (int32_t index_low_score = index_high_score + 1; index_low_score < bbox_list.size(); index_low_score++) {
-            if (is_merged[index_low_score]) continue;
-            if (bbox_list[index_high_score].class_id != bbox_list[index_low_score].class_id) continue;
-            if (CalculateIoU(bbox_list[index_high_score], bbox_list[index_low_score]) > threshold_nms_iou) {
-                candidates.push_back(bbox_list[index_low_score]);
-                is_merged[index_low_score] = true;
-            }
-        }
-
-        bbox_nms_list.push_back(candidates[0]);
-    }
-}

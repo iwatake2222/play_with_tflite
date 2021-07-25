@@ -56,9 +56,6 @@ public:
 
 private:
     int32_t ReadLabel(const std::string& filename, std::vector<std::string>& label_list);
-    float CalculateIoU(const BoundingBox& obj0, const BoundingBox& obj1);
-    void Nms(std::vector<BoundingBox>& object_list, std::vector<BoundingBox>& object_nms_list);
-    
 
 private:
     std::unique_ptr<InferenceHelper> inference_helper_;
