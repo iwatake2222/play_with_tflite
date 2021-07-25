@@ -1,4 +1,4 @@
-/* Copyright 2020 iwatake2222
+/* Copyright 2021 iwatake2222
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,7 +31,9 @@ limitations under the License.
 
 /* for My modules */
 #include "common_helper.h"
+#include "bounding_box.h"
 #include "detection_engine.h"
+#include "tracker.h"
 #include "image_processor.h"
 
 /*** Macro ***/
@@ -41,6 +43,7 @@ limitations under the License.
 
 /*** Global variable ***/
 std::unique_ptr<DetectionEngine> s_engine;
+Tracker s_tracker;
 
 /*** Function ***/
 static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
@@ -108,33 +111,50 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 
     cv::Mat& original_mat = *mat;
     DetectionEngine::Result result;
-    result.object_list.clear();
     if (s_engine->Process(original_mat, result) != DetectionEngine::kRetOk) {
         return -1;
     }
 
+    s_tracker.Update(result.bbox_list);
+    auto& track_list = s_tracker.GetTrackList();
+    for (auto& track : track_list) {
+        if (track.cnt_detected_ < 3) continue;
+        auto& object = track.GetLatestBoundingBox();
+        cv::rectangle(original_mat, cv::Rect(object.x, object.y, object.w, object.h), cv::Scalar(255, 255, 0), 3);
+        cv::putText(original_mat, object.label, cv::Point(object.x, object.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
+        cv::putText(original_mat, object.label, cv::Point(object.x, object.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
+
+
+        auto& track_history = track.GetTrackHistory();
+        for (int32_t i = 1; i < track_history.size(); i++) {
+            cv::Point p0(track_history[i].bbox.x + track_history[i].bbox.w / 2, track_history[i].bbox.y + track_history[i].bbox.h);
+            cv::Point p1(track_history[i - 1].bbox.x + track_history[i - 1].bbox.w / 2, track_history[i - 1].bbox.y + track_history[i - 1].bbox.h);
+            cv::line(original_mat, p0, p1, CreateCvColor(255, 0, 0));
+        }
+    }
+
     /* Draw the result */
-    for (const auto& object : result.object_list) {
-        cv::rectangle(original_mat, cv::Rect(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y), static_cast<int32_t>(object.width), static_cast<int32_t>(object.height)), cv::Scalar(255, 255, 0), 3);
-        cv::putText(original_mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
-        cv::putText(original_mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
-    }
+    //for (const auto& object : result.bbox_list) {
+    //    cv::rectangle(original_mat, cv::Rect(object.x, object.y, object.w, object.h), cv::Scalar(255, 255, 0), 3);
+    //    cv::putText(original_mat, object.label, cv::Point(object.x, object.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
+    //    cv::putText(original_mat, object.label, cv::Point(object.x, object.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
+    //}
 
 
-    /* Return the results */
-    int32_t object_num = 0;
-    for (const auto& object : result.object_list) {
-        output_param->object_list[object_num].class_id = object.class_id;
-        snprintf(output_param->object_list[object_num].label, sizeof(output_param->object_list[object_num].label), "%s", object.label.c_str());
-        output_param->object_list[object_num].score = object.score;
-        output_param->object_list[object_num].x = static_cast<int32_t>(object.x);
-        output_param->object_list[object_num].y = static_cast<int32_t>(object.y);
-        output_param->object_list[object_num].width = static_cast<int32_t>(object.width);
-        output_param->object_list[object_num].height = static_cast<int32_t>(object.height);
-        object_num++;
-        if (object_num >= NUM_MAX_RESULT) break;
-    }
-    output_param->object_num = object_num;
+    ///* Return the results */
+    //int32_t object_num = 0;
+    //for (const auto& object : result.bbox_list) {
+    //    output_param->object_list[object_num].class_id = object.class_id;
+    //    snprintf(output_param->object_list[object_num].label, sizeof(output_param->object_list[object_num].label), "%s", object.label.c_str());
+    //    output_param->object_list[object_num].score = object.score;
+    //    output_param->object_list[object_num].x = object.x;
+    //    output_param->object_list[object_num].y = object.y;
+    //    output_param->object_list[object_num].width = object.w;
+    //    output_param->object_list[object_num].height = object.h;
+    //    object_num++;
+    //    if (object_num >= NUM_MAX_RESULT) break;
+    //}
+    //output_param->object_num = object_num;
     output_param->time_pre_process = result.time_pre_process;
     output_param->time_inference = result.time_inference;
     output_param->time_post_process = result.time_post_process;

@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.0)
 set(LibraryName "ImageProcessor")
 
 # Create library
-add_library (${LibraryName} image_processor.cpp image_processor.h detection_engine.cpp detection_engine.h)
+add_library (${LibraryName} image_processor.cpp image_processor.h detection_engine.cpp detection_engine.h
+    bounding_box.h tracker.cpp tracker.h
+)
 
 # For OpenCV
 find_package(OpenCV REQUIRED)

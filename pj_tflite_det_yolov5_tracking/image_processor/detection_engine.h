@@ -1,4 +1,4 @@
-/* Copyright 2020 iwatake2222
+/* Copyright 2021 iwatake2222
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ limitations under the License.
 
 /* for My modules */
 #include "inference_helper.h"
+#include "bounding_box.h"
 
 
 class DetectionEngine {
@@ -37,23 +38,11 @@ public:
         kRetErr = -1,
     };
 
-    typedef struct Object_ {
-        int32_t     class_id;
-        std::string label;
-        float       score;
-        int32_t     x;
-        int32_t     y;
-        int32_t     width;
-        int32_t     height;
-        Object_() : class_id(0), label(""), score(0), x(0), y(0), width(0), height(0)
-        {}
-    } Object;
-
     typedef struct Result_ {
-        std::vector<Object> object_list;
-        double              time_pre_process;		// [msec]
-        double              time_inference;		// [msec]
-        double              time_post_process;	// [msec]
+        std::vector<BoundingBox> bbox_list;
+        double                   time_pre_process;		// [msec]
+        double                   time_inference;		// [msec]
+        double                   time_post_process;	    // [msec]
         Result_() : time_pre_process(0), time_inference(0), time_post_process(0)
         {}
     } Result;
@@ -67,8 +56,8 @@ public:
 
 private:
     int32_t ReadLabel(const std::string& filename, std::vector<std::string>& label_list);
-    float CalculateIoU(const Object& obj0, const Object& obj1);
-    void Nms(std::vector<Object>& object_list, std::vector<Object>& object_nms_list);
+    float CalculateIoU(const BoundingBox& obj0, const BoundingBox& obj1);
+    void Nms(std::vector<BoundingBox>& object_list, std::vector<BoundingBox>& object_nms_list);
     
 
 private:

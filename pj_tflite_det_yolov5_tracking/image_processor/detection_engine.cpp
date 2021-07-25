@@ -1,4 +1,4 @@
-/* Copyright 2020 iwatake2222
+/* Copyright 2021 iwatake2222
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -170,7 +170,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     /*** PostProcess ***/
     const auto& t_post_process0 = std::chrono::steady_clock::now();
     /* Get boundig box */
-    std::vector<Object> object_list;
+    std::vector<BoundingBox> bbox_list;
     int32_t num_anchor_list = sizeof(kNumberOfAnchor) / sizeof(kNumberOfAnchor[0]);
     for (int32_t index_scale = 0; index_scale < num_anchor_list; index_scale++) {
         float* output_data = output_tensor_info_list_[index_scale].GetDataAsFloat();
@@ -196,29 +196,21 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
                 int32_t x = cx - w / 2;
                 int32_t y = cy - h / 2;
 
-                Object Object;
-                Object.x = x;
-                Object.y = y;
-                Object.width = w;
-                Object.height = h;
-                Object.class_id = class_id;
-                Object.label = label_list_[class_id];
-                Object.score = confidence;
-                object_list.push_back(Object);
+                bbox_list.push_back(BoundingBox(class_id, label_list_[class_id], confidence, x, y, w, h));
 
             }
         }
     }
 
     /* NMS */
-    std::vector<Object> object_nms_list;
-    Nms(object_list, object_nms_list);
+    std::vector<BoundingBox> bbox_nms_list;
+    Nms(bbox_list, bbox_nms_list);
 
    
     const auto& t_post_process1 = std::chrono::steady_clock::now();
 
     /* Return the results */
-    result.object_list = object_nms_list;
+    result.bbox_list = bbox_nms_list;
     result.time_pre_process = static_cast<std::chrono::duration<double>>(t_pre_process1 - t_pre_process0).count() * 1000.0;
     result.time_inference = static_cast<std::chrono::duration<double>>(t_inference1 - t_inference0).count() * 1000.0;
     result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;
@@ -243,16 +235,16 @@ int32_t DetectionEngine::ReadLabel(const std::string& filename, std::vector<std:
 }
 
 
-float DetectionEngine::CalculateIoU(const Object& obj0, const Object& obj1)
+float DetectionEngine::CalculateIoU(const BoundingBox& obj0, const BoundingBox& obj1)
 {
     int32_t interx0 = (std::max)(obj0.x, obj1.x);
     int32_t intery0 = (std::max)(obj0.y, obj1.y);
-    int32_t interx1 = (std::min)(obj0.x + obj0.width, obj1.x + obj1.width);
-    int32_t intery1 = (std::min)(obj0.y + obj0.height, obj1.y + obj1.height);
+    int32_t interx1 = (std::min)(obj0.x + obj0.w, obj1.x + obj1.w);
+    int32_t intery1 = (std::min)(obj0.y + obj0.h, obj1.y + obj1.h);
     if (interx1 < interx0 || intery1 < intery0) return 0;
 
-    int32_t area0 = obj0.width * obj0.height;
-    int32_t area1 = obj1.width * obj1.height;
+    int32_t area0 = obj0.w * obj0.h;
+    int32_t area1 = obj1.w * obj1.h;
     int32_t areaInter = (interx1 - interx0) * (intery1 - intery0);
     int32_t areaSum = area0 + area1 - areaInter;
 
@@ -260,29 +252,29 @@ float DetectionEngine::CalculateIoU(const Object& obj0, const Object& obj1)
 }
 
 
-void DetectionEngine::Nms(std::vector<Object>& object_list, std::vector<Object>& object_nms_list)
+void DetectionEngine::Nms(std::vector<BoundingBox>& bbox_list, std::vector<BoundingBox>& bbox_nms_list)
 {
-    std::sort(object_list.begin(), object_list.end(), [](Object const& lhs, Object const& rhs) {
-        //if (lhs.width * lhs.height > rhs.width * rhs.height) return true;
+    std::sort(bbox_list.begin(), bbox_list.end(), [](BoundingBox const& lhs, BoundingBox const& rhs) {
+        //if (lhs.w * lhs.h > rhs.w * rhs.h) return true;
         if (lhs.score > rhs.score) return true;
         return false;
         });
 
-    std::unique_ptr<bool[]> is_merged(new bool[object_list.size()]);
-    for (int32_t i = 0; i < object_list.size(); i++) is_merged[i] = false;
-    for (int32_t index_high_score = 0; index_high_score < object_list.size(); index_high_score++) {
-        std::vector<Object> candidates;
+    std::unique_ptr<bool[]> is_merged(new bool[bbox_list.size()]);
+    for (int32_t i = 0; i < bbox_list.size(); i++) is_merged[i] = false;
+    for (int32_t index_high_score = 0; index_high_score < bbox_list.size(); index_high_score++) {
+        std::vector<BoundingBox> candidates;
         if (is_merged[index_high_score]) continue;
-        candidates.push_back(object_list[index_high_score]);
-        for (int32_t index_low_score = index_high_score + 1; index_low_score < object_list.size(); index_low_score++) {
+        candidates.push_back(bbox_list[index_high_score]);
+        for (int32_t index_low_score = index_high_score + 1; index_low_score < bbox_list.size(); index_low_score++) {
             if (is_merged[index_low_score]) continue;
-            if (object_list[index_high_score].class_id != object_list[index_low_score].class_id) continue;
-            if (CalculateIoU(object_list[index_high_score], object_list[index_low_score]) > threshold_nms_iou) {
-                candidates.push_back(object_list[index_low_score]);
+            if (bbox_list[index_high_score].class_id != bbox_list[index_low_score].class_id) continue;
+            if (CalculateIoU(bbox_list[index_high_score], bbox_list[index_low_score]) > threshold_nms_iou) {
+                candidates.push_back(bbox_list[index_low_score]);
                 is_merged[index_low_score] = true;
             }
         }
 
-        object_nms_list.push_back(candidates[0]);
+        bbox_nms_list.push_back(candidates[0]);
     }
 }

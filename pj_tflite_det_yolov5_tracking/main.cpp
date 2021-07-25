@@ -1,4 +1,4 @@
-/* Copyright 2020 iwatake2222
+/* Copyright 2021 iwatake2222
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ limitations under the License.
 
 /*** Macro ***/
 #define IMAGE_NAME   RESOURCE_DIR"/kite.jpg"
+#define VIDEO_NAME   RESOURCE_DIR"/video.mp4"
 #define WORK_DIR     RESOURCE_DIR
 #define LOOP_NUM_FOR_TIME_MEASUREMENT 0
 
@@ -78,17 +79,22 @@ int32_t main()
 #else
     /* Initialize camera */
     static cv::VideoCapture cap;
+#if 1
     cap = cv::VideoCapture(0);
     cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
     // cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('B', 'G', 'R', '3'));
     cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+#else
+    cap = cv::VideoCapture(VIDEO_NAME);
+#endif
     while (1) {
         const auto& time_all0 = std::chrono::steady_clock::now();
         /*** Read image ***/
         const auto& time_cap0 = std::chrono::steady_clock::now();
         cv::Mat original_image;
         cap.read(original_image);
+        if (original_image.empty()) break;
         const auto& time_cap1 = std::chrono::steady_clock::now();
 
         /* Call image processor library */
@@ -98,7 +104,36 @@ int32_t main()
         const auto& time_process1 = std::chrono::steady_clock::now();
 
         cv::imshow("test", original_image);
-        if (cv::waitKey(1) == 'q') break;
+        static bool is_pause = false;
+        bool is_process_one_frame = false;
+        do {
+            int32_t key = cv::waitKey(1) & 0xff;
+            switch (key) {
+            case 'q':
+                cap.release();
+                break;
+            case 'p':
+                is_pause = !is_pause;
+                break;
+            case '>':
+                if (is_pause) {
+                    is_process_one_frame = true;
+                } else {
+                    int32_t current_frame = static_cast<int32_t>(cap.get(cv::CAP_PROP_POS_FRAMES));
+                    cap.set(cv::CAP_PROP_POS_FRAMES, static_cast<int32_t>(current_frame + 100));
+                }
+                break;
+            case '<':
+                int32_t current_frame = static_cast<int32_t>(cap.get(cv::CAP_PROP_POS_FRAMES));
+                if (is_pause) {
+                    is_process_one_frame = true;
+                    cap.set(cv::CAP_PROP_POS_FRAMES, static_cast<int32_t>(current_frame - 2));
+                } else {
+                    cap.set(cv::CAP_PROP_POS_FRAMES, static_cast<int32_t>(current_frame - 100));
+                }
+                break;
+            }
+        } while (is_pause && !is_process_one_frame);
 
         const auto& time_all1 = std::chrono::steady_clock::now();
         printf("Total time = %.3lf [msec]\n", (time_all1 - time_all0).count() / 1000000.0);
