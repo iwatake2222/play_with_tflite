@@ -137,12 +137,28 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     /*** PreProcess ***/
     const auto& t_pre_process0 = std::chrono::steady_clock::now();
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
-    /* do resize and color conversion here because some inference engine doesn't support these operations */
-    cv::Mat img_src;
-    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
+    /* do crop, resize and color conversion here because some inference engine doesn't support these operations */
+    float aspect_ratio_img = static_cast<float>(original_mat.cols) / original_mat.rows;
+    float aspect_ratio_tensor = static_cast<float>(input_tensor_info.tensor_dims.width) / input_tensor_info.tensor_dims.height;
+    int32_t crop_x = 0;
+    int32_t crop_y = 0;
+    int32_t crop_w = original_mat.cols;
+    int32_t crop_h = original_mat.rows;
+    if (aspect_ratio_img > aspect_ratio_tensor) {
+        crop_w = aspect_ratio_tensor * original_mat.rows;
+        crop_x = (original_mat.cols - crop_w) / 2;
+    } else {
+        crop_h = original_mat.cols / aspect_ratio_tensor;
+        crop_y = (original_mat.rows - crop_h) / 2;
+    }
+    cv::Mat img_src = original_mat(cv::Rect(crop_x, crop_y, crop_w, crop_h));
+
+    cv::resize(img_src, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
+
+
     input_tensor_info.data = img_src.data;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.image_info.width = img_src.cols;
@@ -189,10 +205,10 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
             }
 
             if (confidence > kThresholdScore) {
-                int32_t cx = static_cast<int32_t>(output_data[index_begin + 0] * original_mat.cols);
-                int32_t cy = static_cast<int32_t>(output_data[index_begin + 1] * original_mat.rows);
-                int32_t w = static_cast<int32_t>(output_data[index_begin + 2] * original_mat.cols);
-                int32_t h = static_cast<int32_t>(output_data[index_begin + 3] * original_mat.rows);
+                int32_t cx = static_cast<int32_t>(output_data[index_begin + 0] * crop_w + crop_x);
+                int32_t cy = static_cast<int32_t>(output_data[index_begin + 1] * crop_h + crop_y);
+                int32_t w = static_cast<int32_t>(output_data[index_begin + 2] * crop_w);
+                int32_t h = static_cast<int32_t>(output_data[index_begin + 3] * crop_h);
                 int32_t x = cx - w / 2;
                 int32_t y = cy - h / 2;
 
@@ -211,6 +227,10 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 
     /* Return the results */
     result.bbox_list = bbox_nms_list;
+    result.crop_x = crop_x;
+    result.crop_y = crop_y;
+    result.crop_w = crop_w;
+    result.crop_h = crop_h;
     result.time_pre_process = static_cast<std::chrono::duration<double>>(t_pre_process1 - t_pre_process0).count() * 1000.0;
     result.time_inference = static_cast<std::chrono::duration<double>>(t_inference1 - t_inference0).count() * 1000.0;
     result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;

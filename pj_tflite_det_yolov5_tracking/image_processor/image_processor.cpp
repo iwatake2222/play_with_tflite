@@ -147,6 +147,8 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
         return -1;
     }
 
+    cv::rectangle(original_mat, cv::Rect(result.crop_x, result.crop_y, result.crop_w, result.crop_h), CreateCvColor(0, 0, 0), 2);
+
     std::vector<BoundingBox> bbox_result_list;
     s_tracker.Update(result.bbox_list);
     auto& track_list = s_tracker.GetTrackList();

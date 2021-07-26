@@ -40,6 +40,10 @@ public:
 
     typedef struct Result_ {
         std::vector<BoundingBox> bbox_list;
+        int32_t                  crop_x;
+        int32_t                  crop_y;
+        int32_t                  crop_w;
+        int32_t                  crop_h;
         double                   time_pre_process;		// [msec]
         double                   time_inference;		// [msec]
         double                   time_post_process;	    // [msec]
