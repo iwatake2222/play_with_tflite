@@ -47,7 +47,7 @@ public:
         double                   time_pre_process;		// [msec]
         double                   time_inference;		// [msec]
         double                   time_post_process;	    // [msec]
-        Result_() : time_pre_process(0), time_inference(0), time_post_process(0)
+        Result_() : crop_x(0), crop_y(0), crop_w(0), crop_h(0), time_pre_process(0), time_inference(0), time_post_process(0)
         {}
     } Result;
 

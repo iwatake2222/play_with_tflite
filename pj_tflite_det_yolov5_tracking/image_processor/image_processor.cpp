@@ -148,6 +148,9 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
     }
 
     cv::rectangle(original_mat, cv::Rect(result.crop_x, result.crop_y, result.crop_w, result.crop_h), CreateCvColor(0, 0, 0), 2);
+    for (const auto& bbox : result.bbox_list) {
+        cv::rectangle(original_mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 0, 0), 1);
+    }
 
     std::vector<BoundingBox> bbox_result_list;
     s_tracker.Update(result.bbox_list);
@@ -170,7 +173,7 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
 
     /* Return the results */
     int32_t bbox_num = 0;
-    for (const auto& bbox : bbox_result_list) {
+    for (const auto& bbox : result.bbox_list) {
         output_param->object_list[bbox_num].class_id = bbox.class_id;
         snprintf(output_param->object_list[bbox_num].label, sizeof(output_param->object_list[bbox_num].label), "%s", bbox.label.c_str());
         output_param->object_list[bbox_num].score = bbox.score;

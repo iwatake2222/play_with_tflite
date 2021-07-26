@@ -34,7 +34,7 @@ limitations under the License.
 #define IMAGE_NAME   RESOURCE_DIR"/kite.jpg"
 #define VIDEO_NAME   RESOURCE_DIR"/video.mp4"
 #define WORK_DIR     RESOURCE_DIR
-#define LOOP_NUM_FOR_TIME_MEASUREMENT 0
+#define LOOP_NUM_FOR_TIME_MEASUREMENT 10
 
 
 int32_t main()
