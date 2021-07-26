@@ -46,7 +46,8 @@ std::unique_ptr<DetectionEngine> s_engine;
 Tracker s_tracker;
 
 /*** Function ***/
-static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
+static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r)
+{
 #ifdef CV_COLOR_IS_RGB
     return cv::Scalar(r, g, b);
 #else
@@ -54,6 +55,36 @@ static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
 #endif
 }
 
+static void DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, double fontScale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back)
+{
+#if 1
+    int32_t baseline = 0;
+    cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, fontScale, thickness, &baseline);
+    baseline += thickness;
+    pos.y -= textSize.height / 2;
+    cv::rectangle(mat, pos + cv::Point(0, baseline), pos + cv::Point(textSize.width, -textSize.height), color_back, -1);
+    cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, fontScale, color_front, thickness);
+#else
+    cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, fontScale, color_back, thickness * 3);
+    cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, fontScale, color_front, thickness);
+#endif
+}
+
+static cv::Scalar GetColorForId(int32_t id)
+{
+    static constexpr int32_t kMaxNum = 100;
+    static std::vector<cv::Scalar> color_list;
+    static bool is_first = true;
+    if (is_first) {
+        is_first = false;
+
+        uint32_t palette[] = { static_cast<uint32_t>(std::pow(2, 11) - 1), static_cast<uint32_t>(std::pow(2, 15) - 1), static_cast<uint32_t>(std::pow(2, 20) - 1) };
+        for (int32_t i = 0; i < kMaxNum; i++) {
+            color_list.push_back(CreateCvColor((palette[0] * (static_cast<uint32_t>(std::pow(i, 4)) - i + 1)) % 255, (palette[1] * (static_cast<uint32_t>(std::pow(i, 4)) - i + 1)) % 255, (palette[2] * (static_cast<uint32_t>(std::pow(i, 4)) - i + 1)) % 255));
+        }
+    }
+    return color_list[id % kMaxNum];
+}
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
 {
@@ -119,42 +150,21 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
     std::vector<BoundingBox> bbox_result_list;
     s_tracker.Update(result.bbox_list);
     auto& track_list = s_tracker.GetTrackList();
-#if 0
-#if 0
-    std::vector<BoundingBox> bbox_list;
     for (auto& track : track_list) {
-        if (track.cnt_detected_ < 3) continue;
-        const auto& track_data = track.GetLatestData();
-        bbox_list.push_back(track_data.bbox);
-    }
-    BoundingBoxUtils::Nms(bbox_list, bbox_result_list, 0.5F);
-#else
-    bbox_result_list = result.bbox_list;
-#endif
-    /* Draw the result */
-    for (const auto& bbox : bbox_result_list) {
-        cv::rectangle(original_mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), cv::Scalar(255, 255, 0), 3);
-        cv::putText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
-        cv::putText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
-    }
-#else
-    for (auto& track : track_list) {
-        if (track.cnt_detected_ < 3) continue;
+        if (track.GetDetectedCount() < 3) continue;
         
-        auto& bbox = track.GetLatestBoundingBox();
-        cv::Scalar color = bbox.score == 0 ? CreateCvColor(100, 100, 100) : CreateCvColor(255, 255, 0);
-        cv::rectangle(original_mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 3);
-        cv::putText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
-        cv::putText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
-        
-        auto& track_history = track.GetTrackHistory();
+        auto& bbox = track.GetLatestData().bbox;
+        cv::Scalar color = bbox.score == 0 ? CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
+        cv::rectangle(original_mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
+        DrawText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y), 0.5, 1, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
+
+        auto& track_history = track.GetDataHistory();
         for (int32_t i = 1; i < track_history.size(); i++) {
             cv::Point p0(track_history[i].bbox.x + track_history[i].bbox.w / 2, track_history[i].bbox.y + track_history[i].bbox.h);
             cv::Point p1(track_history[i - 1].bbox.x + track_history[i - 1].bbox.w / 2, track_history[i - 1].bbox.y + track_history[i - 1].bbox.h);
             cv::line(original_mat, p0, p1, CreateCvColor(255, 0, 0));
         }
     }
-#endif
 
     /* Return the results */
     int32_t bbox_num = 0;

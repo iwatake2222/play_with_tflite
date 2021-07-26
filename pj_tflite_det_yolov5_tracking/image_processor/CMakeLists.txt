@@ -4,7 +4,7 @@ set(LibraryName "ImageProcessor")
 
 # Create library
 add_library (${LibraryName} image_processor.cpp image_processor.h detection_engine.cpp detection_engine.h
-    bounding_box.cpp bounding_box.h tracker.cpp tracker.h
+    bounding_box.cpp bounding_box.h tracker.cpp tracker.h kalman_filter.cpp kalman_filter.h
 )
 
 # For OpenCV
@@ -20,8 +20,8 @@ target_include_directories(${LibraryName} PUBLIC ${INFERENCE_HELPER_DIR}/common_
 target_link_libraries(${LibraryName} CommonHelper)
 
 # Link InferenceHelper module
-set(INFERENCE_HELPER_ENABLE_OPENCV OFF CACHE BOOL "OPENCV")
 set(INFERENCE_HELPER_ENABLE_TFLITE ON CACHE BOOL "TFLITE")
+set(INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK ON CACHE BOOL "TFLITE_XNNPACK")
 add_subdirectory(${INFERENCE_HELPER_DIR}/inference_helper inference_helper)
 target_include_directories(${LibraryName} PUBLIC ${INFERENCE_HELPER_DIR}/inference_helper)
 target_link_libraries(${LibraryName} InferenceHelper)

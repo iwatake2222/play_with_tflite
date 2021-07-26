@@ -26,29 +26,14 @@ limitations under the License.
 #include <memory>
 
 /* for My modules */
-#include "inference_helper.h"
 #include "bounding_box.h"
+#include "kalman_filter.h"
 
-class KalmanFilter {
-public:
-    KalmanFilter() {}
-    ~KalmanFilter() {}
-    void Initialize(int32_t start_value, float start_deviation, float deviation_true, float deviation_noise);
-    int32_t Update(int32_t observation_value);
-
-private:
-    float x_prev_;
-    float P_prev_;
-    float K_;
-    float P_;
-    float x_;
-
-    float start_deviation_;
-    float deviation_true_;
-    float deviation_noise_;
-};
 
 class Track {
+private:
+    static constexpr int32_t kMaxHistoryNum = 100;
+
 public:
     typedef struct Data_ {
         BoundingBox bbox;
@@ -56,31 +41,37 @@ public:
     } Data;
 
 public:
-    Track(const int32_t id, const BoundingBox& bbox);
+    Track(const int32_t id, const BoundingBox& bbox_det);
     ~Track();
 
-    void PreUpdate();
-    void Update(const BoundingBox& bbox);
-    void UpdateNoDet();
+    BoundingBox Predict() const;
+    void Update(const BoundingBox& bbox_det, bool is_detected);
 
-    Data& Track::GetLatestData();
-    BoundingBox& GetLatestBoundingBox();
-    std::deque<Data>& GetTrackHistory();
+    std::deque<Data>& GetDataHistory();
+    const Data& GetLatestData() const ;
+    const BoundingBox& GetLatestBoundingBox() const;
 
-    int32_t GetUndetectedCount() const;
+    const int32_t GetId() const;
+    const int32_t GetUndetectedCount() const;
+    const int32_t GetDetectedCount() const;
 
-public:
+private:
     std::deque<Data> data_history_;
-    KalmanFilter kf_cx;
-    KalmanFilter kf_cy;
-    KalmanFilter kf_w;
-    KalmanFilter kf_h;
+    KalmanFilter<int32_t> kf_cx_;
+    KalmanFilter<int32_t> kf_cy_;
+    KalmanFilter<int32_t> kf_w_;
+    KalmanFilter<int32_t> kf_h_;
     int32_t id_;
     int32_t cnt_detected_;
     int32_t cnt_undetected_;
 };
 
+
 class Tracker {
+private:
+    static constexpr int32_t kThresholdCntToDelete = 3;
+    static constexpr float kThresholdIoUToTrack = 0.5F;
+
 public:
     Tracker();
     ~Tracker();
@@ -88,14 +79,14 @@ public:
 
     void Update(const std::vector<BoundingBox>& det_list);
 
-    std::list<Track>& GetTrackList();
+    std::vector<Track>& GetTrackList();
 
 private:
-
+    float CalculateSimilarity(const BoundingBox& bbox0, const BoundingBox& bbox1);
 
 private:
-    std::list<Track> track_list_;
-    int32_t track_id_;
+    std::vector<Track> track_list_;
+    int32_t track_sequence_num_;
 };
 
 #endif
