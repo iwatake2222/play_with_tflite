@@ -44,8 +44,8 @@ limitations under the License.
 #define INPUT_DIMS  { 1, 416, 416, 3 }
 #define OUTPUT_NAME "Identity:0"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
-static constexpr int32_t grid_scale_list[] = { 8, 16, 32 };
-static constexpr int32_t grid_channl = 3;;
+static constexpr int32_t kGridScaleList[] = { 8, 16, 32 };
+static constexpr int32_t kGridChannel = 3;
 static constexpr int32_t kNumberOfClass = 80;
 static constexpr int32_t kElementNumOfAnchor = kNumberOfClass + 5;    // x, y, w, h, Objectness score, [class probabilities]
 
@@ -133,7 +133,7 @@ static void GetBoundingBox(const float* data, float scale_x, float  scale_y, int
     int32_t index = 0;
     for (int32_t grid_y = 0; grid_y < grid_h; grid_y++) {
         for (int32_t grid_x = 0; grid_x < grid_w; grid_x++) {
-            for (int32_t grid_c = 0; grid_c < grid_channl; grid_c++) {
+            for (int32_t grid_c = 0; grid_c < kGridChannel; grid_c++) {
                 float box_confidence = data[index + 4];
                 if (box_confidence >= kThresholdScore) {
                     int32_t class_id = 0;
@@ -222,13 +222,13 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     /* Get boundig box */
     std::vector<BoundingBox> bbox_list;
     float* output_data = output_tensor_info_list_[0].GetDataAsFloat();
-    for (const auto& scale : grid_scale_list) {
+    for (const auto& scale : kGridScaleList) {
         int32_t grid_w = input_tensor_info.tensor_dims.width / scale;
         int32_t grid_h = input_tensor_info.tensor_dims.height / scale;
         int32_t scale_x = input_tensor_info.tensor_dims.width;      // scale to input tensor size
         int32_t scale_y = input_tensor_info.tensor_dims.height;
         GetBoundingBox(output_data, static_cast<float>(scale_x), static_cast<float>(scale_y), grid_w, grid_h, bbox_list);
-        output_data += grid_w * grid_h * grid_channl * kElementNumOfAnchor;
+        output_data += grid_w * grid_h * kGridChannel * kElementNumOfAnchor;
     }
 
 
