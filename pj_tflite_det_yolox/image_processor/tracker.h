@@ -1,0 +1,92 @@
+/* Copyright 2021 iwatake2222
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+#ifndef TRACKER_
+#define TRACKER_
+
+/* for general */
+#include <cstdint>
+#include <cmath>
+#include <string>
+#include <vector>
+#include <deque>
+#include <list>
+#include <array>
+#include <memory>
+
+/* for My modules */
+#include "bounding_box.h"
+#include "kalman_filter.h"
+
+
+class Track {
+private:
+    static constexpr int32_t kMaxHistoryNum = 100;
+
+public:
+    typedef struct Data_ {
+        BoundingBox bbox;
+        BoundingBox bbox_raw;
+    } Data;
+
+public:
+    Track(const int32_t id, const BoundingBox& bbox_det);
+    ~Track();
+
+    BoundingBox Predict() const;
+    void Update(const BoundingBox& bbox_det, bool is_detected);
+
+    std::deque<Data>& GetDataHistory();
+    const Data& GetLatestData() const ;
+    const BoundingBox& GetLatestBoundingBox() const;
+
+    const int32_t GetId() const;
+    const int32_t GetUndetectedCount() const;
+    const int32_t GetDetectedCount() const;
+
+private:
+    std::deque<Data> data_history_;
+    KalmanFilter<int32_t> kf_cx_;
+    KalmanFilter<int32_t> kf_cy_;
+    KalmanFilter<int32_t> kf_w_;
+    KalmanFilter<int32_t> kf_h_;
+    int32_t id_;
+    int32_t cnt_detected_;
+    int32_t cnt_undetected_;
+};
+
+
+class Tracker {
+private:
+    static constexpr int32_t kThresholdCntToDelete = 3;
+    static constexpr float kThresholdIoUToTrack = 0.5F;
+
+public:
+    Tracker();
+    ~Tracker();
+    void Reset();
+
+    void Update(const std::vector<BoundingBox>& det_list);
+
+    std::vector<Track>& GetTrackList();
+
+private:
+    float CalculateSimilarity(const BoundingBox& bbox0, const BoundingBox& bbox1);
+
+private:
+    std::vector<Track> track_list_;
+    int32_t track_sequence_num_;
+};
+
+#endif
