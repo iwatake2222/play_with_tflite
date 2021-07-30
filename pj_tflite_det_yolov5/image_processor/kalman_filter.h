@@ -19,29 +19,73 @@ limitations under the License.
 #include <string>
 #include <vector>
 
-template<typename T>
+#include "simple_matrix.h"
+
+
 class KalmanFilter {
 public:
     KalmanFilter()
-        : x_prev_(0), P_prev_(0), K_(0), P_(0), x_(0), start_deviation_(0), deviation_true_(0), deviation_noise_(0)
+        : sigma_true(1.0), sigma_observe(1.0)
     {}
 
+
     ~KalmanFilter() {}
-    void Initialize(T start_value, float start_deviation, float deviation_true, float deviation_noise);
-    T Predict(void) const;
-    T Update(T observation_value);
 
-private:
-    float x_prev_;
-    float P_prev_;
-    float K_;
-    float P_;
-    float x_;
+    void Initialize(
+        const SimpleMatrix& _F,
+        const SimpleMatrix& _Q,
+        const SimpleMatrix& _H,
+        const SimpleMatrix& _R,
+        const SimpleMatrix& _X,
+        const SimpleMatrix& _P
+    )
+    {
+        F = _F;
+        Q = _Q;
+        H = _H;
+        R = _R;
+        X = _X;
+        P = _P;
+    }
 
-    float start_deviation_;
-    float deviation_true_;
-    float deviation_noise_;
+    void Predict()
+    {
+        X = F * X;
+        P = F * P * F.Transpose() + Q;
+    }
+
+    void Update(const SimpleMatrix& Z)
+    {
+        SimpleMatrix S = (H * P) * H.Transpose() + R;
+        SimpleMatrix K = P * H.Transpose() * S.Inverse();
+        SimpleMatrix e = Z - H * X;
+        X = X + K * e;
+        P = (SimpleMatrix::IdentityMatrix(K.rows) - (K * H)) * P;
+    }
+
+
+public:
+    double sigma_true;
+    double sigma_observe;
+
+    /*** X(t) = F * X(t-1) + w(t) ***/
+    /* Matrix to calculate X(t) from X(t-1) */
+    SimpleMatrix F;
+    /* w(t), = noise, follows Q */
+    SimpleMatrix Q;
+
+    /*** Z(t) = H * X(t) + v(t) ***/
+    /* Matrix to calculate Z(observed value) from X(internal status) */
+    SimpleMatrix H;
+    /* v(t), = noise, follows R */
+    SimpleMatrix R;
+
+    /*** Internal status ***/
+    SimpleMatrix X;
+    SimpleMatrix P;
+
 };
 
 
 #endif
+

@@ -156,12 +156,12 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
     s_tracker.Update(result.bbox_list);
     auto& track_list = s_tracker.GetTrackList();
     for (auto& track : track_list) {
-        if (track.GetDetectedCount() < 3) continue;
+        if (track.GetDetectedCount() < 5) continue;
         
         auto& bbox = track.GetLatestData().bbox;
         cv::Scalar color = bbox.score == 0 ? CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
         cv::rectangle(original_mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
-        DrawText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y), 0.5, 1, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
+        DrawText(original_mat, std::to_string(track.GetId()) + ": " + bbox.label, cv::Point(bbox.x, bbox.y), 0.5, 1, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
 
         auto& track_history = track.GetDataHistory();
         for (int32_t i = 1; i < track_history.size(); i++) {

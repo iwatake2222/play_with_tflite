@@ -26,7 +26,7 @@ limitations under the License.
 #include "common_helper.h"
 #include "bounding_box.h"
 #include "tracker.h"
-
+#include "hungarian_algorithm.h"
 
 static int32_t GetCenterX(const BoundingBox& bbox)
 {
@@ -39,7 +39,6 @@ static int32_t GetCenterY(const BoundingBox& bbox)
 }
 
 
-
 Track::Track(const int32_t id, const BoundingBox& bbox_det)
 {
     Data data;
@@ -47,11 +46,10 @@ Track::Track(const int32_t id, const BoundingBox& bbox_det)
     data.bbox_raw = bbox_det;
     data_history_.push_back(data);
 
-    kf_w_.Initialize(bbox_det.w, 1, 1, 10);
-    kf_h_.Initialize(bbox_det.h, 1, 1, 10);
-    kf_cx_.Initialize(GetCenterX(bbox_det), 1, 1, 5);
-    kf_cy_.Initialize(GetCenterY(bbox_det), 1, 1, 5);
-
+    kf_w_ = CreateKalmanFilter_UniformLinearMotion(bbox_det.w);
+    kf_h_ = CreateKalmanFilter_UniformLinearMotion(bbox_det.h);
+    kf_cx_ = CreateKalmanFilter_UniformLinearMotion(GetCenterX(bbox_det));
+    kf_cy_ = CreateKalmanFilter_UniformLinearMotion(GetCenterY(bbox_det));
 
     cnt_detected_ = 1;
     cnt_undetected_ = 0;
@@ -62,41 +60,59 @@ Track::~Track()
 {
 }
 
-BoundingBox Track::Predict() const
+BoundingBox Track::Predict()
 {
+    kf_w_.Predict();
+    kf_h_.Predict();
+    kf_cx_.Predict();
+    kf_cy_.Predict();
+
     BoundingBox bbox_pred = GetLatestBoundingBox();
-    bbox_pred.w = kf_w_.Predict();
-    bbox_pred.h = kf_h_.Predict();
-    bbox_pred.x = kf_cx_.Predict() - bbox_pred.w / 2;
-    bbox_pred.y = kf_cy_.Predict() - bbox_pred.h / 2;
+    bbox_pred.w = static_cast<int32_t>(kf_w_.X(0, 0));
+    bbox_pred.h = static_cast<int32_t>(kf_h_.X(0, 0));
+    bbox_pred.x = static_cast<int32_t>(kf_cx_.X(0, 0) - bbox_pred.w / 2);
+    bbox_pred.y = static_cast<int32_t>(kf_cy_.X(0, 0) - bbox_pred.h / 2);
     bbox_pred.score = 0.0F;
 
-    return bbox_pred;
-}
-
-void Track::Update(const BoundingBox& bbox_det, bool is_detected)
-{
     Data data;
-    data.bbox = bbox_det;
-    data.bbox_raw = bbox_det;
-
-    data.bbox.w = kf_w_.Update(bbox_det.w);
-    data.bbox.h = kf_h_.Update(bbox_det.h);
-    data.bbox.x = kf_cx_.Update(GetCenterX(bbox_det)) - data.bbox.w / 2;
-    data.bbox.y = kf_cy_.Update(GetCenterY(bbox_det)) - data.bbox.h / 2;
-
+    data.bbox = bbox_pred;
+    data.bbox_raw = bbox_pred;
     data_history_.push_back(data);
-
     if (data_history_.size() > kMaxHistoryNum) {
         data_history_.pop_front();
     }
 
-    if (is_detected) {
-        cnt_detected_++;
-        cnt_undetected_ = 0;
-    } else {
-        cnt_undetected_++;
-    }
+    return bbox_pred;
+}
+
+void Track::Update(const BoundingBox& bbox_det)
+{
+    kf_w_.Update({ 1, 1, { static_cast<double>(bbox_det.w) } });
+    kf_h_.Update({ 1, 1, { static_cast<double>(bbox_det.h) } });
+    kf_cx_.Update({ 1, 1, { static_cast<double>(GetCenterX(bbox_det)) } });
+    kf_cy_.Update({ 1, 1, { static_cast<double>(GetCenterY(bbox_det)) } });
+
+    Data data;
+    data.bbox = bbox_det;
+    data.bbox_raw = bbox_det;
+
+    BoundingBox& bbox = data_history_.back().bbox;
+    BoundingBox& bbox_raw = data_history_.back().bbox_raw;
+
+    bbox.w = static_cast<int32_t>(kf_w_.X(0, 0));
+    bbox.h = static_cast<int32_t>(kf_h_.X(0, 0));
+    bbox.x = static_cast<int32_t>(kf_cx_.X(0, 0) - bbox.w / 2);
+    bbox.y = static_cast<int32_t>(kf_cy_.X(0, 0) - bbox.h / 2);
+    bbox.score = bbox_det.score;
+    bbox_raw = bbox_det;
+    
+    cnt_detected_++;
+    cnt_undetected_ = 0;
+}
+
+void Track::UpdateNoDetect()
+{
+    cnt_undetected_++;
 }
 
 std::deque<Track::Data>& Track::GetDataHistory()
@@ -127,6 +143,63 @@ const int32_t Track::GetUndetectedCount() const
 const int32_t Track::GetDetectedCount() const
 {
     return cnt_detected_;
+}
+
+KalmanFilter Track::CreateKalmanFilter_UniformLinearMotion(int32_t start_value)
+{
+    static constexpr int32_t kNumObserve = 1;	/* (x) */
+    static constexpr int32_t kNumStatus = 2;	/* (x, v) */
+    static constexpr double delta_t = 0.1;
+    static constexpr double sigma_true = 0.5;
+    static constexpr double sigma_observe = 0.1;
+
+    /*** X(t) = F * X(t-1) + w(t) ***/
+    /* Matrix to calculate X(t) from X(t-1). assume uniform motion: x(t) = x(t-1) + vt, v(t) = v(t-1) */
+    const SimpleMatrix F(kNumStatus, kNumStatus, {
+        1, delta_t,
+        0, 1
+        });
+
+    /* Matrix to calculate delta_X from noise(=w). Assume w as accel */
+    const SimpleMatrix G(kNumStatus, 1, {
+        delta_t * delta_t / 2,
+        delta_t
+        });
+
+    /* w(t), = noise, follows Q */
+    const SimpleMatrix Q = G * G.Transpose() * (sigma_true * sigma_true);
+
+    /*** Z(t) = H * X(t) + v(t) ***/
+    /* Matrix to calculate Z(observed value) from X(internal status) */
+    const SimpleMatrix H(kNumObserve, kNumStatus, {
+        1, 0
+        });
+
+    /* v(t), = noise, follows R */
+    const SimpleMatrix R(1, 1, { sigma_observe * sigma_observe });
+
+    /* First internal status */
+    const SimpleMatrix P0(kNumStatus, kNumStatus, {
+        0, 0,
+        0, 0
+        });
+
+    const SimpleMatrix X0(kNumStatus, 1, {
+        static_cast<double>(start_value),
+        0
+        });
+
+    KalmanFilter kf;
+    kf.Initialize(
+        F,
+        Q,
+        H,
+        R,
+        X0,
+        P0
+    );
+
+    return kf;
 }
 
 
@@ -164,18 +237,18 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
 {
     /*** Predict the position at the current frame using the previous status for all tracked bbox ***/
     std::vector<BoundingBox> bbox_pred_list;
-    for (const auto& track : track_list_) {
-        bbox_pred_list.push_back(track.Predict());
+    for (auto& track : track_list_) {
+        BoundingBox bbox_prd = track.Predict();
+        bbox_pred_list.push_back(bbox_prd);
     }
 
     /*** Assign ***/
-    /* Calculate distance b/w predicted position and detected position */
-    std::vector<std::vector<float>> similarity_table(track_list_.size());
-    for (auto& s : similarity_table) s.assign(det_list.size(), 0);
+    /* Calculate IoU b/w predicted position and detected position */
+    std::vector<std::vector<float>> cost_matrix(track_list_.size(), std::vector<float>(det_list.size(), kCostMax));
     for (int32_t i_track = 0; i_track < track_list_.size(); i_track++) {
         for (int32_t i_det = 0; i_det < det_list.size(); i_det++) {
             if (bbox_pred_list[i_track].class_id == det_list[i_det].class_id) {
-                similarity_table[i_track][i_det] = CalculateSimilarity(bbox_pred_list[i_track], det_list[i_det]);
+                cost_matrix[i_track][i_det] = kCostMax - CalculateSimilarity(bbox_pred_list[i_track], det_list[i_det]);
             }
         }
     }
@@ -183,29 +256,16 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     /* Assign track and det */
     std::vector<int32_t> det_index_for_track(track_list_.size(), -1);
     std::vector<int32_t> track_index_for_det(det_list.size(), -1);
-    
-    for (int32_t i_track = 0; i_track < track_list_.size(); i_track++) {
-        float similality_max = kThresholdIoUToTrack;
-        int32_t index_det_max = -1;
-        for (int32_t i_det = 0; i_det < det_list.size(); i_det++) {
-            if (track_index_for_det[i_det] > 0) continue;   // already assigned
-            if (similarity_table[i_track][i_det] > similality_max) {
-                similality_max = similarity_table[i_track][i_det];
-                index_det_max = i_det;
-            }
-        }
-
-        if (index_det_max >= 0) {
-            det_index_for_track[i_track] = index_det_max;
-            track_index_for_det[index_det_max] = i_track;
-        }
+    if (track_list_.size() > 0 && det_list.size() > 0) {
+        HungarianAlgorithm<float> solver(cost_matrix);
+        solver.Solve(det_index_for_track, track_index_for_det);
     }
 
 #if 0
     for (int32_t i_track = 0; i_track < track_list_.size(); i_track++) {
         for (int32_t i_det = 0; i_det < det_list.size(); i_det++) {
             if (bbox_pred_list[i_track].class_id == det_list[i_det].class_id) {
-                printf("%.3f  ", similarity_table[i_track][i_det]);
+                printf("%.3f  ", cost_matrix[i_track][i_det]);
             }
         }
         printf("\n");
@@ -224,14 +284,14 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     /*** Update track ***/
     for (int32_t i_track = 0; i_track < track_list_.size(); i_track++) {
         int32_t assigned_det_index = det_index_for_track[i_track];
-        if (assigned_det_index >= 0) {
-            track_list_[i_track].Update(det_list[assigned_det_index], true);
-        } else {
-            track_list_[i_track].Update(bbox_pred_list[i_track], false);
+        if (assigned_det_index >= 0 && assigned_det_index < det_list.size() && cost_matrix[i_track][assigned_det_index] < kCostMax) {
+            track_list_[i_track].Update(det_list[assigned_det_index]);
+        } else{
+            track_list_[i_track].UpdateNoDetect();
         }
     }
 
-    /*** Delete track ***/
+    /*** Delete tracks ***/
     for (auto it = track_list_.begin(); it != track_list_.end();) {
         if (it->GetUndetectedCount() >= kThresholdCntToDelete) {
             it = track_list_.erase(it);
@@ -240,7 +300,7 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
         }
     }
 
-    /*** Add a new track ***/
+    /*** Add new tracks ***/
     for (int32_t i = 0; i < track_index_for_det.size(); i++) {
         if (track_index_for_det[i] < 0) {
             track_list_.push_back(Track(track_sequence_num_, det_list[i]));

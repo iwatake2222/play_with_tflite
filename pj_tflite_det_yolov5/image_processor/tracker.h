@@ -44,8 +44,9 @@ public:
     Track(const int32_t id, const BoundingBox& bbox_det);
     ~Track();
 
-    BoundingBox Predict() const;
-    void Update(const BoundingBox& bbox_det, bool is_detected);
+    BoundingBox Predict();
+    void Update(const BoundingBox& bbox_det);
+    void UpdateNoDetect();
 
     std::deque<Data>& GetDataHistory();
     const Data& GetLatestData() const ;
@@ -56,11 +57,14 @@ public:
     const int32_t GetDetectedCount() const;
 
 private:
+    KalmanFilter CreateKalmanFilter_UniformLinearMotion(int32_t start_value);
+
+private:
     std::deque<Data> data_history_;
-    KalmanFilter<int32_t> kf_cx_;
-    KalmanFilter<int32_t> kf_cy_;
-    KalmanFilter<int32_t> kf_w_;
-    KalmanFilter<int32_t> kf_h_;
+    KalmanFilter kf_cx_;
+    KalmanFilter kf_cy_;
+    KalmanFilter kf_w_;
+    KalmanFilter kf_h_;
     int32_t id_;
     int32_t cnt_detected_;
     int32_t cnt_undetected_;
@@ -71,6 +75,7 @@ class Tracker {
 private:
     static constexpr int32_t kThresholdCntToDelete = 3;
     static constexpr float kThresholdIoUToTrack = 0.5F;
+    static constexpr float kCostMax = 1.0F;
 
 public:
     Tracker();

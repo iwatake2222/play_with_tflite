@@ -53,7 +53,7 @@ static constexpr int32_t kElementNumOfAnchor = kNumberOfClass + 5;    // x, y, w
 #define LABEL_NAME   "label_coco_80.txt"
 
 
-static constexpr float kThresholdScore = 0.2f;
+static constexpr float kThresholdScore = 0.5f;
 static constexpr float kThresholdNmsIou = 0.5f;
 
 /*** Function ***/
