@@ -79,7 +79,8 @@ int32_t main()
 #else
     /* Initialize camera */
     static cv::VideoCapture cap;
-#if 0
+    static cv::VideoWriter writer;
+#if 1
     cap = cv::VideoCapture(0);
     cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
@@ -88,6 +89,7 @@ int32_t main()
 #else
     cap = cv::VideoCapture(VIDEO_NAME);
 #endif
+    writer = cv::VideoWriter("out.mp4", cv::VideoWriter::fourcc('M', 'P', '4', 'V'), (std::max)(10.0, cap.get(cv::CAP_PROP_FPS)), cv::Size(static_cast<int32_t>(cap.get(cv::CAP_PROP_FRAME_WIDTH)), static_cast<int32_t>(cap.get(cv::CAP_PROP_FRAME_HEIGHT))));
     while (1) {
         const auto& time_all0 = std::chrono::steady_clock::now();
         /*** Read image ***/
@@ -103,6 +105,7 @@ int32_t main()
         ImageProcessor::Process(&original_image, &output_param);
         const auto& time_process1 = std::chrono::steady_clock::now();
 
+        if (!writer.isOpened()) writer.write(original_image);
         cv::imshow("test", original_image);
         static bool is_pause = false;
         bool is_process_one_frame = false;
@@ -143,6 +146,8 @@ int32_t main()
     }
 
 #endif
+
+    if (!writer.isOpened()) writer.release();
 
     /* Fianlize image processor library */
     ImageProcessor::Finalize();
