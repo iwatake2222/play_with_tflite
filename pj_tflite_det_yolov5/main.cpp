@@ -105,7 +105,7 @@ int32_t main()
         ImageProcessor::Process(&original_image, &output_param);
         const auto& time_process1 = std::chrono::steady_clock::now();
 
-        if (!writer.isOpened()) writer.write(original_image);
+        if (writer.isOpened()) writer.write(original_image);
         cv::imshow("test", original_image);
         static bool is_pause = false;
         bool is_process_one_frame = false;
@@ -147,7 +147,7 @@ int32_t main()
 
 #endif
 
-    if (!writer.isOpened()) writer.release();
+    if (writer.isOpened()) writer.release();
 
     /* Fianlize image processor library */
     ImageProcessor::Finalize();

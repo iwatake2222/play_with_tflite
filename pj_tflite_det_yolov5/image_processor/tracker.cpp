@@ -149,8 +149,8 @@ KalmanFilter Track::CreateKalmanFilter_UniformLinearMotion(int32_t start_value)
 {
     static constexpr int32_t kNumObserve = 1;	/* (x) */
     static constexpr int32_t kNumStatus = 2;	/* (x, v) */
-    static constexpr double delta_t = 0.1;
-    static constexpr double sigma_true = 0.5;
+    static constexpr double delta_t = 0.5;
+    static constexpr double sigma_true = 0.3;
     static constexpr double sigma_observe = 0.1;
 
     /*** X(t) = F * X(t-1) + w(t) ***/

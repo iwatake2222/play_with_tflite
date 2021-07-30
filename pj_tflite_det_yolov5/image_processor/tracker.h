@@ -32,7 +32,7 @@ limitations under the License.
 
 class Track {
 private:
-    static constexpr int32_t kMaxHistoryNum = 100;
+    static constexpr int32_t kMaxHistoryNum = 30;
 
 public:
     typedef struct Data_ {
