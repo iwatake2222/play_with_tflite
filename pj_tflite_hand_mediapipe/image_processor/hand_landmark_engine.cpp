@@ -50,7 +50,7 @@ int32_t HandLandmarkEngine::Initialize(const std::string& work_dir, const int32_
 
     /* Set input tensor info */
     input_tensor_info_list_.clear();
-    InputTensorInfo input_tensor_info("input_1", TensorInfo::kTensorTypeFp32);
+    InputTensorInfo input_tensor_info("input_1", TensorInfo::kTensorTypeFp32, false);
     input_tensor_info.tensor_dims = { 1, 256, 256, 3 };
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.normalize.mean[0] = 0.0f;   	/* normalized to[0.f, 1.f] (hand_landmark_cpu.pbtxt) */
@@ -84,14 +84,6 @@ int32_t HandLandmarkEngine::Initialize(const std::string& work_dir, const int32_
     if (inference_helper_->Initialize(model_filename, input_tensor_info_list_, output_tensor_info_list_) != InferenceHelper::kRetOk) {
         inference_helper_.reset();
         return kRetErr;
-    }
-    /* Check if input tensor info is set */
-    for (const auto& input_tensor_info : input_tensor_info_list_) {
-        if ((input_tensor_info.tensor_dims.width <= 0) || (input_tensor_info.tensor_dims.height <= 0) || input_tensor_info.tensor_type == TensorInfo::kTensorTypeNone) {
-            PRINT_E("Invalid tensor size\n");
-            inference_helper_.reset();
-            return kRetErr;
-        }
     }
 
     return kRetOk;
@@ -129,7 +121,7 @@ int32_t HandLandmarkEngine::Process(const cv::Mat& original_mat, int32_t palmX, 
 
     /* Resize image */
     cv::Mat img_src;
-    cv::resize(rotated_image, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
+    cv::resize(rotated_image, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
@@ -168,8 +160,8 @@ int32_t HandLandmarkEngine::Process(const cv::Mat& original_mat, int32_t palmX, 
     //printf("%f  %f\n", m_outputTensorHandflag->GetDataAsFloat()[0], m_outputTensorHandedness->GetDataAsFloat()[0]);
 
     for (int32_t i = 0; i < 21; i++) {
-        hand_landmark.pos[i].x = ld21[i * 3 + 0] / input_tensor_info.tensor_dims.width;	// 0.0 - 1.0
-        hand_landmark.pos[i].y = ld21[i * 3 + 1] / input_tensor_info.tensor_dims.height;	// 0.0 - 1.0
+        hand_landmark.pos[i].x = ld21[i * 3 + 0] / input_tensor_info.GetWidth();	// 0.0 - 1.0
+        hand_landmark.pos[i].y = ld21[i * 3 + 1] / input_tensor_info.GetHeight();	// 0.0 - 1.0
         hand_landmark.pos[i].z = ld21[i * 3 + 2] * 1;	 // Scale Z coordinate as X. (-100 - 100???) todo
         //printf("%f\n", m_outputTensorLd21->GetDataAsFloat()[i]);
         //cv::circle(original_mat, cv::Point(m_outputTensorLd21->GetDataAsFloat()[i * 3 + 0], m_outputTensorLd21->GetDataAsFloat()[i * 3 + 1]), 5, cv::Scalar(255, 255, 0), 1);

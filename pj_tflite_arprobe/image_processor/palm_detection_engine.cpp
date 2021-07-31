@@ -60,7 +60,7 @@ int32_t PalmDetectionEngine::Initialize(const std::string& work_dir, const int32
 
     /* Set input tensor info */
     input_tensor_info_list_.clear();
-    InputTensorInfo input_tensor_info("input", TensorInfo::kTensorTypeFp32);
+    InputTensorInfo input_tensor_info("input", TensorInfo::kTensorTypeFp32, false);
     input_tensor_info.tensor_dims = { 1, 256, 256, 3 };
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.normalize.mean[0] = 0.5f;   	/* normalized to[-1.f, 1.f] (hand_detection_cpu.pbtxt.pbtxt) */
@@ -102,14 +102,6 @@ int32_t PalmDetectionEngine::Initialize(const std::string& work_dir, const int32
         inference_helper_.reset();
         return kRetErr;
     }
-    /* Check if input tensor info is set */
-    for (const auto& input_tensor_info : input_tensor_info_list_) {
-        if ((input_tensor_info.tensor_dims.width <= 0) || (input_tensor_info.tensor_dims.height <= 0) || input_tensor_info.tensor_type == TensorInfo::kTensorTypeNone) {
-            PRINT_E("Invalid tensor size\n");
-            inference_helper_.reset();
-            return kRetErr;
-        }
-    }
 
     /* Call SsdAnchorsCalculator::GenerateAnchors as described in hand_detection_gpu.pbtxt */
     const SsdAnchorsCalculatorOptions options;
@@ -145,7 +137,7 @@ int32_t PalmDetectionEngine::Process(const cv::Mat& original_mat, Result& result
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
     /* do resize and color conversion here because some inference engine doesn't support these operations */
     cv::Mat img_src;
-    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
+    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
@@ -180,13 +172,13 @@ int32_t PalmDetectionEngine::Process(const cv::Mat& original_mat, Result& result
     /* Call TfLiteTensorsToDetectionsCalculator::DecodeBoxes as described in hand_detection_gpu.pbtxt */
     std::vector<Detection> detection_list;
     const TfLiteTensorsToDetectionsCalculatorOptions options;
-    if (options.num_boxes() != output_tensor_info_list_[0].tensor_dims.height) {
+    if (options.num_boxes() != output_tensor_info_list_[0].tensor_dims[1]) {
         return kRetErr;
     }
-    if (options.num_coords() != output_tensor_info_list_[0].tensor_dims.width) {
+    if (options.num_coords() != output_tensor_info_list_[0].tensor_dims[2]) {
         return kRetErr;
     }
-    if (options.num_classes() != output_tensor_info_list_[1].tensor_dims.width) {
+    if (options.num_classes() != output_tensor_info_list_[1].tensor_dims[2]) {
         return kRetErr;
     }
     const float* raw_boxes = output_tensor_info_list_[0].GetDataAsFloat();

@@ -52,12 +52,8 @@ int32_t ClassificationEngine::Initialize(const std::string& work_dir, const int3
 
     /* Set input tensor info */
     input_tensor_info_list_.clear();
-    InputTensorInfo input_tensor_info("images", TensorInfo::kTensorTypeUint8);
+    InputTensorInfo input_tensor_info("images", TensorInfo::kTensorTypeUint8, false);
     input_tensor_info.tensor_dims = { 1, 280, 280, 3 };
-    input_tensor_info.tensor_dims.batch = 1;
-    input_tensor_info.tensor_dims.width = 280;
-    input_tensor_info.tensor_dims.height = 280;
-    input_tensor_info.tensor_dims.channel = 3;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.normalize.mean[0] = 0.0f;		/* normalize to [0.f, 1.f] */
     input_tensor_info.normalize.mean[1] = 0.0f;
@@ -93,14 +89,6 @@ int32_t ClassificationEngine::Initialize(const std::string& work_dir, const int3
         inference_helper_.reset();
         return kRetErr;
     }
-    /* Check if input tensor info is set */
-    for (const auto& input_tensor_info : input_tensor_info_list_) {
-        if ((input_tensor_info.tensor_dims.width <= 0) || (input_tensor_info.tensor_dims.height <= 0) || input_tensor_info.tensor_type == TensorInfo::kTensorTypeNone) {
-            PRINT_E("Invalid tensor size\n");
-            inference_helper_.reset();
-            return kRetErr;
-        }
-    }
 
     /* read label */
     if (ReadLabel(labelFilename, label_list_) != kRetOk) {
@@ -133,7 +121,7 @@ int32_t ClassificationEngine::Process(const cv::Mat& original_mat, Result& resul
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
     /* do resize and color conversion here because some inference engine doesn't support these operations */
     cv::Mat img_src;
-    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
+    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
@@ -165,7 +153,7 @@ int32_t ClassificationEngine::Process(const cv::Mat& original_mat, Result& resul
     const auto& t_post_process0 = std::chrono::steady_clock::now();
     /* Retrieve the result */
     std::vector<float> output_score_list;
-    output_score_list.resize(output_tensor_info_list_[0].tensor_dims.width * output_tensor_info_list_[0].tensor_dims.height * output_tensor_info_list_[0].tensor_dims.channel);
+    output_score_list.resize(output_tensor_info_list_[0].GetElementNum());
     const float* val_float = output_tensor_info_list_[0].GetDataAsFloat();
     for (int32_t i = 0; i < (int32_t)output_score_list.size(); i++) {
         output_score_list[i] = val_float[i];

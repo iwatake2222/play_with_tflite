@@ -49,7 +49,7 @@ int32_t StylePredictionEngine::Initialize(const std::string& work_dir, const int
 
     /* Set input tensor info */
     input_tensor_info_list_.clear();
-    InputTensorInfo input_tensor_info("style_image", TensorInfo::kTensorTypeFp32);
+    InputTensorInfo input_tensor_info("style_image", TensorInfo::kTensorTypeFp32, false);
     input_tensor_info.tensor_dims = { 1, 256, 256, 3 };
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.normalize.mean[0] = 0.0f;
@@ -83,16 +83,6 @@ int32_t StylePredictionEngine::Initialize(const std::string& work_dir, const int
         return kRetErr;
     }
 
-    /* Check if input tensor info is set */
-    for (const auto& input_tensor_info : input_tensor_info_list_) {
-        if ((input_tensor_info.tensor_dims.width <= 0) || (input_tensor_info.tensor_dims.height <= 0) || input_tensor_info.tensor_type == TensorInfo::kTensorTypeNone) {
-            PRINT_E("Invalid tensor size\n");
-            inference_helper_.reset();
-            return kRetErr;
-        }
-    }
-
-
     return kRetOk;
 }
 
@@ -118,7 +108,7 @@ int32_t StylePredictionEngine::Process(const cv::Mat& original_mat, Result& resu
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
     /* do resize and color conversion here because some inference engine doesn't support these operations */
     cv::Mat img_src;
-    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
+    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif

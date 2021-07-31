@@ -41,7 +41,8 @@ limitations under the License.
 /* Model parameters */
 #define MODEL_NAME  "yolox_nano_480x640.onnx"
 #define INPUT_NAME  "images"
-#define INPUT_DIMS  { 1, 640, 480, 3 }
+#define IS_NCHW     true
+#define INPUT_DIMS  { 1, 3, 640, 480 }
 #define OUTPUT_NAME "output"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 static constexpr int32_t kGridScaleList[] = { 8, 16, 32 };
@@ -65,7 +66,7 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
 
     /* Set input tensor info */
     input_tensor_info_list_.clear();
-    InputTensorInfo input_tensor_info(INPUT_NAME, TENSORTYPE);
+    InputTensorInfo input_tensor_info(INPUT_NAME, TENSORTYPE, IS_NCHW);
     input_tensor_info.tensor_dims = INPUT_DIMS;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.normalize.mean[0] = 0.0f;     /* 0.0 - 1.0*/
@@ -99,15 +100,6 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
     if (inference_helper_->Initialize(model_filename, input_tensor_info_list_, output_tensor_info_list_) != InferenceHelper::kRetOk) {
         inference_helper_.reset();
         return kRetErr;
-    }
-
-    /* Check if input tensor info is set */
-    for (const auto& input_tensor_info : input_tensor_info_list_) {
-        if ((input_tensor_info.tensor_dims.width <= 0) || (input_tensor_info.tensor_dims.height <= 0) || input_tensor_info.tensor_type == TensorInfo::kTensorTypeNone) {
-            PRINT_E("Invalid tensor size\n");
-            inference_helper_.reset();
-            return kRetErr;
-        }
     }
 
     /* read label */
@@ -174,7 +166,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
     /* do crop, resize and color conversion here because some inference engine doesn't support these operations */
     float aspect_ratio_img = static_cast<float>(original_mat.cols) / original_mat.rows;
-    float aspect_ratio_tensor = static_cast<float>(input_tensor_info.tensor_dims.width) / input_tensor_info.tensor_dims.height;
+    float aspect_ratio_tensor = static_cast<float>(input_tensor_info.GetWidth()) / input_tensor_info.GetHeight();
     int32_t crop_x = 0;
     int32_t crop_y = 0;
     int32_t crop_w = original_mat.cols;
@@ -188,7 +180,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     }
     cv::Mat img_src = original_mat(cv::Rect(crop_x, crop_y, crop_w, crop_h));
 
-    cv::resize(img_src, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
+    cv::resize(img_src, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
@@ -223,8 +215,8 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     std::vector<BoundingBox> bbox_list;
     float* output_data = output_tensor_info_list_[0].GetDataAsFloat();
     for (const auto& scale : kGridScaleList) {
-        int32_t grid_w = input_tensor_info.tensor_dims.width / scale;
-        int32_t grid_h = input_tensor_info.tensor_dims.height / scale;
+        int32_t grid_w = input_tensor_info.GetWidth() / scale;
+        int32_t grid_h = input_tensor_info.GetHeight() / scale;
         int32_t scale_x = scale;      // scale to input tensor size
         int32_t scale_y = scale;
         GetBoundingBox(output_data, static_cast<float>(scale_x), static_cast<float>(scale_y), grid_w, grid_h, bbox_list);
@@ -233,10 +225,10 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 
 
     for (auto& bbox : bbox_list) {
-        bbox.x = (bbox.x * crop_w) / input_tensor_info.tensor_dims.width + crop_x;  // resize to the original image size
-        bbox.y = (bbox.y * crop_h) / input_tensor_info.tensor_dims.height + crop_y;
-        bbox.w = (bbox.w * crop_w) / input_tensor_info.tensor_dims.width;
-        bbox.h = (bbox.h * crop_h) / input_tensor_info.tensor_dims.height;
+        bbox.x = (bbox.x * crop_w) / input_tensor_info.GetWidth() + crop_x;  // resize to the original image size
+        bbox.y = (bbox.y * crop_h) / input_tensor_info.GetHeight() + crop_y;
+        bbox.w = (bbox.w * crop_w) / input_tensor_info.GetWidth();
+        bbox.h = (bbox.h * crop_h) / input_tensor_info.GetHeight();
         bbox.label = label_list_[bbox.class_id];
     }
 

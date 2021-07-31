@@ -43,6 +43,8 @@ limitations under the License.
 /* Official model. https://tfhub.dev/google/lite-model/movenet/singlepose/lightning/3 */
 #define MODEL_NAME  "lite-model_movenet_singlepose_lightning_3.tflite"
 #define INPUT_NAME  "serving_default_input:0"
+#define IS_NCHW     false
+#define INPUT_DIMS  { 1, 192, 192, 3 }
 #define OUTPUT_NAME "StatefulPartitionedCall:0"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #else
@@ -51,6 +53,8 @@ limitations under the License.
 // #define MODEL_NAME  "model_weight_quant.tflite"
 // #define MODEL_NAME  "model_integer_quant.tflite"
 #define INPUT_NAME  "input:0"
+#define IS_NCHW     false
+#define INPUT_DIMS  { 1, 192, 192, 3 }
 #define OUTPUT_NAME "Identity:0"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #endif
@@ -63,8 +67,8 @@ int32_t PoseEngine::Initialize(const std::string& work_dir, const int32_t num_th
 
     /* Set input tensor info */
     input_tensor_info_list_.clear();
-    InputTensorInfo input_tensor_info(INPUT_NAME, TENSORTYPE);
-    input_tensor_info.tensor_dims = { 1, 192, 192, 3 };
+    InputTensorInfo input_tensor_info(INPUT_NAME, TENSORTYPE, IS_NCHW);
+    input_tensor_info.tensor_dims = INPUT_DIMS;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     // input_tensor_info.normalize.mean[0] = 0.485f;   	/* https://github.com/onnx/models/tree/master/vision/classification/mobilenet#preprocessing */
     // input_tensor_info.normalize.mean[1] = 0.456f;
@@ -103,14 +107,6 @@ int32_t PoseEngine::Initialize(const std::string& work_dir, const int32_t num_th
         inference_helper_.reset();
         return kRetErr;
     }
-    /* Check if input tensor info is set */
-    for (const auto& input_tensor_info : input_tensor_info_list_) {
-        if ((input_tensor_info.tensor_dims.width <= 0) || (input_tensor_info.tensor_dims.height <= 0) || input_tensor_info.tensor_type == TensorInfo::kTensorTypeNone) {
-            PRINT_E("Invalid tensor size\n");
-            inference_helper_.reset();
-            return kRetErr;
-        }
-    }
 
     return kRetOk;
 }
@@ -138,7 +134,7 @@ int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
 #if 1
     /* do resize and color conversion here because some inference engine doesn't support these operations */
     cv::Mat img_src;
-    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
+    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
@@ -195,7 +191,7 @@ int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
     float* val_float = output_tensor_info_list_[0].GetDataAsFloat();
     std::vector<float> pose_keypoint_scores;	// z
     std::vector<std::pair<float,float>> pose_keypoint_coords;	// x, y
-    for (int32_t partIndex = 0; partIndex < output_tensor_info_list_[0].tensor_dims.width; partIndex++) {
+    for (int32_t partIndex = 0; partIndex < output_tensor_info_list_[0].tensor_dims[2]; partIndex++) {
         // PRINT("%f, %f, %f\n", val_float[1], val_float[0], val_float[2]);
         pose_keypoint_coords.push_back(std::pair<float,float>(val_float[1], val_float[0]));
         pose_keypoint_scores.push_back(val_float[2]);

@@ -144,10 +144,8 @@ int32_t main()
         printf("Image processing time = %.3lf [msec]\n", (time_process1 - time_process0).count() / 1000000.0);
         printf("========\n");
     }
-
-#endif
-
     if (writer.isOpened()) writer.release();
+#endif
 
     /* Fianlize image processor library */
     ImageProcessor::Finalize();

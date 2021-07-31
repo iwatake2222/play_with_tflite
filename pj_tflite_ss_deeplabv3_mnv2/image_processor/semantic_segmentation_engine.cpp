@@ -49,7 +49,7 @@ int32_t SemanticSegmentationEngine::Initialize(const std::string& work_dir, cons
 
     /* Set input tensor info */
     input_tensor_info_list_.clear();
-    InputTensorInfo input_tensor_info("MobilenetV2/MobilenetV2/input", TensorInfo::kTensorTypeFp32);
+    InputTensorInfo input_tensor_info("MobilenetV2/MobilenetV2/input", TensorInfo::kTensorTypeFp32, false);
     input_tensor_info.tensor_dims = { 1, 513, 513, 3 };
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.normalize.mean[0] = 0.5f;
@@ -83,16 +83,6 @@ int32_t SemanticSegmentationEngine::Initialize(const std::string& work_dir, cons
         return kRetErr;
     }
 
-    /* Check if input tensor info is set */
-    for (const auto& input_tensor_info : input_tensor_info_list_) {
-        if ((input_tensor_info.tensor_dims.width <= 0) || (input_tensor_info.tensor_dims.height <= 0) || input_tensor_info.tensor_type == TensorInfo::kTensorTypeNone) {
-            PRINT_E("Invalid tensor size\n");
-            inference_helper_.reset();
-            return kRetErr;
-        }
-    }
-
-
     return kRetOk;
 }
 
@@ -118,7 +108,7 @@ int32_t SemanticSegmentationEngine::Process(const cv::Mat& original_mat, Result&
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
     /* do resize and color conversion here because some inference engine doesn't support these operations */
     cv::Mat img_src;
-    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
+    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
@@ -148,15 +138,11 @@ int32_t SemanticSegmentationEngine::Process(const cv::Mat& original_mat, Result&
     /*** PostProcess ***/
     const auto& t_post_process0 = std::chrono::steady_clock::now();
     /* Retrieve the result */
-    int32_t output_width = output_tensor_info_list_[0].tensor_dims.width;
-    int32_t output_height = output_tensor_info_list_[0].tensor_dims.height;
-    int32_t output_channel = output_tensor_info_list_[0].tensor_dims.channel;
+    int32_t output_width = output_tensor_info_list_[0].tensor_dims[2];
+    int32_t output_height = output_tensor_info_list_[0].tensor_dims[1];
+    int32_t output_channel = 1;
     const int64_t* values = static_cast<int64_t*>(output_tensor_info_list_[0].data);
     cv::Mat image_mask = cv::Mat::zeros(output_height, output_width, CV_8UC3);
-    for (int32_t y = 0; y < output_height; y++) {
-        for (int32_t x = 0; x < output_width; x++) {
-        }
-    }
     for (int y = 0; y < output_height; y++) {
         for (int x = 0; x < output_width; x++) {
             int32_t max_channel = static_cast<int32_t>(values[y * output_width + x]);

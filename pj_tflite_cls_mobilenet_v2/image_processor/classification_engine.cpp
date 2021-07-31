@@ -46,18 +46,24 @@ limitations under the License.
 #define INPUT_NAME  "input"
 #define OUTPUT_NAME "MobilenetV2/Predictions/Reshape_1"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
+#define IS_NCHW     false
+#define INPUT_DIMS  { 1, 224, 224, 3 }
 #elif 1
 // UIINT8
 #define MODEL_NAME  "mobilenet_v2_1.0_224_quant.tflite"
 #define INPUT_NAME  "input"
 #define OUTPUT_NAME "output"
 #define TENSORTYPE  TensorInfo::kTensorTypeUint8
+#define IS_NCHW     false
+#define INPUT_DIMS  { 1, 224, 224, 3 }
 #elif 1
 // UIINT8 + EDGETPU
 #define MODEL_NAME  "mobilenet_v2_1.0_224_quant_edgetpu.tflite"
 #define INPUT_NAME  "input"
 #define OUTPUT_NAME "output"
 #define TENSORTYPE  TensorInfo::kTensorTypeUint8
+#define IS_NCHW     false
+#define INPUT_DIMS  { 1, 224, 224, 3 }
 #endif
 
 #define LABEL_NAME   "imagenet_labels.txt"
@@ -72,8 +78,8 @@ int32_t ClassificationEngine::Initialize(const std::string& work_dir, const int3
 
     /* Set input tensor info */
     input_tensor_info_list_.clear();
-    InputTensorInfo input_tensor_info(INPUT_NAME, TENSORTYPE);
-    input_tensor_info.tensor_dims = { 1, 224, 224, 3 };
+    InputTensorInfo input_tensor_info(INPUT_NAME, TENSORTYPE, IS_NCHW);
+    input_tensor_info.tensor_dims = INPUT_DIMS;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.normalize.mean[0] = 0.485f;   	/* https://github.com/onnx/models/tree/master/vision/classification/mobilenet#preprocessing */
     input_tensor_info.normalize.mean[1] = 0.456f;
@@ -105,14 +111,6 @@ int32_t ClassificationEngine::Initialize(const std::string& work_dir, const int3
         inference_helper_.reset();
         return kRetErr;
     }
-    /* Check if input tensor info is set */
-    for (const auto& input_tensor_info : input_tensor_info_list_) {
-        if ((input_tensor_info.tensor_dims.width <= 0) || (input_tensor_info.tensor_dims.height <= 0) || input_tensor_info.tensor_type == TensorInfo::kTensorTypeNone) {
-            PRINT_E("Invalid tensor size\n");
-            inference_helper_.reset();
-            return kRetErr;
-        }
-    }
 
     /* read label */
     if (ReadLabel(labelFilename, label_list_) != kRetOk) {
@@ -143,10 +141,10 @@ int32_t ClassificationEngine::Process(const cv::Mat& original_mat, Result& resul
     /*** PreProcess ***/
     const auto& t_pre_process0 = std::chrono::steady_clock::now();
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
-#if 1
+#if 0
     /* do resize and color conversion here because some inference engine doesn't support these operations */
     cv::Mat img_src;
-    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.tensor_dims.width, input_tensor_info.tensor_dims.height));
+    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
@@ -175,13 +173,8 @@ int32_t ClassificationEngine::Process(const cv::Mat& original_mat, Result& resul
     input_tensor_info.image_info.crop_height = original_mat.rows;
     input_tensor_info.image_info.is_bgr = true;
     input_tensor_info.image_info.swap_color = true;
-#if 0
     InferenceHelper::PreProcessByOpenCV(input_tensor_info, false, img_src);
-    input_tensor_info.data_type = InputTensorInfo::DATA_TYPE_BLOB_NHWC;
-#else
-    InferenceHelper::PreProcessByOpenCV(input_tensor_info, true, img_src);
-    input_tensor_info.data_type = InputTensorInfo::DATA_TYPE_BLOB_NCHW;
-#endif
+    input_tensor_info.data_type = InputTensorInfo::kDataTypeBlobNhwc;
     input_tensor_info.data = img_src.data;
 #endif
     if (inference_helper_->PreProcess(input_tensor_info_list_) != InferenceHelper::kRetOk) {
@@ -200,7 +193,7 @@ int32_t ClassificationEngine::Process(const cv::Mat& original_mat, Result& resul
     const auto& t_post_process0 = std::chrono::steady_clock::now();
     /* Retrieve the result */
     std::vector<float> output_score_list;
-    output_score_list.resize(output_tensor_info_list_[0].tensor_dims.width * output_tensor_info_list_[0].tensor_dims.height * output_tensor_info_list_[0].tensor_dims.channel);
+    output_score_list.resize(output_tensor_info_list_[0].GetElementNum());
     const float* val_float = output_tensor_info_list_[0].GetDataAsFloat();
     for (int32_t i = 0; i < (int32_t)output_score_list.size(); i++) {
         output_score_list[i] = val_float[i];

@@ -156,7 +156,7 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
     s_tracker.Update(result.bbox_list);
     auto& track_list = s_tracker.GetTrackList();
     for (auto& track : track_list) {
-        if (track.GetDetectedCount() < 5) continue;
+        if (track.GetDetectedCount() < 0) continue;
         
         auto& bbox = track.GetLatestData().bbox;
         cv::Scalar color = bbox.score == 0 ? CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
