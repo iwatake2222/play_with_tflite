@@ -40,9 +40,7 @@ int32_t main()
 {
     /*** Initialize ***/
     /* Initialize image processor library */
-    ImageProcessor::InputParam input_param;
-    snprintf(input_param.work_dir, sizeof(input_param.work_dir), WORK_DIR);
-    input_param.num_threads = 4;
+    ImageProcessor::InputParam input_param = { WORK_DIR, 4 };
     ImageProcessor::Initialize(&input_param);
 
 #ifdef SPEED_TEST_ONLY

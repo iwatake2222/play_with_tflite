@@ -66,7 +66,6 @@ int32_t StyleTransferEngine::Initialize(const std::string& work_dir, const int32
     input_tensor_info.data_type = InputTensorInfo::kDataTypeBlobNhwc;
     input_tensor_info_list_.push_back(input_tensor_info);
 
-
     /* Set output tensor info */
     output_tensor_info_list_.clear();
     output_tensor_info_list_.push_back(OutputTensorInfo("transformer/expand/conv3/conv/Sigmoid", TensorInfo::kTensorTypeFp32));
