@@ -1,24 +1,24 @@
 This project utilizes the following OSS (Open Source Software):
 
 - tensorflow
-	- https://github.com/tensorflow/tensorflow
-	- Copyright 2019 The TensorFlow Authors
-	- Licensed under the Apache License, Version 2.0
-	- Modification: no
-	- Pre-built binary file is generated from this project
+   - https://github.com/tensorflow/tensorflow
+   - Copyright 2019 The TensorFlow Authors
+   - Licensed under the Apache License, Version 2.0
+   - Modification: no
+   - Pre-built binary file is generated from this project
 
 - libedgetpu
-	- https://github.com/google-coral/libedgetpu
-	- Copyright 2019 Google LLC
-	- Licensed under the Apache License, Version 2.0
-	- Modification: no
-	- Pre-built binary file is generated from this project
+   - https://github.com/google-coral/libedgetpu
+   - Copyright 2019 Google LLC
+   - Licensed under the Apache License, Version 2.0
+   - Modification: no
+   - Pre-built binary file is generated from this project
 
 - tflite_gles_app
-	- https://github.com/terryky/tflite_gles_app
-	- Copyright (c) 2019 terryky
-	- Licensed under the MIT License
-	- Some code and ideas are from this project
+   - https://github.com/terryky/tflite_gles_app
+   - Copyright (c) 2019 terryky
+   - Licensed under the MIT License
+   - Some code and ideas are from this project
 
 --------------------------------------------------------------------
 Terms of the Apache License, Version 2.0:
