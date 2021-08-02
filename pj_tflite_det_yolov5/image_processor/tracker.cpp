@@ -149,9 +149,9 @@ KalmanFilter Track::CreateKalmanFilter_UniformLinearMotion(int32_t start_value)
 {
     static constexpr int32_t kNumObserve = 1;	/* (x) */
     static constexpr int32_t kNumStatus = 2;	/* (x, v) */
-    static constexpr double delta_t = 0.5;
-    static constexpr double sigma_true = 0.3;
-    static constexpr double sigma_observe = 0.1;
+    static constexpr double delta_t = 1.0;
+    static constexpr double sigma_true = 0.5;
+    static constexpr double sigma_observe = 1.0;
 
     /*** X(t) = F * X(t-1) + w(t) ***/
     /* Matrix to calculate X(t) from X(t-1). assume uniform motion: x(t) = x(t-1) + vt, v(t) = v(t-1) */
@@ -180,8 +180,8 @@ KalmanFilter Track::CreateKalmanFilter_UniformLinearMotion(int32_t start_value)
 
     /* First internal status */
     const SimpleMatrix P0(kNumStatus, kNumStatus, {
-        0, 0,
-        0, 0
+        1e10, 1e10,     /* Set big noise at first to make K=1 and trust observed value rather than estimated value */
+        1e10, 1e10
         });
 
     const SimpleMatrix X0(kNumStatus, 1, {
@@ -229,8 +229,19 @@ std::vector<Track>& Tracker::GetTrackList()
 
 float Tracker::CalculateSimilarity(const BoundingBox& bbox0, const BoundingBox& bbox1)
 {
-    float similarity = BoundingBoxUtils::CalculateIoU(bbox0, bbox1);
-    return similarity;
+    float iou = BoundingBoxUtils::CalculateIoU(bbox0, bbox1);
+    if (iou > 0.9) {
+        /* must be the same object (do not check class id because class id may be mistaken) */
+    } else {
+        if (bbox0.class_id == bbox1.class_id) {
+            /* can be the same object */
+        } else {
+            /* cannot be the same object */
+            iou = 0;
+        }
+    }
+
+    return kCostMax - iou;
 }
 
 void Tracker::Update(const std::vector<BoundingBox>& det_list)
@@ -247,9 +258,7 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     std::vector<std::vector<float>> cost_matrix(track_list_.size(), std::vector<float>(det_list.size(), kCostMax));
     for (int32_t i_track = 0; i_track < track_list_.size(); i_track++) {
         for (int32_t i_det = 0; i_det < det_list.size(); i_det++) {
-            if (bbox_pred_list[i_track].class_id == det_list[i_det].class_id) {
-                cost_matrix[i_track][i_det] = kCostMax - CalculateSimilarity(bbox_pred_list[i_track], det_list[i_det]);
-            }
+            cost_matrix[i_track][i_det] = CalculateSimilarity(bbox_pred_list[i_track], det_list[i_det]);
         }
     }
 

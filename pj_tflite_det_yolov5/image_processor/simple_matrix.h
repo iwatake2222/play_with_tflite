@@ -194,7 +194,7 @@ public:
 
 		for (int32_t y = 0; y < rows; y++) {
 			for (int32_t x = 0; x < cols; x++) {
-				printf("%4.f ", (*this)(y, x));
+				printf("%f ", (*this)(y, x));
 			}
 			printf("\n");
 		}

@@ -61,7 +61,7 @@ static void DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, doubl
     int32_t baseline = 0;
     cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, fontScale, thickness, &baseline);
     baseline += thickness;
-    pos.y -= textSize.height / 2;
+    pos.y += textSize.height / 2;
     cv::rectangle(mat, pos + cv::Point(0, baseline), pos + cv::Point(textSize.width, -textSize.height), color_back, -1);
     cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, fontScale, color_front, thickness);
 #else
