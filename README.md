@@ -24,39 +24,21 @@ Sample projects to use Tensorflow Lite for multi-platform
     - NNAPI(CPU, GPU, DSP)
         - Tested in Android (Pixel 4a)
 
-- Projects
-    - pj_tflite_cls_mobilenet_v2
-        - Classification using MobileNet v2
-    - pj_tflite_det_mobilenetssd_v1
-        - Detection using MobileNetSSD v1
-    - pj_tflite_ss_deeplabv3_mnv2
-        - Semantic Segmentation using DeepLab v3
-    - pj_tflite_hand_mediapipe
-        - Palm Detection + Hand Landmark (mediapipe)
-    - pj_tflite_arprobe
-        - AR-ish application using hand tracking
-    - pj_tflite_style_transfer
-        - Artistic Style Transfer
-    - pj_tflite_pose_movenet
-        - Pose detection using MoveNet.SinglePose.Lightning
-    - temp_pj_tflite_simple_cls_mobilenet_v2 (Not supported now)
-        - Basic project without using InferenceHelper
-    - temp_pj_tflite_edgetpuapi_cls_mobilenet_v2 (Not supported now)
-        - Basic project using API from coral
-    - temp_pj_tflite_edgetpupipeline_cls_inception_v3 (Not supported now)
-        - Basic project for Edge TPU Pipeline
-
 ## Usage
 ```
 ./main [input]
 
- - input = blank: use the default image file set in source code (main.cpp)
+ - input = blank
+    - use the default image file set in source code (main.cpp)
     - e.g. ./main
- - input = *.mp4, *.avi, *.webm: use video file
+ - input = *.mp4, *.avi, *.webm
+    - use video file
     - e.g. ./main test.mp4
- - input = *.jpg, *.png, *.bmp: use image file
+ - input = *.jpg, *.png, *.bmp
+    - use image file
     - e.g. ./main test.jpg
- - input = number (e.g. 0, 1, 2, ...): use camera
+ - input = number (e.g. 0, 1, 2, ...)
+    - use camera
     - e.g. ./main 0
 ```
 
@@ -103,11 +85,6 @@ mkdir build && cd build
 cmake ..
 make
 ./main
-```
-
-### Option (Camera input)
-```sh
-cmake .. -DSPEED_TEST_ONLY=off
 ```
 
 ### Options (Delegate)
