@@ -86,7 +86,7 @@ static cv::Scalar GetColorForId(int32_t id)
     return color_list[id % kMaxNum];
 }
 
-int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
 {
     if (s_engine) {
         PRINT_E("Already initialized\n");
@@ -94,7 +94,7 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param
     }
 
     s_engine.reset(new DetectionEngine());
-    if (s_engine->Initialize(input_param->work_dir, input_param->num_threads) != DetectionEngine::kRetOk) {
+    if (s_engine->Initialize(input_param.work_dir, input_param.num_threads) != DetectionEngine::kRetOk) {
         s_engine->Finalize();
         s_engine.reset();
         return -1;
@@ -134,62 +134,61 @@ int32_t ImageProcessor::Command(int32_t cmd)
 
 
 
-int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
+int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
     if (!s_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
 
-    cv::Mat& original_mat = *mat;
-    DetectionEngine::Result result;
-    if (s_engine->Process(original_mat, result) != DetectionEngine::kRetOk) {
+    DetectionEngine::Result det_result;
+    if (s_engine->Process(mat, det_result) != DetectionEngine::kRetOk) {
         return -1;
     }
 
-    cv::rectangle(original_mat, cv::Rect(result.crop_x, result.crop_y, result.crop_w, result.crop_h), CreateCvColor(0, 0, 0), 2);
-    for (const auto& bbox : result.bbox_list) {
-        cv::rectangle(original_mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 0, 0), 1);
+    cv::rectangle(mat, cv::Rect(det_result.crop_x, det_result.crop_y, det_result.crop_w, det_result.crop_h), CreateCvColor(0, 0, 0), 2);
+    for (const auto& bbox : det_result.bbox_list) {
+        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 0, 0), 1);
     }
 
     std::vector<BoundingBox> bbox_result_list;
-    s_tracker.Update(result.bbox_list);
+    s_tracker.Update(det_result.bbox_list);
     auto& track_list = s_tracker.GetTrackList();
     for (auto& track : track_list) {
         if (track.GetDetectedCount() < 3) continue;
         
         auto& bbox = track.GetLatestData().bbox;
         cv::Scalar color = bbox.score == 0 ? CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
-        cv::rectangle(original_mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
-        DrawText(original_mat, bbox.label, cv::Point(bbox.x, bbox.y), 0.5, 1, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
+        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
+        DrawText(mat, bbox.label, cv::Point(bbox.x, bbox.y), 0.5, 1, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
 
         auto& track_history = track.GetDataHistory();
         for (int32_t i = 1; i < track_history.size(); i++) {
             cv::Point p0(track_history[i].bbox.x + track_history[i].bbox.w / 2, track_history[i].bbox.y + track_history[i].bbox.h);
             cv::Point p1(track_history[i - 1].bbox.x + track_history[i - 1].bbox.w / 2, track_history[i - 1].bbox.y + track_history[i - 1].bbox.h);
-            cv::line(original_mat, p0, p1, CreateCvColor(255, 0, 0));
+            cv::line(mat, p0, p1, CreateCvColor(255, 0, 0));
         }
     }
 
     /* Return the results */
     int32_t bbox_num = 0;
-    for (const auto& bbox : result.bbox_list) {
-        output_param->object_list[bbox_num].class_id = bbox.class_id;
-        snprintf(output_param->object_list[bbox_num].label, sizeof(output_param->object_list[bbox_num].label), "%s", bbox.label.c_str());
-        output_param->object_list[bbox_num].score = bbox.score;
-        output_param->object_list[bbox_num].x = bbox.x;
-        output_param->object_list[bbox_num].y = bbox.y;
-        output_param->object_list[bbox_num].width = bbox.w;
-        output_param->object_list[bbox_num].height = bbox.h;
+    for (const auto& bbox : det_result.bbox_list) {
+        result.object_list[bbox_num].class_id = bbox.class_id;
+        snprintf(result.object_list[bbox_num].label, sizeof(result.object_list[bbox_num].label), "%s", bbox.label.c_str());
+        result.object_list[bbox_num].score = bbox.score;
+        result.object_list[bbox_num].x = bbox.x;
+        result.object_list[bbox_num].y = bbox.y;
+        result.object_list[bbox_num].width = bbox.w;
+        result.object_list[bbox_num].height = bbox.h;
         bbox_num++;
         if (bbox_num >= NUM_MAX_RESULT) break;
     }
-    output_param->object_num = bbox_num;
+    result.object_num = bbox_num;
 
 
-    output_param->time_pre_process = result.time_pre_process;
-    output_param->time_inference = result.time_inference;
-    output_param->time_post_process = result.time_post_process;
+    result.time_pre_process = det_result.time_pre_process;
+    result.time_inference = det_result.time_inference;
+    result.time_post_process = det_result.time_post_process;
 
     return 0;
 }

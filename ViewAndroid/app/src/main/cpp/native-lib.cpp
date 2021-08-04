@@ -22,7 +22,7 @@ Java_com_iwatake_viewandroidtflite_MainActivity_ImageProcessorInitialize(
     ImageProcessor::InputParam input_param;
     snprintf(input_param.work_dir, sizeof(input_param.work_dir), WORK_DIR);
     input_param.num_threads = 4;
-    ret = ImageProcessor::Initialize(&input_param);
+    ret = ImageProcessor::Initialize(input_param);
     return ret;
 }
 
@@ -35,8 +35,8 @@ Java_com_iwatake_viewandroidtflite_MainActivity_ImageProcessorProcess(
     std::lock_guard<std::mutex> lock(g_mtx);
     int ret = 0;
     cv::Mat* mat = (cv::Mat*) objMat;
-    ImageProcessor::OutputParam output_param;
-    ret = ImageProcessor::Process(mat, &output_param);
+    ImageProcessor::Result result;
+    ret = ImageProcessor::Process(*mat, result);
     return ret;
 }
 

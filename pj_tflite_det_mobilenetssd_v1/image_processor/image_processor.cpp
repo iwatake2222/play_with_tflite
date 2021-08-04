@@ -52,7 +52,7 @@ static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
 }
 
 
-int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
 {
     if (s_engine) {
         PRINT_E("Already initialized\n");
@@ -60,7 +60,7 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param
     }
 
     s_engine.reset(new DetectionEngine());
-    if (s_engine->Initialize(input_param->work_dir, input_param->num_threads) != DetectionEngine::kRetOk) {
+    if (s_engine->Initialize(input_param.work_dir, input_param.num_threads) != DetectionEngine::kRetOk) {
         s_engine->Finalize();
         s_engine.reset();
         return -1;
@@ -99,45 +99,43 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
-int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
+int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
     if (!s_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
-
-    cv::Mat& original_mat = *mat;
-    DetectionEngine::Result result;
-    result.object_list.clear();
-    if (s_engine->Process(original_mat, result) != DetectionEngine::kRetOk) {
+    
+    DetectionEngine::Result det_result;
+    det_result.object_list.clear();
+    if (s_engine->Process(mat, det_result) != DetectionEngine::kRetOk) {
         return -1;
     }
 
     /* Draw the result */
-    for (const auto& object : result.object_list) {
-        cv::rectangle(original_mat, cv::Rect(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y), static_cast<int32_t>(object.width), static_cast<int32_t>(object.height)), cv::Scalar(255, 255, 0), 3);
-        cv::putText(original_mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
-        cv::putText(original_mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
+    for (const auto& object : det_result.object_list) {
+        cv::rectangle(mat, cv::Rect(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y), static_cast<int32_t>(object.width), static_cast<int32_t>(object.height)), cv::Scalar(255, 255, 0), 3);
+        cv::putText(mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
+        cv::putText(mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
     }
-
 
     /* Return the results */
     int32_t object_num = 0;
-    for (const auto& object : result.object_list) {
-        output_param->object_list[object_num].class_id = object.class_id;
-        snprintf(output_param->object_list[object_num].label, sizeof(output_param->object_list[object_num].label), "%s", object.label.c_str());
-        output_param->object_list[object_num].score = object.score;
-        output_param->object_list[object_num].x = static_cast<int32_t>(object.x);
-        output_param->object_list[object_num].y = static_cast<int32_t>(object.y);
-        output_param->object_list[object_num].width = static_cast<int32_t>(object.width);
-        output_param->object_list[object_num].height = static_cast<int32_t>(object.height);
+    for (const auto& object : det_result.object_list) {
+        result.object_list[object_num].class_id = object.class_id;
+        snprintf(result.object_list[object_num].label, sizeof(result.object_list[object_num].label), "%s", object.label.c_str());
+        result.object_list[object_num].score = object.score;
+        result.object_list[object_num].x = static_cast<int32_t>(object.x);
+        result.object_list[object_num].y = static_cast<int32_t>(object.y);
+        result.object_list[object_num].width = static_cast<int32_t>(object.width);
+        result.object_list[object_num].height = static_cast<int32_t>(object.height);
         object_num++;
         if (object_num >= NUM_MAX_RESULT) break;
     }
-    output_param->object_num = object_num;
-    output_param->time_pre_process = result.time_pre_process;
-    output_param->time_inference = result.time_inference;
-    output_param->time_post_process = result.time_post_process;
+    result.object_num = object_num;
+    result.time_pre_process = det_result.time_pre_process;
+    result.time_inference = det_result.time_inference;
+    result.time_post_process = det_result.time_post_process;
 
     return 0;
 }

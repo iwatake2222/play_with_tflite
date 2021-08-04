@@ -141,7 +141,7 @@ int32_t ClassificationEngine::Process(const cv::Mat& original_mat, Result& resul
     /*** PreProcess ***/
     const auto& t_pre_process0 = std::chrono::steady_clock::now();
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
-#if 0
+#if 1
     /* do resize and color conversion here because some inference engine doesn't support these operations */
     cv::Mat img_src;
     cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));

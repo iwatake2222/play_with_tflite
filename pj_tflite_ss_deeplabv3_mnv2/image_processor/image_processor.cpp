@@ -52,7 +52,7 @@ static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
 }
 
 
-int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
 {
     if (s_engine) {
         PRINT_E("Already initialized\n");
@@ -60,7 +60,7 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param
     }
 
     s_engine.reset(new SemanticSegmentationEngine());
-    if (s_engine->Initialize(input_param->work_dir, input_param->num_threads) != SemanticSegmentationEngine::kRetOk) {
+    if (s_engine->Initialize(input_param.work_dir, input_param.num_threads) != SemanticSegmentationEngine::kRetOk) {
         s_engine->Finalize();
         s_engine.reset();
         return -1;
@@ -99,27 +99,26 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
-int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
+int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
     if (!s_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
 
-    cv::Mat& original_mat = *mat;
-    SemanticSegmentationEngine::Result result;
-    if (s_engine->Process(original_mat, result) != SemanticSegmentationEngine::kRetOk) {
+    SemanticSegmentationEngine::Result ss_result;
+    if (s_engine->Process(mat, ss_result) != SemanticSegmentationEngine::kRetOk) {
         return -1;
     }
 
     /* Draw the result */
-    cv::resize(result.image_mask, result.image_mask, original_mat.size());
-    cv::add(original_mat, result.image_mask, original_mat);
+    cv::resize(ss_result.image_mask, ss_result.image_mask, mat.size());
+    cv::add(mat, ss_result.image_mask, mat);
 
     /* Return the results */
-    output_param->time_pre_process = result.time_pre_process;
-    output_param->time_inference = result.time_inference;
-    output_param->time_post_process = result.time_post_process;
+    result.time_pre_process = ss_result.time_pre_process;
+    result.time_inference = ss_result.time_inference;
+    result.time_post_process = ss_result.time_post_process;
 
     return 0;
 }

@@ -74,24 +74,24 @@ static int32_t CalculateStyleBottleneck(std::string style_filename)
     return 0;
 }
 
-int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
 {
     if (s_style_prediction_engine || s_style_transfer_engine) {
         PRINT_E("Already initialized\n");
         return -1;
     }
 
-    s_work_dir = input_param->work_dir;
+    s_work_dir = input_param.work_dir;
 
     s_style_prediction_engine.reset(new StylePredictionEngine());
-    if (s_style_prediction_engine->Initialize(input_param->work_dir, input_param->num_threads) != StylePredictionEngine::kRetOk) {
+    if (s_style_prediction_engine->Initialize(input_param.work_dir, input_param.num_threads) != StylePredictionEngine::kRetOk) {
         s_style_prediction_engine->Finalize();
         s_style_prediction_engine.reset();
         return -1;
     }
 
     s_style_transfer_engine.reset(new StyleTransferEngine());
-    if (s_style_transfer_engine->Initialize(input_param->work_dir, input_param->num_threads) != StyleTransferEngine::kRetOk) {
+    if (s_style_transfer_engine->Initialize(input_param.work_dir, input_param.num_threads) != StyleTransferEngine::kRetOk) {
         s_style_transfer_engine->Finalize();
         s_style_transfer_engine.reset();
         return -1;
@@ -152,15 +152,12 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
-int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
+int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
     if (!s_style_prediction_engine || !s_style_transfer_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
-
-    cv::Mat& original_mat = *mat;
-
 
     constexpr int32_t INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK = 10; // to increase FPS (no need to do this every frame)
     static float s_merged_style_bottleneck[StylePredictionEngine::SIZE_STYLE_BOTTLENECK];
@@ -168,20 +165,20 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
     if (s_cnt++ % INTERVAL_TO_CALCULATE_CONTENT_BOTTLENECK == 0 || s_style_bottleneck_updated) {
         constexpr float ratio = 0.5f;
         StylePredictionEngine::Result style_prediction_result;
-        s_style_prediction_engine->Process(original_mat, style_prediction_result);
+        s_style_prediction_engine->Process(mat, style_prediction_result);
         for (int32_t i = 0; i < StylePredictionEngine::SIZE_STYLE_BOTTLENECK; i++) {
             s_merged_style_bottleneck[i] = ratio * style_prediction_result.style_bottleneck[i] + (1 - ratio) * s_style_bottleneck[i];
         }
     }
 
     StyleTransferEngine::Result style_transfer_result;
-    s_style_transfer_engine->Process(original_mat, s_merged_style_bottleneck, StylePredictionEngine::SIZE_STYLE_BOTTLENECK, style_transfer_result);
+    s_style_transfer_engine->Process(mat, s_merged_style_bottleneck, StylePredictionEngine::SIZE_STYLE_BOTTLENECK, style_transfer_result);
 
     /* Return the results */
-    original_mat = style_transfer_result.image;
-    output_param->time_pre_process = style_transfer_result.time_pre_process;
-    output_param->time_inference = style_transfer_result.time_inference;
-    output_param->time_post_process = style_transfer_result.time_post_process;
+    mat = style_transfer_result.image;
+    result.time_pre_process = style_transfer_result.time_pre_process;
+    result.time_inference = style_transfer_result.time_inference;
+    result.time_post_process = style_transfer_result.time_post_process;
 
     return 0;
 }

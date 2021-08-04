@@ -23,8 +23,3 @@ target_link_libraries(${ProjectName} ${OpenCV_LIBS})
 # Copy resouce
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/../resource DESTINATION ${CMAKE_BINARY_DIR}/)
 add_definitions(-DRESOURCE_DIR="${CMAKE_BINARY_DIR}/resource/")
-
-set(SPEED_TEST_ONLY on CACHE BOOL "Speed test only (don't use camera)? [on/off]")
-if(SPEED_TEST_ONLY)
-    add_definitions(-DSPEED_TEST_ONLY)
-endif()

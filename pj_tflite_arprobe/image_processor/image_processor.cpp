@@ -180,7 +180,7 @@ static void drawText(cv::Mat &mat, Rect rect, cv::Scalar color, std::string str,
     cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, color, 2);
 }
 
-static std::string classify(cv::Mat &original_mat, const cv::Rect &selectedArea)
+static std::string classify(cv::Mat &mat, const cv::Rect &selectedArea)
 {
     /* Classify the selected area */
     cv::Rect targetArea = s_areaSelector.m_selectedArea;
@@ -190,9 +190,9 @@ static std::string classify(cv::Mat &original_mat, const cv::Rect &selectedArea)
     int height = (int)(targetArea.height * 1.2); // expand
     targetArea.x = std::max(centerX - width / 2, 0);
     targetArea.y = std::max(centerY - height / 2, 0);
-    targetArea.width = std::min(width, original_mat.cols - targetArea.x);
-    targetArea.height = std::min(height, original_mat.rows - targetArea.y);
-    cv::Mat targetImage = original_mat(targetArea);
+    targetArea.width = std::min(width, mat.cols - targetArea.x);
+    targetArea.height = std::min(height, mat.rows - targetArea.y);
+    cv::Mat targetImage = mat(targetArea);
     ClassificationEngine::Result resultWithoutPadding;
     s_classification_engine->Process(targetImage, resultWithoutPadding);
 
@@ -200,9 +200,9 @@ static std::string classify(cv::Mat &original_mat, const cv::Rect &selectedArea)
     height = std::max(targetArea.width, targetArea.height);
     targetArea.x = std::max(centerX - width / 2, 0);
     targetArea.y = std::max(centerY - height / 2, 0);
-    targetArea.width = std::min(width, original_mat.cols - targetArea.x);
-    targetArea.height = std::min(height, original_mat.rows - targetArea.y);
-    cv::Mat targetImageWithPadding = original_mat(targetArea);
+    targetArea.width = std::min(width, mat.cols - targetArea.x);
+    targetArea.height = std::min(height, mat.rows - targetArea.y);
+    cv::Mat targetImageWithPadding = mat(targetArea);
 
     ClassificationEngine::Result resultWithPadding;
     s_classification_engine->Process(targetImageWithPadding, resultWithPadding);
@@ -210,7 +210,7 @@ static std::string classify(cv::Mat &original_mat, const cv::Rect &selectedArea)
     return (resultWithoutPadding.score > resultWithPadding.score) ? resultWithoutPadding.class_name : resultWithPadding.class_name;
 }
 
-int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param)
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
 {
     if (s_palm_detection_engine || s_hand_landmark_engine || s_classification_engine) {
         PRINT_E("Already initialized\n");
@@ -218,19 +218,19 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam* input_param
     }
 
     s_palm_detection_engine.reset(new PalmDetectionEngine());
-    if (s_palm_detection_engine->Initialize(input_param->work_dir, input_param->num_threads) != PalmDetectionEngine::kRetOk) {
+    if (s_palm_detection_engine->Initialize(input_param.work_dir, input_param.num_threads) != PalmDetectionEngine::kRetOk) {
         return -1;
     }
     s_hand_landmark_engine.reset(new HandLandmarkEngine());
-    if (s_hand_landmark_engine->Initialize(input_param->work_dir, input_param->num_threads) != HandLandmarkEngine::kRetOk) {
+    if (s_hand_landmark_engine->Initialize(input_param.work_dir, input_param.num_threads) != HandLandmarkEngine::kRetOk) {
         return -1;
     }
     s_classification_engine.reset(new ClassificationEngine());
-    if (s_classification_engine->Initialize(input_param->work_dir, input_param->num_threads) != HandLandmarkEngine::kRetOk) {
+    if (s_classification_engine->Initialize(input_param.work_dir, input_param.num_threads) != HandLandmarkEngine::kRetOk) {
         return -1;
     }
 
-    cv::setNumThreads(input_param->num_threads);
+    cv::setNumThreads(input_param.num_threads);
 
     return 0;
 }
@@ -278,7 +278,7 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
-int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* output_param)
+int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
     if (!s_palm_detection_engine || !s_hand_landmark_engine || !s_classification_engine) {
         PRINT_E("Not initialized\n");
@@ -286,7 +286,6 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
     }
 
     s_frame_cnt++;
-    cv::Mat& original_mat = *mat;
 
     bool enforce_palm_det = (s_frame_cnt % INTERVAL_TO_ENFORCE_PALM_DET) == 0;		// to increase accuracy
     //bool enforce_palm_det = false;
@@ -295,7 +294,7 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
     Rect palm = { 0 };
     if (s_is_palm_by_lm_valid == false || enforce_palm_det) {
         /*** Get Palms ***/
-        s_palm_detection_engine->Process(original_mat, palm_result);
+        s_palm_detection_engine->Process(mat, palm_result);
         for (const auto& detPalm : palm_result.palmList) {
             s_palm_by_lm.width = 0;	// reset 
             palm.x = (int32_t)(detPalm.x * 1);
@@ -315,35 +314,35 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
         palm.height = s_palm_by_lm.height;
         palm.rotation = s_palm_by_lm.rotation;
     }
-    palm = palm.fix(original_mat.cols, original_mat.rows);
+    palm = palm.fix(mat.cols, mat.rows);
 
     /*** Get landmark ***/
     HandLandmarkEngine::Result landmark_result;
     if (is_palm_valid) {
         cv::Scalar color_rect = (s_is_palm_by_lm_valid) ? CreateCvColor(0, 255, 0) : CreateCvColor(0, 0, 255);
-        cv::rectangle(original_mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), color_rect, 3);
+        cv::rectangle(mat, cv::Rect(palm.x, palm.y, palm.width, palm.height), color_rect, 3);
 
         /* Get landmark */
-        s_hand_landmark_engine->Process(original_mat, palm.x, palm.y, palm.width, palm.height, palm.rotation, landmark_result);
+        s_hand_landmark_engine->Process(mat, palm.x, palm.y, palm.width, palm.height, palm.rotation, landmark_result);
 
         if (landmark_result.hand_landmark.handflag >= 0.8) {
             CalcAverageRect(s_palm_by_lm, landmark_result.hand_landmark, 0.6f, 0.4f);
             if (s_isDebug) {
-                cv::rectangle(original_mat, cv::Rect(s_palm_by_lm.x, s_palm_by_lm.y, s_palm_by_lm.width, s_palm_by_lm.height), CreateCvColor(255, 0, 0), 3);
+                cv::rectangle(mat, cv::Rect(s_palm_by_lm.x, s_palm_by_lm.y, s_palm_by_lm.width, s_palm_by_lm.height), CreateCvColor(255, 0, 0), 3);
             }
 
             /* Display hand landmark */
             if (s_isDebug) {
                 for (int32_t i = 0; i < 21; i++) {
-                    cv::circle(original_mat, cv::Point((int32_t)landmark_result.hand_landmark.pos[i].x, (int32_t)landmark_result.hand_landmark.pos[i].y), 3, CreateCvColor(255, 255, 0), 1);
-                    cv::putText(original_mat, std::to_string(i), cv::Point((int32_t)landmark_result.hand_landmark.pos[i].x - 10, (int32_t)landmark_result.hand_landmark.pos[i].y - 10), 1, 1, CreateCvColor(255, 255, 0));
+                    cv::circle(mat, cv::Point((int32_t)landmark_result.hand_landmark.pos[i].x, (int32_t)landmark_result.hand_landmark.pos[i].y), 3, CreateCvColor(255, 255, 0), 1);
+                    cv::putText(mat, std::to_string(i), cv::Point((int32_t)landmark_result.hand_landmark.pos[i].x - 10, (int32_t)landmark_result.hand_landmark.pos[i].y - 10), 1, 1, CreateCvColor(255, 255, 0));
                 }
                 for (int32_t i = 0; i < 5; i++) {
                     for (int32_t j = 0; j < 3; j++) {
                         int32_t indexStart = 4 * i + 1 + j;
                         int32_t indexEnd = indexStart + 1;
                         int32_t color = std::min((int32_t)std::max((landmark_result.hand_landmark.pos[indexStart].z + landmark_result.hand_landmark.pos[indexEnd].z) / 2.0f * -4, 0.f), 255);
-                        cv::line(original_mat, cv::Point((int32_t)landmark_result.hand_landmark.pos[indexStart].x, (int32_t)landmark_result.hand_landmark.pos[indexStart].y), cv::Point((int32_t)landmark_result.hand_landmark.pos[indexEnd].x, (int32_t)landmark_result.hand_landmark.pos[indexEnd].y), CreateCvColor(color, color, color), 3);
+                        cv::line(mat, cv::Point((int32_t)landmark_result.hand_landmark.pos[indexStart].x, (int32_t)landmark_result.hand_landmark.pos[indexStart].y), cv::Point((int32_t)landmark_result.hand_landmark.pos[indexEnd].x, (int32_t)landmark_result.hand_landmark.pos[indexEnd].y), CreateCvColor(color, color, color), 3);
                     }
                 }
             } else {
@@ -433,9 +432,9 @@ int32_t ImageProcessor::Process(cv::Mat* mat, ImageProcessor::OutputParam* outpu
     }
 
     /* Return the results */
-    output_param->time_pre_process = palm_result.time_pre_process + landmark_result.time_pre_process;
-    output_param->time_inference = palm_result.time_inference + landmark_result.time_inference;
-    output_param->time_post_process = palm_result.time_post_process  + landmark_result.time_post_process;
+    result.time_pre_process = palm_result.time_pre_process + landmark_result.time_pre_process;
+    result.time_inference = palm_result.time_inference + landmark_result.time_inference;
+    result.time_post_process = palm_result.time_post_process  + landmark_result.time_post_process;
 
     return 0;
 }
