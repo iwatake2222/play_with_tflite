@@ -73,8 +73,6 @@ private:
 
 class Tracker {
 private:
-    static constexpr int32_t kThresholdCntToDelete = 3;
-    static constexpr float kThresholdIoUToTrack = 0.5F;
     static constexpr float kCostMax = 1.0F;
 
 public:
@@ -92,6 +90,9 @@ private:
 private:
     std::vector<Track> track_list_;
     int32_t track_sequence_num_;
+
+    int32_t threshold_frame_to_delete_;
+    float threshold_iou_to_track_;
 };
 
 #endif

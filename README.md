@@ -46,6 +46,20 @@ Sample projects to use Tensorflow Lite for multi-platform
     - temp_pj_tflite_edgetpupipeline_cls_inception_v3 (Not supported now)
         - Basic project for Edge TPU Pipeline
 
+## Usage
+```
+./main [input]
+
+ - input = blank: use the default image file set in source code (main.cpp)
+    - e.g. ./main
+ - input = *.mp4, *.avi, *.webm: use video file
+    - e.g. ./main test.mp4
+ - input = *.jpg, *.png, *.bmp: use image file
+    - e.g. ./main test.jpg
+ - input = number (e.g. 0, 1, 2, ...): use camera
+    - e.g. ./main 0
+```
+
 ## How to build application
 ### Requirements
 - OpenCV 4.x

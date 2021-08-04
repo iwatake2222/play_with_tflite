@@ -152,7 +152,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     s_tracker.Update(det_result.bbox_list);
     auto& track_list = s_tracker.GetTrackList();
     for (auto& track : track_list) {
-        if (track.GetDetectedCount() < 0) continue;
+        if (track.GetDetectedCount() < 2) continue;
         
         auto& bbox = track.GetLatestData().bbox;
         cv::Scalar color = bbox.score == 0 ? CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
@@ -160,7 +160,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         DrawText(mat, std::to_string(track.GetId()) + ": " + bbox.label, cv::Point(bbox.x, bbox.y), 0.5, 1, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
 
         auto& track_history = track.GetDataHistory();
-        for (int32_t i = 1; i < track_history.size(); i++) {
+        for (size_t i = 1; i < track_history.size(); i++) {
             cv::Point p0(track_history[i].bbox.x + track_history[i].bbox.w / 2, track_history[i].bbox.y + track_history[i].bbox.h);
             cv::Point p1(track_history[i - 1].bbox.x + track_history[i - 1].bbox.w / 2, track_history[i - 1].bbox.y + track_history[i - 1].bbox.h);
             cv::line(mat, p0, p1, CreateCvColor(255, 0, 0));

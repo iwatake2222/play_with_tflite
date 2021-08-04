@@ -50,12 +50,8 @@ static constexpr int32_t kGridChannel = 3;
 static constexpr int32_t kNumberOfClass = 80;
 static constexpr int32_t kElementNumOfAnchor = kNumberOfClass + 5;    // x, y, w, h, Objectness score, [class probabilities]
 
-
 #define LABEL_NAME   "label_coco_80.txt"
 
-
-static constexpr float kThresholdScore = 0.5f;
-static constexpr float kThresholdNmsIou = 0.5f;
 
 /*** Function ***/
 int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
@@ -120,14 +116,14 @@ int32_t DetectionEngine::Finalize()
 }
 
 
-static void GetBoundingBox(const float* data, float scale_x, float  scale_y, int32_t grid_w, int32_t grid_h, std::vector<BoundingBox>& bbox_list)
+void DetectionEngine::GetBoundingBox(const float* data, float scale_x, float  scale_y, int32_t grid_w, int32_t grid_h, std::vector<BoundingBox>& bbox_list)
 {
     int32_t index = 0;
     for (int32_t grid_y = 0; grid_y < grid_h; grid_y++) {
         for (int32_t grid_x = 0; grid_x < grid_w; grid_x++) {
             for (int32_t grid_c = 0; grid_c < kGridChannel; grid_c++) {
                 float box_confidence = data[index + 4];
-                if (box_confidence >= kThresholdScore) {
+                if (box_confidence >= threshold_box_confidence_) {
                     int32_t class_id = 0;
                     float confidence = 0;
                     for (int32_t class_index = 0; class_index < kNumberOfClass; class_index++) {
@@ -138,7 +134,7 @@ static void GetBoundingBox(const float* data, float scale_x, float  scale_y, int
                         }
                     }
 
-                    if (confidence >= kThresholdScore) {
+                    if (confidence >= threshold_class_confidence_) {
                         int32_t cx = static_cast<int32_t>((data[index + 0] + 0) * scale_x);     // no need to + grid_x
                         int32_t cy = static_cast<int32_t>((data[index + 1] + 0) * scale_y);     // no need to + grid_y
                         int32_t w = static_cast<int32_t>(data[index + 2] * scale_x);            // no need to exp
@@ -234,7 +230,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 
     /* NMS */
     std::vector<BoundingBox> bbox_nms_list;
-    BoundingBoxUtils::Nms(bbox_list, bbox_nms_list, kThresholdNmsIou);
+    BoundingBoxUtils::Nms(bbox_list, bbox_nms_list, threshold_nms_iou_);
 
     const auto& t_post_process1 = std::chrono::steady_clock::now();
 

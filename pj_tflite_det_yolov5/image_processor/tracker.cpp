@@ -209,6 +209,8 @@ KalmanFilter Track::CreateKalmanFilter_UniformLinearMotion(int32_t start_value)
 Tracker::Tracker()
 {
     track_sequence_num_ = 0;
+    threshold_frame_to_delete_ = 1;
+    threshold_iou_to_track_ = 0.3F;
 }
 
 Tracker::~Tracker()
@@ -232,6 +234,9 @@ float Tracker::CalculateSimilarity(const BoundingBox& bbox0, const BoundingBox& 
     float iou = BoundingBoxUtils::CalculateIoU(bbox0, bbox1);
     if (iou > 0.9) {
         /* must be the same object (do not check class id because class id may be mistaken) */
+    } else if (iou < threshold_iou_to_track_) {
+        /* cannot be the same object */
+        iou = 0;
     } else {
         if (bbox0.class_id == bbox1.class_id) {
             /* can be the same object */
@@ -256,8 +261,8 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     /*** Assign ***/
     /* Calculate IoU b/w predicted position and detected position */
     std::vector<std::vector<float>> cost_matrix(track_list_.size(), std::vector<float>(det_list.size(), kCostMax));
-    for (int32_t i_track = 0; i_track < track_list_.size(); i_track++) {
-        for (int32_t i_det = 0; i_det < det_list.size(); i_det++) {
+    for (size_t i_track = 0; i_track < track_list_.size(); i_track++) {
+        for (size_t i_det = 0; i_det < det_list.size(); i_det++) {
             cost_matrix[i_track][i_det] = CalculateSimilarity(bbox_pred_list[i_track], det_list[i_det]);
         }
     }
@@ -271,8 +276,8 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     }
 
 #if 0
-    for (int32_t i_track = 0; i_track < track_list_.size(); i_track++) {
-        for (int32_t i_det = 0; i_det < det_list.size(); i_det++) {
+    for (size_t i_track = 0; i_track < track_list_.size(); i_track++) {
+        for (size_t i_det = 0; i_det < det_list.size(); i_det++) {
             if (bbox_pred_list[i_track].class_id == det_list[i_det].class_id) {
                 printf("%.3f  ", cost_matrix[i_track][i_det]);
             }
@@ -281,18 +286,18 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     }
 
     printf("track:  det\n");
-    for (int32_t i = 0; i < det_index_for_track.size(); i++) {
+    for (size_t i = 0; i < det_index_for_track.size(); i++) {
         printf("%3d:  %3d\n", i, det_index_for_track[i]);
     }
     printf("det:  track\n");
-    for (int32_t i = 0; i < track_index_for_det.size(); i++) {
+    for (size_t i = 0; i < track_index_for_det.size(); i++) {
         printf("%3d:  %3d\n", i, track_index_for_det[i]);
     }
 #endif
 
     /*** Update track ***/
-    for (int32_t i_track = 0; i_track < track_list_.size(); i_track++) {
-        int32_t assigned_det_index = det_index_for_track[i_track];
+    for (size_t i_track = 0; i_track < track_list_.size(); i_track++) {
+        size_t assigned_det_index = det_index_for_track[i_track];
         if (assigned_det_index >= 0 && assigned_det_index < det_list.size() && cost_matrix[i_track][assigned_det_index] < kCostMax) {
             track_list_[i_track].Update(det_list[assigned_det_index]);
         } else{
@@ -302,7 +307,7 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
 
     /*** Delete tracks ***/
     for (auto it = track_list_.begin(); it != track_list_.end();) {
-        if (it->GetUndetectedCount() >= kThresholdCntToDelete) {
+        if (it->GetUndetectedCount() >= threshold_frame_to_delete_) {
             it = track_list_.erase(it);
         } else {
             it++;
@@ -310,7 +315,7 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     }
 
     /*** Add new tracks ***/
-    for (int32_t i = 0; i < track_index_for_det.size(); i++) {
+    for (size_t i = 0; i < track_index_for_det.size(); i++) {
         if (track_index_for_det[i] < 0) {
             track_list_.push_back(Track(track_sequence_num_, det_list[i]));
             track_sequence_num_++;

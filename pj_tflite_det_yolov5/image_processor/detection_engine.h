@@ -52,20 +52,34 @@ public:
     } Result;
 
 public:
-    DetectionEngine() {}
+    DetectionEngine() {
+        threshold_box_confidence_ = 0.5f;
+        threshold_class_confidence_ = 0.2f;
+        threshold_nms_iou_ = 0.5f;
+    }
     ~DetectionEngine() {}
     int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
     int32_t Finalize(void);
     int32_t Process(const cv::Mat& original_mat, Result& result);
+    void SetThreshold(float threshold_box_confidence, float threshold_class_confidence, float threshold_nms_iou) {
+        threshold_box_confidence_ = threshold_box_confidence;
+        threshold_class_confidence_ = threshold_class_confidence;
+        threshold_nms_iou_ = threshold_nms_iou;
+    }
 
 private:
     int32_t ReadLabel(const std::string& filename, std::vector<std::string>& label_list);
+    void GetBoundingBox(const float* data, float scale_x, float  scale_y, int32_t grid_w, int32_t grid_h, std::vector<BoundingBox>& bbox_list);
 
 private:
     std::unique_ptr<InferenceHelper> inference_helper_;
     std::vector<InputTensorInfo> input_tensor_info_list_;
     std::vector<OutputTensorInfo> output_tensor_info_list_;
     std::vector<std::string> label_list_;
+
+    float threshold_box_confidence_;
+    float threshold_class_confidence_;
+    float threshold_nms_iou_;
 };
 
 #endif

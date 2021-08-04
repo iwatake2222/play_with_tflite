@@ -267,7 +267,7 @@ public:
 
 	bool CheckShape() const
 	{
-		if (data_array.size() != cols * rows) return false;
+		if (static_cast<int32_t>(data_array.size()) != cols * rows) return false;
 		return true;
 	}
 
