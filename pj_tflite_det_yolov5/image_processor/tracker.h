@@ -57,14 +57,14 @@ public:
     const int32_t GetDetectedCount() const;
 
 private:
-    KalmanFilter CreateKalmanFilter_UniformLinearMotion(int32_t start_value);
+    KalmanFilter CreateKalmanFilter_UniformLinearMotion(const BoundingBox& bbox_start);
+    SimpleMatrix Bbox2KalmanObserved(const BoundingBox& bbox);
+    SimpleMatrix Bbox2KalmanStatus(const BoundingBox& bbox);
+    BoundingBox KalmanStatus2Bbox(const SimpleMatrix& X);
 
 private:
     std::deque<Data> data_history_;
-    KalmanFilter kf_cx_;
-    KalmanFilter kf_cy_;
-    KalmanFilter kf_w_;
-    KalmanFilter kf_h_;
+    KalmanFilter kf_;
     int32_t id_;
     int32_t cnt_detected_;
     int32_t cnt_undetected_;

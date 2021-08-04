@@ -39,16 +39,16 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
-#define MODEL_NAME  "yolov5_416x416.tflite"
+#define MODEL_NAME  "yolov5_480x640.tflite"
 #define INPUT_NAME  "input_1:0"
 #define IS_NCHW     false
-#define INPUT_DIMS  { 1, 416, 416, 3 }
+#define INPUT_DIMS  { 1, 480, 640, 3 }
 #define OUTPUT_NAME "Identity:0"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 static constexpr int32_t kGridScaleList[] = { 8, 16, 32 };
 static constexpr int32_t kGridChannel = 3;
 static constexpr int32_t kNumberOfClass = 80;
-static constexpr int32_t kElementNumOfAnchor = kNumberOfClass + 5;    // x, y, w, h, Objectness score, [class probabilities]
+static constexpr int32_t kElementNumOfAnchor = kNumberOfClass + 5;    // x, y, w, h, bbox confidence, [class confidence]
 
 #define LABEL_NAME   "label_coco_80.txt"
 
@@ -174,9 +174,10 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
         crop_h = static_cast<int32_t>(original_mat.cols / aspect_ratio_tensor);
         crop_y = (original_mat.rows - crop_h) / 2;
     }
-    cv::Mat img_src = original_mat(cv::Rect(crop_x, crop_y, crop_w, crop_h));
 
-    cv::resize(img_src, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
+    cv::Mat img_src;
+    cv::Mat img_crop = original_mat(cv::Rect(crop_x, crop_y, crop_w, crop_h));
+    cv::resize(img_crop, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
 #ifndef CV_COLOR_IS_RGB
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif

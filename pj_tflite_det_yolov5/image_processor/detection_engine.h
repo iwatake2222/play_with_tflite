@@ -53,7 +53,7 @@ public:
 
 public:
     DetectionEngine() {
-        threshold_box_confidence_ = 0.5f;
+        threshold_box_confidence_ = 0.4f;
         threshold_class_confidence_ = 0.2f;
         threshold_nms_iou_ = 0.5f;
     }

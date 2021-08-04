@@ -28,16 +28,6 @@ limitations under the License.
 #include "tracker.h"
 #include "hungarian_algorithm.h"
 
-static int32_t GetCenterX(const BoundingBox& bbox)
-{
-    return bbox.x + bbox.w / 2;
-}
-
-static int32_t GetCenterY(const BoundingBox& bbox)
-{
-    return bbox.y + bbox.h / 2;
-}
-
 
 Track::Track(const int32_t id, const BoundingBox& bbox_det)
 {
@@ -46,10 +36,7 @@ Track::Track(const int32_t id, const BoundingBox& bbox_det)
     data.bbox_raw = bbox_det;
     data_history_.push_back(data);
 
-    kf_w_ = CreateKalmanFilter_UniformLinearMotion(bbox_det.w);
-    kf_h_ = CreateKalmanFilter_UniformLinearMotion(bbox_det.h);
-    kf_cx_ = CreateKalmanFilter_UniformLinearMotion(GetCenterX(bbox_det));
-    kf_cy_ = CreateKalmanFilter_UniformLinearMotion(GetCenterY(bbox_det));
+    kf_ = CreateKalmanFilter_UniformLinearMotion(bbox_det);
 
     cnt_detected_ = 1;
     cnt_undetected_ = 0;
@@ -62,35 +49,30 @@ Track::~Track()
 
 BoundingBox Track::Predict()
 {
-    kf_w_.Predict();
-    kf_h_.Predict();
-    kf_cx_.Predict();
-    kf_cy_.Predict();
+    kf_.Predict();
 
-    BoundingBox bbox_pred = GetLatestBoundingBox();
-    bbox_pred.w = static_cast<int32_t>(kf_w_.X(0, 0));
-    bbox_pred.h = static_cast<int32_t>(kf_h_.X(0, 0));
-    bbox_pred.x = static_cast<int32_t>(kf_cx_.X(0, 0) - bbox_pred.w / 2);
-    bbox_pred.y = static_cast<int32_t>(kf_cy_.X(0, 0) - bbox_pred.h / 2);
-    bbox_pred.score = 0.0F;
+    BoundingBox bbox = GetLatestBoundingBox();
+    BoundingBox bbox_pred = KalmanStatus2Bbox(kf_.X);   // w, y, w, h only
+    bbox.w = bbox_pred.w;
+    bbox.h = bbox_pred.h;
+    bbox.x = bbox_pred.x;
+    bbox.y = bbox_pred.y;
+    bbox.score = 0.0F;
 
     Data data;
-    data.bbox = bbox_pred;
-    data.bbox_raw = bbox_pred;
+    data.bbox = bbox;
+    data.bbox_raw = bbox;
     data_history_.push_back(data);
     if (data_history_.size() > kMaxHistoryNum) {
         data_history_.pop_front();
     }
 
-    return bbox_pred;
+    return bbox;
 }
 
 void Track::Update(const BoundingBox& bbox_det)
 {
-    kf_w_.Update({ 1, 1, { static_cast<double>(bbox_det.w) } });
-    kf_h_.Update({ 1, 1, { static_cast<double>(bbox_det.h) } });
-    kf_cx_.Update({ 1, 1, { static_cast<double>(GetCenterX(bbox_det)) } });
-    kf_cy_.Update({ 1, 1, { static_cast<double>(GetCenterY(bbox_det)) } });
+    kf_.Update(Bbox2KalmanObserved(bbox_det));
 
     Data data;
     data.bbox = bbox_det;
@@ -98,11 +80,11 @@ void Track::Update(const BoundingBox& bbox_det)
 
     BoundingBox& bbox = data_history_.back().bbox;
     BoundingBox& bbox_raw = data_history_.back().bbox_raw;
-
-    bbox.w = static_cast<int32_t>(kf_w_.X(0, 0));
-    bbox.h = static_cast<int32_t>(kf_h_.X(0, 0));
-    bbox.x = static_cast<int32_t>(kf_cx_.X(0, 0) - bbox.w / 2);
-    bbox.y = static_cast<int32_t>(kf_cy_.X(0, 0) - bbox.h / 2);
+    BoundingBox bbox_est = KalmanStatus2Bbox(kf_.X);   // w, y, w, h only
+    bbox.w = bbox_est.w;
+    bbox.h = bbox_est.h;
+    bbox.x = bbox_est.x;
+    bbox.y = bbox_est.y;
     bbox.score = bbox_det.score;
     bbox_raw = bbox_det;
     
@@ -145,49 +127,57 @@ const int32_t Track::GetDetectedCount() const
     return cnt_detected_;
 }
 
-KalmanFilter Track::CreateKalmanFilter_UniformLinearMotion(int32_t start_value)
-{
-    static constexpr int32_t kNumObserve = 1;	/* (x) */
-    static constexpr int32_t kNumStatus = 2;	/* (x, v) */
-    static constexpr double delta_t = 1.0;
-    static constexpr double sigma_true = 0.5;
-    static constexpr double sigma_observe = 1.0;
 
+static constexpr int32_t kNumObserve = 4;   /* (cx, cy, area, aspect) */
+static constexpr int32_t kNumStatus = 7;    /* (cx, cy, area, aspect, vx, vy, vz)   (v = speed)*/
+KalmanFilter Track::CreateKalmanFilter_UniformLinearMotion(const BoundingBox& bbox_start)
+{
     /*** X(t) = F * X(t-1) + w(t) ***/
     /* Matrix to calculate X(t) from X(t-1). assume uniform motion: x(t) = x(t-1) + vt, v(t) = v(t-1) */
     const SimpleMatrix F(kNumStatus, kNumStatus, {
-        1, delta_t,
-        0, 1
+        1, 0, 0, 0, 1, 0, 0,
+        0, 1, 0, 0, 0, 1, 0,
+        0, 0, 1, 0, 0, 0, 1,
+        0, 0, 0, 1, 0, 0, 0,
+        0, 0, 0, 0, 1, 0, 0,
+        0, 0, 0, 0, 0, 1, 0,
+        0, 0, 0, 0, 0, 0, 1,
         });
 
-    /* Matrix to calculate delta_X from noise(=w). Assume w as accel */
-    const SimpleMatrix G(kNumStatus, 1, {
-        delta_t * delta_t / 2,
-        delta_t
-        });
 
     /* w(t), = noise, follows Q */
-    const SimpleMatrix Q = G * G.Transpose() * (sigma_true * sigma_true);
+    const SimpleMatrix Q(kNumStatus, kNumStatus, {
+        1, 0, 0, 0,    0,    0,     0,
+        0, 1, 0, 0,    0,    0,     0,
+        0, 0, 1, 0,    0,    0,     0,
+        0, 0, 0, 1,    0,    0,     0,
+        0, 0, 0, 0, 0.01,    0,     0,
+        0, 0, 0, 0,    0, 0.01,     0,
+        0, 0, 0, 0,    0,    0, 0.001,
+        });
 
     /*** Z(t) = H * X(t) + v(t) ***/
     /* Matrix to calculate Z(observed value) from X(internal status) */
     const SimpleMatrix H(kNumObserve, kNumStatus, {
-        1, 0
+        1, 0, 0, 0, 0, 0, 0,
+        0, 1, 0, 0, 0, 0, 0,
+        0, 0, 1, 0, 0, 0, 0,
+        0, 0, 0, 1, 0, 0, 0,
         });
 
     /* v(t), = noise, follows R */
-    const SimpleMatrix R(1, 1, { sigma_observe * sigma_observe });
+    const SimpleMatrix R(kNumObserve, kNumObserve, {
+        1, 0,  0,  0,
+        0, 1,  0,  0,
+        0, 0, 10,  0,
+        0, 0,  0, 10,
+        });
 
     /* First internal status */
-    const SimpleMatrix P0(kNumStatus, kNumStatus, {
-        1e10, 1e10,     /* Set big noise at first to make K=1 and trust observed value rather than estimated value */
-        1e10, 1e10
-        });
+    SimpleMatrix P0 = SimpleMatrix::IdentityMatrix(kNumStatus);
+    P0 = P0 * 10;   /* Set big noise at first to make K=1 and trust observed value rather than estimated value */
 
-    const SimpleMatrix X0(kNumStatus, 1, {
-        static_cast<double>(start_value),
-        0
-        });
+    const SimpleMatrix X0 = Bbox2KalmanStatus(bbox_start);
 
     KalmanFilter kf;
     kf.Initialize(
@@ -202,6 +192,40 @@ KalmanFilter Track::CreateKalmanFilter_UniformLinearMotion(int32_t start_value)
     return kf;
 }
 
+SimpleMatrix Track::Bbox2KalmanStatus(const BoundingBox& bbox)
+{
+    SimpleMatrix X(kNumStatus, 1, {
+        static_cast<double>(bbox.x + bbox.w / 2),
+        static_cast<double>(bbox.y + bbox.h / 2),
+        static_cast<double>(bbox.w * bbox.h),
+        static_cast<double>(bbox.w) / bbox.h,
+        0,
+        0,
+        0
+        });
+    return X;
+}
+
+SimpleMatrix Track::Bbox2KalmanObserved(const BoundingBox& bbox)
+{
+    SimpleMatrix Z(kNumObserve, 1, {
+        static_cast<double>(bbox.x + bbox.w / 2),
+        static_cast<double>(bbox.y + bbox.h / 2),
+        static_cast<double>(bbox.w * bbox.h),
+        static_cast<double>(bbox.w) / bbox.h,
+        });
+    return Z;
+}
+
+BoundingBox Track::KalmanStatus2Bbox(const SimpleMatrix& X)
+{
+    BoundingBox bbox;
+    bbox.w = static_cast<int32_t>(std::sqrt(X(2, 0) * X(3, 0)));
+    bbox.h = static_cast<int32_t>(X(2, 0) / bbox.w);
+    bbox.x = X(0, 0) - bbox.w / 2;
+    bbox.y = X(1, 0) - bbox.h / 2;
+    return bbox;
+}
 
 
 
@@ -209,7 +233,7 @@ KalmanFilter Track::CreateKalmanFilter_UniformLinearMotion(int32_t start_value)
 Tracker::Tracker()
 {
     track_sequence_num_ = 0;
-    threshold_frame_to_delete_ = 1;
+    threshold_frame_to_delete_ = 2;
     threshold_iou_to_track_ = 0.3F;
 }
 

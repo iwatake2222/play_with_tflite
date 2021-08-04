@@ -55,18 +55,18 @@ static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r)
 #endif
 }
 
-static void DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, double fontScale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back)
+static void DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back)
 {
 #if 1
     int32_t baseline = 0;
-    cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, fontScale, thickness, &baseline);
+    cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, font_scale, thickness, &baseline);
     baseline += thickness;
     pos.y += textSize.height / 2;
     cv::rectangle(mat, pos + cv::Point(0, baseline), pos + cv::Point(textSize.width, -textSize.height), color_back, -1);
-    cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, fontScale, color_front, thickness);
+    cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
 #else
-    cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, fontScale, color_back, thickness * 3);
-    cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, fontScale, color_front, thickness);
+    cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_back, thickness * 3);
+    cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
 #endif
 }
 
@@ -143,21 +143,25 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         return -1;
     }
 
+    /* Display target area  */
     cv::rectangle(mat, cv::Rect(det_result.crop_x, det_result.crop_y, det_result.crop_w, det_result.crop_h), CreateCvColor(0, 0, 0), 2);
+
+    /* Display detection result (black rectangle) */
     for (const auto& bbox : det_result.bbox_list) {
         cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 0, 0), 1);
     }
 
+    /* Display tracking result  */
     std::vector<BoundingBox> bbox_result_list;
     s_tracker.Update(det_result.bbox_list);
     auto& track_list = s_tracker.GetTrackList();
     for (auto& track : track_list) {
         if (track.GetDetectedCount() < 2) continue;
-        
-        auto& bbox = track.GetLatestData().bbox;
+        const auto& bbox = track.GetLatestData().bbox;
+        /* Use white rectangle for the object which was not detected but just predicted */
         cv::Scalar color = bbox.score == 0 ? CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
         cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
-        DrawText(mat, std::to_string(track.GetId()) + ": " + bbox.label, cv::Point(bbox.x, bbox.y), 0.5, 1, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
+        DrawText(mat, std::to_string(track.GetId()) + ": " + bbox.label, cv::Point(bbox.x, bbox.y), 0.35, 1, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
 
         auto& track_history = track.GetDataHistory();
         for (size_t i = 1; i < track_history.size(); i++) {
@@ -169,7 +173,8 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 
     /* Return the results */
     int32_t bbox_num = 0;
-    for (const auto& bbox : det_result.bbox_list) {
+    for (auto& track : track_list) {
+        const auto& bbox = track.GetLatestData().bbox;
         result.object_list[bbox_num].class_id = bbox.class_id;
         snprintf(result.object_list[bbox_num].label, sizeof(result.object_list[bbox_num].label), "%s", bbox.label.c_str());
         result.object_list[bbox_num].score = bbox.score;
@@ -181,7 +186,6 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         if (bbox_num >= NUM_MAX_RESULT) break;
     }
     result.object_num = bbox_num;
-
 
     result.time_pre_process = det_result.time_pre_process;
     result.time_inference = det_result.time_inference;
