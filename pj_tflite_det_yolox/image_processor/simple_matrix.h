@@ -259,8 +259,7 @@ public:
 
 			printf("\n--- Inverse of non-singular matrix 3x3 ---\n");
 			matInv = mat6.Inverse();
-		}
-		catch (std::exception e) {
+		} catch (std::exception& e) {
 			printf("Exception: %s\n", e.what());
 		}
 	}
