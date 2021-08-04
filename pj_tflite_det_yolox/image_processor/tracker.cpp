@@ -229,7 +229,7 @@ BoundingBox Track::KalmanStatus2Bbox(const SimpleMatrix& X)
 
 
 
-
+constexpr float Tracker::kCostMax;  // for link error in Android Studio (clang)
 Tracker::Tracker()
 {
     track_sequence_num_ = 0;
