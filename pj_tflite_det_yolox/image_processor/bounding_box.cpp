@@ -51,12 +51,12 @@ void BoundingBoxUtils::Nms(std::vector<BoundingBox>& bbox_list, std::vector<Boun
         });
 
     std::unique_ptr<bool[]> is_merged(new bool[bbox_list.size()]);
-    for (int32_t i = 0; i < bbox_list.size(); i++) is_merged[i] = false;
-    for (int32_t index_high_score = 0; index_high_score < bbox_list.size(); index_high_score++) {
+    for (size_t i = 0; i < bbox_list.size(); i++) is_merged[i] = false;
+    for (size_t index_high_score = 0; index_high_score < bbox_list.size(); index_high_score++) {
         std::vector<BoundingBox> candidates;
         if (is_merged[index_high_score]) continue;
         candidates.push_back(bbox_list[index_high_score]);
-        for (int32_t index_low_score = index_high_score + 1; index_low_score < bbox_list.size(); index_low_score++) {
+        for (size_t index_low_score = index_high_score + 1; index_low_score < bbox_list.size(); index_low_score++) {
             if (is_merged[index_low_score]) continue;
             if (bbox_list[index_high_score].class_id != bbox_list[index_low_score].class_id) continue;
             if (CalculateIoU(bbox_list[index_high_score], bbox_list[index_low_score]) > threshold_nms_iou) {

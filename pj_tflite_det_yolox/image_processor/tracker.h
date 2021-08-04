@@ -32,7 +32,7 @@ limitations under the License.
 
 class Track {
 private:
-    static constexpr int32_t kMaxHistoryNum = 100;
+    static constexpr int32_t kMaxHistoryNum = 30;
 
 public:
     typedef struct Data_ {
@@ -44,8 +44,9 @@ public:
     Track(const int32_t id, const BoundingBox& bbox_det);
     ~Track();
 
-    BoundingBox Predict() const;
-    void Update(const BoundingBox& bbox_det, bool is_detected);
+    BoundingBox Predict();
+    void Update(const BoundingBox& bbox_det);
+    void UpdateNoDetect();
 
     std::deque<Data>& GetDataHistory();
     const Data& GetLatestData() const ;
@@ -56,11 +57,14 @@ public:
     const int32_t GetDetectedCount() const;
 
 private:
+    KalmanFilter CreateKalmanFilter_UniformLinearMotion(const BoundingBox& bbox_start);
+    SimpleMatrix Bbox2KalmanObserved(const BoundingBox& bbox);
+    SimpleMatrix Bbox2KalmanStatus(const BoundingBox& bbox);
+    BoundingBox KalmanStatus2Bbox(const SimpleMatrix& X);
+
+private:
     std::deque<Data> data_history_;
-    KalmanFilter<int32_t> kf_cx_;
-    KalmanFilter<int32_t> kf_cy_;
-    KalmanFilter<int32_t> kf_w_;
-    KalmanFilter<int32_t> kf_h_;
+    KalmanFilter kf_;
     int32_t id_;
     int32_t cnt_detected_;
     int32_t cnt_undetected_;
@@ -69,8 +73,7 @@ private:
 
 class Tracker {
 private:
-    static constexpr int32_t kThresholdCntToDelete = 3;
-    static constexpr float kThresholdIoUToTrack = 0.5F;
+    static constexpr float kCostMax = 1.0F;
 
 public:
     Tracker();
@@ -87,6 +90,9 @@ private:
 private:
     std::vector<Track> track_list_;
     int32_t track_sequence_num_;
+
+    int32_t threshold_frame_to_delete_;
+    float threshold_iou_to_track_;
 };
 
 #endif

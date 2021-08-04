@@ -222,8 +222,8 @@ BoundingBox Track::KalmanStatus2Bbox(const SimpleMatrix& X)
     BoundingBox bbox;
     bbox.w = static_cast<int32_t>(std::sqrt(X(2, 0) * X(3, 0)));
     bbox.h = static_cast<int32_t>(X(2, 0) / bbox.w);
-    bbox.x = X(0, 0) - bbox.w / 2;
-    bbox.y = X(1, 0) - bbox.h / 2;
+    bbox.x = static_cast<int32_t>(X(0, 0) - bbox.w / 2);
+    bbox.y = static_cast<int32_t>(X(1, 0) - bbox.h / 2);
     return bbox;
 }
 

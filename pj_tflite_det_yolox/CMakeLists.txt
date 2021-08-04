@@ -23,3 +23,4 @@ target_link_libraries(${ProjectName} ${OpenCV_LIBS})
 # Copy resouce
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/../resource DESTINATION ${CMAKE_BINARY_DIR}/)
 add_definitions(-DRESOURCE_DIR="${CMAKE_BINARY_DIR}/resource/")
+
