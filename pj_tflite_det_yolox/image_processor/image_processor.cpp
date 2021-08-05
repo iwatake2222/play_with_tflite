@@ -147,13 +147,15 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     cv::rectangle(mat, cv::Rect(det_result.crop_x, det_result.crop_y, det_result.crop_w, det_result.crop_h), CreateCvColor(0, 0, 0), 2);
 
     /* Display detection result (black rectangle) */
+    int32_t num_det = 0;
     for (const auto& bbox : det_result.bbox_list) {
         cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 0, 0), 1);
+        num_det++;
     }
 
     /* Display tracking result  */
-    std::vector<BoundingBox> bbox_result_list;
     s_tracker.Update(det_result.bbox_list);
+    int32_t num_track = 0;
     auto& track_list = s_tracker.GetTrackList();
     for (auto& track : track_list) {
         if (track.GetDetectedCount() < 2) continue;
@@ -169,7 +171,9 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
             cv::Point p1(track_history[i - 1].bbox.x + track_history[i - 1].bbox.w / 2, track_history[i - 1].bbox.y + track_history[i - 1].bbox.h);
             cv::line(mat, p0, p1, CreateCvColor(255, 0, 0));
         }
+        num_track++;
     }
+    DrawText(mat, "DET: " + std::to_string(num_det) + ", TRACK: " + std::to_string(num_track), cv::Point(0, mat.rows - 10), 0.7, 2, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
 
     /* Return the results */
     int32_t bbox_num = 0;

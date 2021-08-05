@@ -81,12 +81,12 @@ void Track::Update(const BoundingBox& bbox_det)
     BoundingBox& bbox = data_history_.back().bbox;
     BoundingBox& bbox_raw = data_history_.back().bbox_raw;
     BoundingBox bbox_est = KalmanStatus2Bbox(kf_.X);   // w, y, w, h only
+    bbox_raw = bbox_det;
+    bbox = bbox_det;
     bbox.w = bbox_est.w;
     bbox.h = bbox_est.h;
     bbox.x = bbox_est.x;
     bbox.y = bbox_est.y;
-    bbox.score = bbox_det.score;
-    bbox_raw = bbox_det;
     
     cnt_detected_++;
     cnt_undetected_ = 0;
@@ -282,9 +282,10 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
         bbox_pred_list.push_back(bbox_prd);
     }
 
-    /*** Assign ***/
+    /*** Association ***/
     /* Calculate IoU b/w predicted position and detected position */
-    std::vector<std::vector<float>> cost_matrix(track_list_.size(), std::vector<float>(det_list.size(), kCostMax));
+    size_t size_cost_matrix = (std::max)(track_list_.size(), det_list.size());  /* workaround: my hungarian algorithm sometimes outputs wrong result when the input matrix is not squared */
+    std::vector<std::vector<float>> cost_matrix(size_cost_matrix, std::vector<float>(size_cost_matrix, kCostMax));
     for (size_t i_track = 0; i_track < track_list_.size(); i_track++) {
         for (size_t i_det = 0; i_det < det_list.size(); i_det++) {
             cost_matrix[i_track][i_det] = CalculateSimilarity(bbox_pred_list[i_track], det_list[i_det]);
@@ -292,8 +293,8 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     }
 
     /* Assign track and det */
-    std::vector<int32_t> det_index_for_track(track_list_.size(), -1);
-    std::vector<int32_t> track_index_for_det(det_list.size(), -1);
+    std::vector<int32_t> det_index_for_track(size_cost_matrix, -1);
+    std::vector<int32_t> track_index_for_det(size_cost_matrix, -1);
     if (track_list_.size() > 0 && det_list.size() > 0) {
         HungarianAlgorithm<float> solver(cost_matrix);
         solver.Solve(det_index_for_track, track_index_for_det);
@@ -302,9 +303,7 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
 #if 0
     for (size_t i_track = 0; i_track < track_list_.size(); i_track++) {
         for (size_t i_det = 0; i_det < det_list.size(); i_det++) {
-            if (bbox_pred_list[i_track].class_id == det_list[i_det].class_id) {
-                printf("%.3f  ", cost_matrix[i_track][i_det]);
-            }
+            printf("%.3f  ", cost_matrix[i_track][i_det]);
         }
         printf("\n");
     }
@@ -320,10 +319,12 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
 #endif
 
     /*** Update track ***/
+    std::vector<bool> is_det_assigned_list(size_cost_matrix, false);
     for (size_t i_track = 0; i_track < track_list_.size(); i_track++) {
-        size_t assigned_det_index = det_index_for_track[i_track];
-        if (assigned_det_index >= 0 && assigned_det_index < det_list.size() && cost_matrix[i_track][assigned_det_index] < kCostMax) {
+        int32_t assigned_det_index = det_index_for_track[i_track];
+        if (assigned_det_index >= 0 && assigned_det_index < static_cast<int32_t>(det_list.size()) && cost_matrix[i_track][assigned_det_index] < kCostMax) {
             track_list_[i_track].Update(det_list[assigned_det_index]);
+            is_det_assigned_list[assigned_det_index] = true;
         } else{
             track_list_[i_track].UpdateNoDetect();
         }
@@ -339,8 +340,8 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     }
 
     /*** Add new tracks ***/
-    for (size_t i = 0; i < track_index_for_det.size(); i++) {
-        if (track_index_for_det[i] < 0) {
+    for (size_t i = 0; i < det_list.size(); i++) {
+        if (is_det_assigned_list[i] == false) {
             track_list_.push_back(Track(track_sequence_num_, det_list[i]));
             track_sequence_num_++;
         }
