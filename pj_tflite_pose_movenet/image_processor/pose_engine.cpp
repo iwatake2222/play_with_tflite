@@ -39,7 +39,7 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
-#if 1
+#if 0
 /* Official model. https://tfhub.dev/google/lite-model/movenet/singlepose/lightning/3 */
 #define MODEL_NAME  "lite-model_movenet_singlepose_lightning_3.tflite"
 #define INPUT_NAME  "serving_default_input:0"
@@ -49,13 +49,11 @@ limitations under the License.
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #else
 /* PINTO_model_zoo. https://github.com/PINTO0309/PINTO_model_zoo */
-#define MODEL_NAME  "model_float32.tflite"
-// #define MODEL_NAME  "model_weight_quant.tflite"
-// #define MODEL_NAME  "model_integer_quant.tflite"
-#define INPUT_NAME  "input:0"
+#define MODEL_NAME  "movenet_lightning.tflite"
+#define INPUT_NAME  "serving_default_input_0:0"
 #define IS_NCHW     false
 #define INPUT_DIMS  { 1, 192, 192, 3 }
-#define OUTPUT_NAME "Identity:0"
+#define OUTPUT_NAME "StatefulPartitionedCall_0:0"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #endif
 
@@ -131,7 +129,7 @@ int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
     /*** PreProcess ***/
     const auto& t_pre_process0 = std::chrono::steady_clock::now();
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
-#if 1
+
     /* do resize and color conversion here because some inference engine doesn't support these operations */
     cv::Mat img_src;
     cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
@@ -149,29 +147,7 @@ int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
     input_tensor_info.image_info.crop_height = img_src.rows;
     input_tensor_info.image_info.is_bgr = false;
     input_tensor_info.image_info.swap_color = false;
-#else
-    /* Test other input format */
-    cv::Mat img_src;
-    input_tensor_info.data = original_mat.data;
-    input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
-    input_tensor_info.image_info.width = original_mat.cols;
-    input_tensor_info.image_info.height = original_mat.rows;
-    input_tensor_info.image_info.channel = original_mat.channels();
-    input_tensor_info.image_info.crop_x = 0;
-    input_tensor_info.image_info.crop_y = 0;
-    input_tensor_info.image_info.crop_width = original_mat.cols;
-    input_tensor_info.image_info.crop_height = original_mat.rows;
-    input_tensor_info.image_info.is_bgr = true;
-    input_tensor_info.image_info.swap_color = true;
-#if 0
-    InferenceHelper::PreProcessByOpenCV(input_tensor_info, false, img_src);
-    input_tensor_info.data_type = InputTensorInfo::DATA_TYPE_BLOB_NHWC;
-#else
-    InferenceHelper::PreProcessByOpenCV(input_tensor_info, true, img_src);
-    input_tensor_info.data_type = InputTensorInfo::DATA_TYPE_BLOB_NCHW;
-#endif
-    input_tensor_info.data = img_src.data;
-#endif
+
     if (inference_helper_->PreProcess(input_tensor_info_list_) != InferenceHelper::kRetOk) {
         return kRetErr;
     }

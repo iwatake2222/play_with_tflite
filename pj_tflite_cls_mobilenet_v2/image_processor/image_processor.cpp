@@ -114,8 +114,8 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     /* Draw the result */
     std::string result_str;
     result_str = "Result:" + cls_result.class_name + " (score = " + std::to_string(cls_result.score) + ")";
-    cv::putText(mat, result_str, cv::Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
-    cv::putText(mat, result_str, cv::Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
+    cv::putText(mat, result_str, cv::Point(0, 40), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
+    cv::putText(mat, result_str, cv::Point(0, 40), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
 
     /* Return the results */
     result.class_id = cls_result.class_id;
