@@ -1,13 +1,13 @@
 # YOLOX with ~~TensorFlow Lite~~ OpenCV(cv::dnn + ONNX) in C++
 Sample project to run YOLOX + SORT
 
-Click the image to open the video in YouTube
+Click the image to open in YouTube
 
 [![00_doc/yolox_sort.jpg](00_doc/yolox_sort.jpg)](https://youtu.be/bl19Ik4uz7c)
 
 
 ## Target Environment, How to Build, How to Run
-1. Please follow the instruction ( https://github.com/iwatake2222/play_with_tflite/blob/master/README.md )
+1. Please follow the instruction: https://github.com/iwatake2222/play_with_tflite/blob/master/README.md
 2. Additional steps:
     - Download the model using the following script
         - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/132_YOLOX/download_nano.sh
@@ -22,9 +22,9 @@ Click the image to open the video in YouTube
 OpenCV (cv::dnn) and onnx model is used in this project, althouth this repository is for TensorFlow Lite. It's because tflite model seems not perfectly ready.
 
 ## Play more ?
-- The project here uses very basic model and settings
 - You can run the project on Windows, Linux (x86_64), Linux (ARM) and Android
-- You can try another model such as bigger input size, quantized model, etc.:
+- The project here uses a very basic model and settings
+- You can try another model such as bigger input size, quantized model, etc.
     - Please modify `Model parameters` part in `detection_engine.cpp`
 - You can try TensorFlow Lite with delegate
     - Please modify `Create and Initialize Inference Helper` part in `detection_engine.cpp` and cmake option
