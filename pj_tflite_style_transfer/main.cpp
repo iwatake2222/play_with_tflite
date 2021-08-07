@@ -63,8 +63,9 @@ static bool FindSourceImage(const std::string& input_name, cv::VideoCapture& cap
     return true;
 }
 
-static void InputKeyCommand(cv::VideoCapture& cap)
+static bool InputKeyCommand(cv::VideoCapture& cap)
 {
+    bool ret_to_quit = false;
     static bool is_pause = false;
     bool is_process_one_frame = false;
     do {
@@ -72,6 +73,7 @@ static void InputKeyCommand(cv::VideoCapture& cap)
         switch (key) {
         case 'q':
             cap.release();
+            ret_to_quit = true;
             break;
         case 'p':
             is_pause = !is_pause;
@@ -95,6 +97,8 @@ static void InputKeyCommand(cv::VideoCapture& cap)
             break;
         }
     } while (is_pause && !is_process_one_frame);
+
+    return ret_to_quit;
 }
 
 int32_t main(int argc, char* argv[])
@@ -148,6 +152,13 @@ int32_t main(int argc, char* argv[])
         if (writer.isOpened()) writer.write(image);
         cv::imshow("test", image);
 
+        /* Input key command */
+        if (cap.isOpened()) {
+            /* this code needs to be before calculating processing time because cv::waitKey includes image output */
+            /* however, when 'q' key is pressed (cap.released()), processing time significantly incraeases. So escape from the loop before calculating time */
+            if (InputKeyCommand(cap)) break;
+        };
+
         /* Print processing time */
         const auto& time_all1 = std::chrono::steady_clock::now();
         double time_all = (time_all1 - time_all0).count() / 1000000.0;
@@ -169,9 +180,6 @@ int32_t main(int argc, char* argv[])
             total_time_inference += result.time_inference;
             total_time_post_process += result.time_post_process;
         }
-
-        /* Input key command */
-        if (cap.isOpened()) InputKeyCommand(cap);
     }
     
     /*** Finalize ***/

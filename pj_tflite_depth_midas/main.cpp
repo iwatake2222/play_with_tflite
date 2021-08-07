@@ -63,8 +63,9 @@ static bool FindSourceImage(const std::string& input_name, cv::VideoCapture& cap
     return true;
 }
 
-static void InputKeyCommand(cv::VideoCapture& cap)
+static bool InputKeyCommand(cv::VideoCapture& cap)
 {
+    bool ret_to_quit = false;
     static bool is_pause = false;
     bool is_process_one_frame = false;
     do {
@@ -72,6 +73,7 @@ static void InputKeyCommand(cv::VideoCapture& cap)
         switch (key) {
         case 'q':
             cap.release();
+            ret_to_quit = true;
             break;
         case 'p':
             is_pause = !is_pause;
@@ -95,6 +97,8 @@ static void InputKeyCommand(cv::VideoCapture& cap)
             break;
         }
     } while (is_pause && !is_process_one_frame);
+
+    return ret_to_quit;
 }
 
 int32_t main(int argc, char* argv[])
@@ -125,7 +129,6 @@ int32_t main(int argc, char* argv[])
 
     /*** Process for each frame ***/
     int32_t frame_cnt = 0;
-    char text_fps[256] = "";
     for (frame_cnt = 0; cap.isOpened() || frame_cnt < LOOP_NUM_FOR_TIME_MEASUREMENT; frame_cnt++) {
         const auto& time_all0 = std::chrono::steady_clock::now();
         /* Read image */
@@ -145,13 +148,16 @@ int32_t main(int argc, char* argv[])
         ImageProcessor::Process(image, result);
         const auto& time_image_process1 = std::chrono::steady_clock::now();
 
-        /* Draw FPS */
-        cv::putText(image, text_fps, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0), 3);
-        cv::putText(image, text_fps, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
-
         /* Display result */
         if (writer.isOpened()) writer.write(image);
         cv::imshow("test", image);
+
+        /* Input key command */
+        if (cap.isOpened()) {
+            /* this code needs to be before calculating processing time because cv::waitKey includes image output */
+            /* however, when 'q' key is pressed (cap.released()), processing time significantly incraeases. So escape from the loop before calculating time */
+            if (InputKeyCommand(cap)) break;
+        };
 
         /* Print processing time */
         const auto& time_all1 = std::chrono::steady_clock::now();
@@ -165,7 +171,6 @@ int32_t main(int argc, char* argv[])
         printf("    Inference:       %9.3lf [msec]\n", result.time_inference);
         printf("    Post processing: %9.3lf [msec]\n", result.time_post_process);
         printf("=== Finished %d frame ===\n\n", frame_cnt);
-        snprintf(text_fps, sizeof(text_fps), "FPS: %.1f, Inference: %.1f [ms]", 1000. / time_all, result.time_inference);
 
         if (frame_cnt > 0) {    /* do not count the first process because it may include initialize process */
             total_time_all += time_all;
@@ -175,9 +180,6 @@ int32_t main(int argc, char* argv[])
             total_time_inference += result.time_inference;
             total_time_post_process += result.time_post_process;
         }
-
-        /* Input key command */
-        if (cap.isOpened()) InputKeyCommand(cap);
     }
     
     /*** Finalize ***/

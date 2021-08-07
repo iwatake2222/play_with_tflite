@@ -88,12 +88,38 @@ static bool s_isDebug = true;
 /*** Function ***/
 static void CalcAverageRect(Rect &rect_org, HandLandmarkEngine::HAND_LANDMARK &rect_new, float ratio_pos, float ratio_size);
 
-static inline cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
+static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
 #ifdef CV_COLOR_IS_RGB
     return cv::Scalar(r, g, b);
 #else
     return cv::Scalar(b, g, r);
 #endif
+}
+
+static void DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
+{
+    int32_t baseline = 0;
+    cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, font_scale, thickness, &baseline);
+    baseline += thickness;
+    pos.y += textSize.height;
+    if (is_text_on_rect) {
+        cv::rectangle(mat, pos + cv::Point(0, baseline), pos + cv::Point(textSize.width, -textSize.height), color_back, -1);
+        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
+    } else {
+        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_back, thickness * 3);
+        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
+    }
+}
+
+static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
+{
+    char text[64];
+    static auto time_previous = std::chrono::steady_clock::now();
+    auto time_now = std::chrono::steady_clock::now();
+    double fps = 1e9 / (time_now - time_previous).count();
+    time_previous = time_now;
+    snprintf(text, sizeof(text), "FPS: %.1f, Inference: %.1f [ms]", fps, time_inference);
+    DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CreateCvColor(0, 0, 0), CreateCvColor(180, 180, 180), true);
 }
 
 static inline cv::Ptr<cv::Tracker> createTrackerByName(cv::String name)
@@ -347,7 +373,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
                 }
             } else {
                 for (int i = 0; i < 21; i++) {
-                    cv::circle(*mat, cv::Point((int)landmark_result.hand_landmark.pos[i].x, (int)landmark_result.hand_landmark.pos[i].y), 3, CreateCvColor(255, 255, 0), 1);
+                    cv::circle(mat, cv::Point((int)landmark_result.hand_landmark.pos[i].x, (int)landmark_result.hand_landmark.pos[i].y), 3, CreateCvColor(255, 255, 0), 1);
                 }
             }
             s_is_palm_by_lm_valid = true;
@@ -360,31 +386,31 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     s_areaSelector.run(landmark_result.hand_landmark);
     PRINT("areaSelector.m_status = %d \n", s_areaSelector.m_status);
     if (landmark_result.hand_landmark.handflag >= 0.8) {
-        s_areaSelector.m_selectedArea.x = std::min(std::max(0, s_areaSelector.m_selectedArea.x), mat->cols);
-        s_areaSelector.m_selectedArea.y = std::min(std::max(0, s_areaSelector.m_selectedArea.y), mat->rows);
-        s_areaSelector.m_selectedArea.width = std::min(std::max(1, s_areaSelector.m_selectedArea.width), mat->cols - s_areaSelector.m_selectedArea.x);
-        s_areaSelector.m_selectedArea.height = std::min(std::max(1, s_areaSelector.m_selectedArea.height), mat->rows - s_areaSelector.m_selectedArea.y);
+        s_areaSelector.m_selectedArea.x = std::min(std::max(0, s_areaSelector.m_selectedArea.x), mat.cols);
+        s_areaSelector.m_selectedArea.y = std::min(std::max(0, s_areaSelector.m_selectedArea.y), mat.rows);
+        s_areaSelector.m_selectedArea.width = std::min(std::max(1, s_areaSelector.m_selectedArea.width), mat.cols - s_areaSelector.m_selectedArea.x);
+        s_areaSelector.m_selectedArea.height = std::min(std::max(1, s_areaSelector.m_selectedArea.height), mat.rows - s_areaSelector.m_selectedArea.y);
         switch (s_areaSelector.m_status) {
         case AreaSelector::STATUS_AREA_SELECT_INIT:
-            cv::putText(*mat, "Point index and middle fingers at the start point", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, CreateCvColor(0, 255, 0), 2);
+            cv::putText(mat, "Point index and middle fingers at the start point", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, CreateCvColor(0, 255, 0), 2);
             break;
         case AreaSelector::STATUS_AREA_SELECT_DRAG:
-            cv::putText(*mat, "Move the fingers to the end point,", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, CreateCvColor(0, 255, 0), 2);
-            cv::putText(*mat, "then put back the middle finger", cv::Point(0, 40), cv::FONT_HERSHEY_DUPLEX, 0.8, CreateCvColor(0, 255, 0), 2);
-            cv::rectangle(*mat, s_areaSelector.m_selectedArea, CreateCvColor(255, 0, 0));
+            cv::putText(mat, "Move the fingers to the end point,", cv::Point(0, 20), cv::FONT_HERSHEY_DUPLEX, 0.8, CreateCvColor(0, 255, 0), 2);
+            cv::putText(mat, "then put back the middle finger", cv::Point(0, 40), cv::FONT_HERSHEY_DUPLEX, 0.8, CreateCvColor(0, 255, 0), 2);
+            cv::rectangle(mat, s_areaSelector.m_selectedArea, CreateCvColor(255, 0, 0));
             break;
         case AreaSelector::STATUS_AREA_SELECT_SELECTED:
         {
-            std::string class_name = classify(*mat, s_areaSelector.m_selectedArea);
+            std::string class_name = classify(mat, s_areaSelector.m_selectedArea);
 
             /* Add a new tracker for the selected area */
             OBJECT_TRACKER object;
-            if (s_areaSelector.m_selectedArea.width * s_areaSelector.m_selectedArea.height > mat->cols * mat->rows * 0.1) {
-                object.tracker = createTrackerByName("MEDIAN_FLOW");	// Use median flow for hube object because KCF becomes slow when the object size is huge
+            if (s_areaSelector.m_selectedArea.width * s_areaSelector.m_selectedArea.height > mat.cols * mat.rows * 0.1) {
+                //object.tracker = createTrackerByName("MEDIAN_FLOW");	// Use median flow for hube object because KCF becomes slow when the object size is huge
             } else {
-                object.tracker = createTrackerByName("KCF");
+                //object.tracker = createTrackerByName("KCF");
             }
-            object.tracker->init(*mat, cv::Rect(s_areaSelector.m_selectedArea));
+            object.tracker->init(mat, cv::Rect(s_areaSelector.m_selectedArea));
             object.numLost = 0;
             object.class_name = class_name;
             //object.rectFirst = s_selectedArea;
@@ -402,17 +428,17 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     for (auto it = s_objectList.begin(); it != s_objectList.end();) {
         auto tracker = it->tracker;
         cv::Rect2d trackedRect;
-        if (tracker->update(*mat, trackedRect)) {
+        if (tracker->update(mat, trackedRect)) {
             //cv::rectangle(mat, trackedRect, cv::Scalar(255, 0, 0), 2, 1);
             Rect rect;
             rect.x = (int)trackedRect.x;
             rect.y = (int)trackedRect.y;
             rect.width = (int)trackedRect.width;
             rect.height = (int)trackedRect.height;
-            drawRing(*mat, rect, CreateCvColor(255, 255, 205), s_animCount);
-            drawText(*mat, rect, CreateCvColor(207, 161, 69), it->class_name, s_animCount);
+            drawRing(mat, rect, CreateCvColor(255, 255, 205), s_animCount);
+            drawText(mat, rect, CreateCvColor(207, 161, 69), it->class_name, s_animCount);
             it->numLost = 0;
-            if (rect.width > mat->cols * 0.9) {	// in case median flow outputs crazy result
+            if (rect.width > mat.cols * 0.9) {	// in case median flow outputs crazy result
                 PRINT("delete due to too big result\n");
                 it = s_objectList.erase(it);
                 tracker.release();
@@ -431,6 +457,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         }
     }
 
+    DrawFps(mat, palm_result.time_inference + landmark_result.time_inference, cv::Point(0, 0), 0.5, 2, CreateCvColor(0, 0, 0), CreateCvColor(180, 180, 180), true);
     /* Return the results */
     result.time_pre_process = palm_result.time_pre_process + landmark_result.time_pre_process;
     result.time_inference = palm_result.time_inference + landmark_result.time_inference;
