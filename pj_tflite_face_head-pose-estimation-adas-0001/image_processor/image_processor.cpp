@@ -223,6 +223,27 @@ static void DrawHeadPoseAxes(cv::Mat& mat, const cv::Mat& camera_matrix, const c
     cv::line(mat, cv::Point(cpoint.x, cpoint.y), p2, CreateCvColor(255, 0, 0), 2);
 }
 
+static void DrawHeadPoseAxesEuler(cv::Mat& mat, const cv::Mat& camera_matrix, const cv::Point& cpoint, float yaw, float pitch, float roll, float scale)
+{
+    pitch *= -static_cast<float>(CV_PI / 180.0);
+    yaw *= static_cast<float>(CV_PI / 180.0);
+    roll *= static_cast<float>(CV_PI / 180.0);
+
+    cv::Point p;
+    p.x = scale * (cos(yaw) * cos(roll)) + cpoint.x;
+    p.y = scale * (cos(pitch) * sin(roll) + cos(roll) * sin(pitch) * sin(yaw)) + cpoint.y;
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CreateCvColor(0, 0, 255), 2);
+
+    p.x = scale * (-cos(yaw) * sin(roll)) + cpoint.x;
+    p.y = scale * (cos(pitch) * cos(roll) - sin(pitch) * sin(yaw) * sin(roll)) + cpoint.y;
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CreateCvColor(0, 255, 0), 2);
+
+    p.x = scale * (sin(yaw)) + cpoint.x;
+    p.y = scale * (-cos(yaw) * sin(pitch)) + cpoint.y;
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CreateCvColor(255, 0, 0), 2);
+}
+
+
 static float CalcFocalLength(int32_t pixel_size, float fov)
 {
     fov *= static_cast<float>(CV_PI / 180.0);
@@ -280,6 +301,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         cv::Point cpoint(bbox_list[i].x + bbox_list[i].w / 2, bbox_list[i].y + bbox_list[i].h / 2);
         float line_scale = bbox_list[i].h * 0.8f;
         DrawHeadPoseAxes(mat, s_camera_matrix, cpoint, headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll, line_scale);
+        //DrawHeadPoseAxesEuler(mat, s_camera_matrix, cpoint, headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll, line_scale);
     }
 
     DrawText(mat, "DET: " + std::to_string(bbox_list.size()), cv::Point(0, 20), 0.7, 2, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
