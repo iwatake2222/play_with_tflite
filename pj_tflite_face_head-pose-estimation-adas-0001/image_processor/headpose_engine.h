@@ -12,8 +12,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-#ifndef DETECTION_ENGINE_
-#define DETECTION_ENGINE_
+#ifndef HEADPOSE_ENGINE_
+#define HEADPOSE_ENGINE_
 
 /* for general */
 #include <cstdint>

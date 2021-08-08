@@ -43,9 +43,9 @@ limitations under the License.
 #define INPUT_NAME  "data"
 #define IS_NCHW     false
 #define INPUT_DIMS  { 1, 60, 60, 3 }
-#define OUTPUT_YAW_NAME "Identity"
-#define OUTPUT_PITCH_NAME "Identity_1"
-#define OUTPUT_ROLL_NAME "Identity_2"
+#define OUTPUT_NAME_0 "Identity"
+#define OUTPUT_NAME_1 "Identity_1"
+#define OUTPUT_NAME_2 "Identity_2"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 
 
@@ -72,9 +72,9 @@ int32_t HeadposeEngine::Initialize(const std::string& work_dir, const int32_t nu
 
     /* Set output tensor info */
     output_tensor_info_list_.clear();
-    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_YAW_NAME, TENSORTYPE));
-    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_PITCH_NAME, TENSORTYPE));
-    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_ROLL_NAME, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_0, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_1, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_2, TENSORTYPE));
 
     /* Create and Initialize Inference Helper */
     inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));

@@ -4,7 +4,7 @@ set(LibraryName "ImageProcessor")
 
 # Create library
 add_library (${LibraryName} image_processor.cpp image_processor.h headpose_engine.cpp headpose_engine.h
-    bounding_box.cpp bounding_box.h
+    bounding_box.cpp bounding_box.h face_detection_engine.cpp face_detection_engine.h
 )
 
 # For OpenCV

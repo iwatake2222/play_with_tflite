@@ -41,7 +41,7 @@ public:
 namespace BoundingBoxUtils
 {
     float CalculateIoU(const BoundingBox& obj0, const BoundingBox& obj1);
-    void Nms(std::vector<BoundingBox>& bbox_list, std::vector<BoundingBox>& bbox_nms_list, float threshold_nms_iou);
+    void Nms(std::vector<BoundingBox>& bbox_list, std::vector<BoundingBox>& bbox_nms_list, float threshold_nms_iou, bool check_class_id = false);
 }
 
 

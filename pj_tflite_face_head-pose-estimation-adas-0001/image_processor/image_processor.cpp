@@ -32,6 +32,7 @@ limitations under the License.
 /* for My modules */
 #include "common_helper.h"
 #include "bounding_box.h"
+#include "face_detection_engine.h"
 #include "headpose_engine.h"
 #include "image_processor.h"
 
@@ -41,7 +42,8 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-std::unique_ptr<HeadposeEngine> s_engine;
+std::unique_ptr<FaceDetectionEngine> s_facedet_engine;
+std::unique_ptr<HeadposeEngine> s_headpose_engine;
 cv::Mat s_camera_matrix;
 
 /*** Function ***/
@@ -82,15 +84,22 @@ static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double f
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
 {
-    if (s_engine) {
+    if (s_facedet_engine || s_headpose_engine) {
         PRINT_E("Already initialized\n");
         return -1;
     }
 
-    s_engine.reset(new HeadposeEngine());
-    if (s_engine->Initialize(input_param.work_dir, input_param.num_threads) != HeadposeEngine::kRetOk) {
-        s_engine->Finalize();
-        s_engine.reset();
+    s_facedet_engine.reset(new FaceDetectionEngine());
+    if (s_facedet_engine->Initialize(input_param.work_dir, input_param.num_threads) != FaceDetectionEngine::kRetOk) {
+        s_facedet_engine->Finalize();
+        s_facedet_engine.reset();
+        return -1;
+    }
+
+    s_headpose_engine.reset(new HeadposeEngine());
+    if (s_headpose_engine->Initialize(input_param.work_dir, input_param.num_threads) != HeadposeEngine::kRetOk) {
+        s_headpose_engine->Finalize();
+        s_headpose_engine.reset();
         return -1;
     }
 
@@ -101,12 +110,16 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param
 
 int32_t ImageProcessor::Finalize(void)
 {
-    if (!s_engine) {
+    if (!s_facedet_engine || !s_headpose_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
 
-    if (s_engine->Finalize() != HeadposeEngine::kRetOk) {
+    if (s_facedet_engine->Finalize() != HeadposeEngine::kRetOk) {
+        return -1;
+    }
+
+    if (s_headpose_engine->Finalize() != HeadposeEngine::kRetOk) {
         return -1;
     }
 
@@ -116,7 +129,7 @@ int32_t ImageProcessor::Finalize(void)
 
 int32_t ImageProcessor::Command(int32_t cmd)
 {
-    if (!s_engine) {
+    if (!s_facedet_engine || !s_headpose_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
@@ -149,9 +162,9 @@ static cv::Mat BuildCameraMatrix(int cx, int cy, float fx, float fy)
 /* reference:  https://github.com/incluit/OpenVino-Driver-Behaviour/blob/master/src/detectors.cpp#L484 */
 static void DrawHeadPoseAxes(cv::Mat& mat, const cv::Mat& camera_matrix, const cv::Point& cpoint, float yaw, float pitch, float roll, float scale)
 {
-    pitch *= CV_PI / 180.0f;
-    yaw *= CV_PI / 180.0f;
-    roll *= CV_PI / 180.0f;
+    pitch *= static_cast<float>(CV_PI / 180.0);
+    yaw *= static_cast<float>(CV_PI / 180.0);
+    roll *= static_cast<float>(CV_PI / 180.0);
 
     cv::Matx33f        Rx(1, 0, 0,
         0, cos(pitch), -sin(pitch),
@@ -206,30 +219,57 @@ static void DrawHeadPoseAxes(cv::Mat& mat, const cv::Mat& camera_matrix, const c
 
     p2.x = static_cast<int>((zAxis.at<float>(0) / zAxis.at<float>(2) * s_camera_matrix.at<float>(0)) + cpoint.x);
     p2.y = static_cast<int>((zAxis.at<float>(1) / zAxis.at<float>(2) * s_camera_matrix.at<float>(4)) + cpoint.y);
-    cv::line(mat, p1, p2, CreateCvColor(255, 0, 0), 2);
+    //cv::line(mat, p1, p2, CreateCvColor(255, 0, 0), 2);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p2, CreateCvColor(255, 0, 0), 2);
 }
 
+static float CalcFocalLength(int32_t pixel_size, float fov)
+{
+    fov *= static_cast<float>(CV_PI / 180.0);
+    return (pixel_size / 2) / tanf(fov / 2);
+}
 
 int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
-    if (!s_engine) {
+    if (!s_facedet_engine || !s_headpose_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
 
     /* Calculate camera matrix if not ready yet */
     if (s_camera_matrix.empty()) {
-        s_camera_matrix = BuildCameraMatrix(mat.cols / 2, mat.rows / 2, 950.0f, 950.0f);
+        s_camera_matrix = BuildCameraMatrix(mat.cols / 2, mat.rows / 2, CalcFocalLength(mat.cols, 80), CalcFocalLength(mat.rows, 80));
     }
 
-    /* Set face bounding boxes */
+    /* Detect face */
+    FaceDetectionEngine::Result det_result;
+    if (s_facedet_engine->Process(mat, det_result) != FaceDetectionEngine::kRetOk) {
+        return -1;
+    }
+
+    /* Display target area  */
+    cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CreateCvColor(0, 0, 0), 2);
+
+    /* Display detection result (black rectangle) */
+    int32_t num_det = 0;
+    for (const auto& bbox : det_result.bbox_list) {
+        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 0, 0), 1);
+        num_det++;
+    }
+
+    for (const auto& keypoint : det_result.keypoint_list) {
+        for (const auto& p : keypoint) {
+            cv::circle(mat, cv::Point(p.first, p.second), 1, CreateCvColor(0, 255, 0));
+        }
+    }
+
     /* Use fixed value for test image */
-    std::vector<BoundingBox> bbox_list;
-    bbox_list.push_back(BoundingBox(0, "FACE", 1.0f, 133, 140, 180, 180));
+    std::vector<BoundingBox> bbox_list = det_result.bbox_list;
+
 
     /* Estimate head pose */
     std::vector<HeadposeEngine::Result> headpose_result_list;
-    if (s_engine->Process(mat, bbox_list, headpose_result_list) != HeadposeEngine::kRetOk) {
+    if (s_headpose_engine->Process(mat, bbox_list, headpose_result_list) != HeadposeEngine::kRetOk) {
         return -1;
     }
 
@@ -244,9 +284,9 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     DrawText(mat, "DET: " + std::to_string(bbox_list.size()), cv::Point(0, 20), 0.7, 2, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
 
     /* Return the results */
-    result.time_pre_process = 0;
-    result.time_inference = 0;
-    result.time_post_process = 0;
+    result.time_pre_process = det_result.time_pre_process;
+    result.time_inference = det_result.time_inference;
+    result.time_post_process = det_result.time_post_process;
     for (const auto& headpose_result : headpose_result_list) {
         result.time_pre_process += headpose_result.time_pre_process;
         result.time_inference += headpose_result.time_inference;
