@@ -230,16 +230,16 @@ static void DrawHeadPoseAxesEuler(cv::Mat& mat, const cv::Mat& camera_matrix, co
     roll *= static_cast<float>(CV_PI / 180.0);
 
     cv::Point p;
-    p.x = scale * (cos(yaw) * cos(roll)) + cpoint.x;
-    p.y = scale * (cos(pitch) * sin(roll) + cos(roll) * sin(pitch) * sin(yaw)) + cpoint.y;
+    p.x = static_cast<int32_t>(scale * (std::cos(yaw) * std::cos(roll)) + cpoint.x);
+    p.y = static_cast<int32_t>(scale * (std::cos(pitch) * std::sin(roll) + std::cos(roll) * std::sin(pitch) * std::sin(yaw)) + cpoint.y);
     cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CreateCvColor(0, 0, 255), 2);
 
-    p.x = scale * (-cos(yaw) * sin(roll)) + cpoint.x;
-    p.y = scale * (cos(pitch) * cos(roll) - sin(pitch) * sin(yaw) * sin(roll)) + cpoint.y;
+    p.x = static_cast<int32_t>(scale * (-std::cos(yaw) * std::sin(roll)) + cpoint.x);
+    p.y = static_cast<int32_t>(scale * (std::cos(pitch) * std::cos(roll) - std::sin(pitch) * std::sin(yaw) * std::sin(roll)) + cpoint.y);
     cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CreateCvColor(0, 255, 0), 2);
 
-    p.x = scale * (sin(yaw)) + cpoint.x;
-    p.y = scale * (-cos(yaw) * sin(pitch)) + cpoint.y;
+    p.x = static_cast<int32_t>(scale * (std::sin(yaw)) + cpoint.x);
+    p.y = static_cast<int32_t>(scale * (-std::cos(yaw) * std::sin(pitch)) + cpoint.y);
     cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CreateCvColor(255, 0, 0), 2);
 }
 
@@ -271,11 +271,9 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     /* Display target area  */
     cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CreateCvColor(0, 0, 0), 2);
 
-    /* Display detection result (black rectangle) */
-    int32_t num_det = 0;
+    /* Display detection result and keypoint */
     for (const auto& bbox : det_result.bbox_list) {
-        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 0, 0), 1);
-        num_det++;
+        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 200, 0), 1);
     }
 
     for (const auto& keypoint : det_result.keypoint_list) {
@@ -287,7 +285,6 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     /* Use fixed value for test image */
     std::vector<BoundingBox> bbox_list = det_result.bbox_list;
 
-
     /* Estimate head pose */
     std::vector<HeadposeEngine::Result> headpose_result_list;
     if (s_headpose_engine->Process(mat, bbox_list, headpose_result_list) != HeadposeEngine::kRetOk) {
@@ -296,7 +293,6 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 
     /* Display head poses */
     for (int32_t i = 0; i < (std::min)(bbox_list.size(), headpose_result_list.size()); i++) {
-        cv::rectangle(mat, cv::Rect(bbox_list[i].x, bbox_list[i].y, bbox_list[i].w, bbox_list[i].h), CreateCvColor(0, 200, 0), 1);
         PRINT("%f %f %f\n", headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll);
         cv::Point cpoint(bbox_list[i].x + bbox_list[i].w / 2, bbox_list[i].y + bbox_list[i].h / 2);
         float line_scale = bbox_list[i].h * 0.8f;

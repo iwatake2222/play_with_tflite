@@ -33,7 +33,6 @@ limitations under the License.
 #include "common_helper.h"
 #include "bounding_box.h"
 #include "face_detection_engine.h"
-#include "tracker.h"
 #include "image_processor.h"
 
 /*** Macro ***/
@@ -43,7 +42,6 @@ limitations under the License.
 
 /*** Global variable ***/
 std::unique_ptr<FaceDetectionEngine> s_engine;
-Tracker s_tracker;
 
 /*** Function ***/
 static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r)
@@ -157,11 +155,9 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     /* Display target area  */
     cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CreateCvColor(0, 0, 0), 2);
 
-    /* Display detection result (black rectangle) */
-    int32_t num_det = 0;
+    /* Display detection result and keypoint */
     for (const auto& bbox : det_result.bbox_list) {
-        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 0, 0), 1);
-        num_det++;
+        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 200, 0), 1);
     }
 
     for (const auto& keypoint : det_result.keypoint_list) {
@@ -171,26 +167,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
 
     /* Display tracking result  */
-    s_tracker.Update(det_result.bbox_list);
-    int32_t num_track = 0;
-    auto& track_list = s_tracker.GetTrackList();
-    for (auto& track : track_list) {
-        //if (track.GetDetectedCount() < 2) continue;
-        const auto& bbox = track.GetLatestData().bbox;
-        /* Use white rectangle for the object which was not detected but just predicted */
-        cv::Scalar color = bbox.score == 0 ? CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
-        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
-        DrawText(mat, std::to_string(track.GetId()) + ": " + bbox.label, cv::Point(bbox.x, bbox.y), 0.35, 1, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
-
-        auto& track_history = track.GetDataHistory();
-        for (size_t i = 1; i < track_history.size(); i++) {
-            cv::Point p0(track_history[i].bbox.x + track_history[i].bbox.w / 2, track_history[i].bbox.y + track_history[i].bbox.h);
-            cv::Point p1(track_history[i - 1].bbox.x + track_history[i - 1].bbox.w / 2, track_history[i - 1].bbox.y + track_history[i - 1].bbox.h);
-            cv::line(mat, p0, p1, CreateCvColor(255, 0, 0));
-        }
-        num_track++;
-    }
-    DrawText(mat, "DET: " + std::to_string(num_det) + ", TRACK: " + std::to_string(num_track), cv::Point(0, 20), 0.7, 2, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
+    DrawText(mat, "DET: " + std::to_string(det_result.bbox_list.size()), cv::Point(0, 20), 0.7, 2, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
     
     
     /* Return the results */
