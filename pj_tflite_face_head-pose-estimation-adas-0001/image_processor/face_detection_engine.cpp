@@ -239,6 +239,7 @@ int32_t FaceDetectionEngine::Process(const cv::Mat& original_mat, Result& result
         bbox.score = Sigmoid(bbox.score);
         bbox.x += crop_x;
         bbox.y += crop_y;
+        BoundingBoxUtils::FixInScreen(bbox, original_mat.cols, original_mat.rows);
 
         /* Get keypoint */
         const float* regressor = &regressor_list[anchor_index * kElementNumOfAnchor];

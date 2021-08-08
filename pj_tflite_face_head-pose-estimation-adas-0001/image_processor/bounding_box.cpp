@@ -69,3 +69,10 @@ void BoundingBoxUtils::Nms(std::vector<BoundingBox>& bbox_list, std::vector<Boun
     }
 }
 
+void BoundingBoxUtils::FixInScreen(BoundingBox& bbox, int32_t width, int32_t height)
+{
+    bbox.x = (std::max)(0, bbox.x);
+    bbox.y = (std::max)(0, bbox.y);
+    bbox.w = (std::min)(width - bbox.x, bbox.w);
+    bbox.h = (std::min)(width - bbox.y, bbox.h);
+}

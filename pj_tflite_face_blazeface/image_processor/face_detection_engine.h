@@ -59,8 +59,8 @@ public:
 
 public:
     FaceDetectionEngine() {
-        threshold_confidence_ = 0.4f;
-        threshold_nms_iou_ = 0.5f;
+        threshold_confidence_ = 0.6f;
+        threshold_nms_iou_ = 0.6f;
     }
     ~FaceDetectionEngine() {}
     int32_t Initialize(const std::string& work_dir, const int32_t num_threads);

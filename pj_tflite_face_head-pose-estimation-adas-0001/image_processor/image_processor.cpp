@@ -278,7 +278,8 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         cv::rectangle(mat, cv::Rect(bbox_list[i].x, bbox_list[i].y, bbox_list[i].w, bbox_list[i].h), CreateCvColor(0, 200, 0), 1);
         PRINT("%f %f %f\n", headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll);
         cv::Point cpoint(bbox_list[i].x + bbox_list[i].w / 2, bbox_list[i].y + bbox_list[i].h / 2);
-        DrawHeadPoseAxes(mat, s_camera_matrix, cpoint, headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll, 100);
+        float line_scale = bbox_list[i].h * 0.8f;
+        DrawHeadPoseAxes(mat, s_camera_matrix, cpoint, headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll, line_scale);
     }
 
     DrawText(mat, "DET: " + std::to_string(bbox_list.size()), cv::Point(0, 20), 0.7, 2, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
