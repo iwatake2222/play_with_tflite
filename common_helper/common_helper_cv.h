@@ -35,6 +35,10 @@ enum {
 
 void CropResizeCvt(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x, int32_t& crop_y, int32_t& crop_w, int32_t& crop_h, bool is_rgb = true, int32_t crop_type = kCropTypeStretch, bool resize_by_linear = true);
 
+std::string CreateGStreamerPipeline(int capture_width, int capture_height, int display_width, int display_height, int framerate, int flip_method);
+bool FindSourceImage(const std::string& input_name, cv::VideoCapture& cap, int32_t width = 640, int32_t height = 480);
+bool InputKeyCommand(cv::VideoCapture& cap);
+
 }
 
 #endif

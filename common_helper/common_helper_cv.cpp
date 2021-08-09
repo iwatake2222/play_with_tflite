@@ -30,7 +30,6 @@ limitations under the License.
 #include "common_helper_cv.h"
 
 
-
 void CommonHelper::CropResizeCvt(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x, int32_t& crop_y, int32_t& crop_w, int32_t& crop_h, bool is_rgb, int32_t crop_type, bool resize_by_linear)
 {
     const int32_t interpolation_flag = resize_by_linear ? cv::INTER_LINEAR : cv::INTER_NEAREST;
@@ -85,4 +84,86 @@ void CommonHelper::CropResizeCvt(const cv::Mat& org, cv::Mat& dst, int32_t& crop
     }
 #endif
 
+}
+
+/* https://github.com/JetsonHacksNano/CSI-Camera/blob/master/simple_camera.cpp */
+/* modified by iwatake2222 */
+std::string CommonHelper::CreateGStreamerPipeline(int capture_width, int capture_height, int display_width, int display_height, int framerate, int flip_method) {
+    return "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)" + std::to_string(capture_width) + ", height=(int)" +
+        std::to_string(capture_height) + ", format=(string)NV12, framerate=(fraction)" + std::to_string(framerate) +
+        "/1 ! nvvidconv flip-method=" + std::to_string(flip_method) + " ! video/x-raw, width=(int)" + std::to_string(display_width) + ", height=(int)" +
+        std::to_string(display_height) + ", format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink max-buffers=1 drop=True";
+}
+
+bool CommonHelper::FindSourceImage(const std::string& input_name, cv::VideoCapture& cap, int32_t width, int32_t height)
+{
+    if (input_name.find(".mp4") != std::string::npos || input_name.find(".avi") != std::string::npos || input_name.find(".webm") != std::string::npos) {
+        cap = cv::VideoCapture(input_name);
+        if (!cap.isOpened()) {
+            printf("Invalid input source: %s\n", input_name.c_str());
+            return false;
+        }
+    } else if (input_name.find(".jpg") != std::string::npos || input_name.find(".png") != std::string::npos || input_name.find(".bmp") != std::string::npos) {
+        if (cv::imread(input_name).empty()) {
+            printf("Invalid input source: %s\n", input_name.c_str());
+            return false;
+        }
+    } else {
+        if (input_name == "jetson") {
+            cap = cv::VideoCapture(CreateGStreamerPipeline(width, height, width, height, 60, 2));
+        } else {
+            int32_t cam_id = -1;
+            try {
+                cam_id = std::stoi(input_name);
+            }
+            catch (...) {}
+            cap = (cam_id >= 0) ? cv::VideoCapture(cam_id) : cv::VideoCapture(input_name);
+            cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
+            cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
+            cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+        }
+        if (!cap.isOpened()) {
+            printf("Unable to open camera: %s\n", input_name.c_str());
+            return false;
+        }
+    }
+    return true;
+}
+
+bool CommonHelper::InputKeyCommand(cv::VideoCapture& cap)
+{
+    bool ret_to_quit = false;
+    static bool is_pause = false;
+    bool is_process_one_frame = false;
+    do {
+        int32_t key = cv::waitKey(1) & 0xff;
+        switch (key) {
+        case 'q':
+            cap.release();
+            ret_to_quit = true;
+            break;
+        case 'p':
+            is_pause = !is_pause;
+            break;
+        case '>':
+            if (is_pause) {
+                is_process_one_frame = true;
+            } else {
+                int32_t current_frame = static_cast<int32_t>(cap.get(cv::CAP_PROP_POS_FRAMES));
+                cap.set(cv::CAP_PROP_POS_FRAMES, current_frame + 100);
+            }
+            break;
+        case '<':
+            int32_t current_frame = static_cast<int32_t>(cap.get(cv::CAP_PROP_POS_FRAMES));
+            if (is_pause) {
+                is_process_one_frame = true;
+                cap.set(cv::CAP_PROP_POS_FRAMES, current_frame - 2);
+            } else {
+                cap.set(cv::CAP_PROP_POS_FRAMES, current_frame - 100);
+            }
+            break;
+        }
+    } while (is_pause && !is_process_one_frame);
+
+    return ret_to_quit;
 }

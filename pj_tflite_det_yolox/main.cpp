@@ -25,6 +25,7 @@ limitations under the License.
 
 /* for My modules */
 #include "image_processor.h"
+#include "common_helper_cv.h"
 
 /*** Macro ***/
 #define WORK_DIR                      RESOURCE_DIR
@@ -32,88 +33,6 @@ limitations under the License.
 #define LOOP_NUM_FOR_TIME_MEASUREMENT 10
 
 /*** Function ***/
-/* https://github.com/JetsonHacksNano/CSI-Camera/blob/master/simple_camera.cpp */
-/* modified by iwatake2222 */
-static std::string gstreamer_pipeline (int capture_width, int capture_height, int display_width, int display_height, int framerate, int flip_method) {
-    return "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)" + std::to_string(capture_width) + ", height=(int)" +
-           std::to_string(capture_height) + ", format=(string)NV12, framerate=(fraction)" + std::to_string(framerate) +
-           "/1 ! nvvidconv flip-method=" + std::to_string(flip_method) + " ! video/x-raw, width=(int)" + std::to_string(display_width) + ", height=(int)" +
-           std::to_string(display_height) + ", format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink max-buffers=1 drop=True";
-}
-
-static bool FindSourceImage(const std::string& input_name, cv::VideoCapture& cap)
-{
-    if (input_name.find(".mp4") != std::string::npos || input_name.find(".avi") != std::string::npos || input_name.find(".webm") != std::string::npos) {
-        cap = cv::VideoCapture(input_name);
-        if (!cap.isOpened()) {
-            printf("Invalid input source: %s\n", input_name.c_str());
-            return false;
-        }
-    } else if (input_name.find(".jpg") != std::string::npos || input_name.find(".png") != std::string::npos || input_name.find(".bmp") != std::string::npos) {
-        if (cv::imread(input_name).empty()) {
-            printf("Invalid input source: %s\n", input_name.c_str());
-            return false;
-        }
-    } else {
-        if (input_name == "jetson") {
-            cap = cv::VideoCapture(gstreamer_pipeline(1280, 720, 1280, 720, 60, 2));
-        } else {
-            int32_t cam_id = -1;
-            try {
-                cam_id = std::stoi(input_name);
-            }
-            catch (...) {}
-            cap = (cam_id >= 0) ? cv::VideoCapture(cam_id): cv::VideoCapture(input_name);
-            cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-            cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
-            cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
-        }
-        if (!cap.isOpened()) {
-            printf("Unable to open camera: %s\n", input_name.c_str());
-            return false;
-        }
-    }
-    return true;
-}
-
-static bool InputKeyCommand(cv::VideoCapture& cap)
-{
-    bool ret_to_quit = false;
-    static bool is_pause = false;
-    bool is_process_one_frame = false;
-    do {
-        int32_t key = cv::waitKey(1) & 0xff;
-        switch (key) {
-        case 'q':
-            cap.release();
-            ret_to_quit = true;
-            break;
-        case 'p':
-            is_pause = !is_pause;
-            break;
-        case '>':
-            if (is_pause) {
-                is_process_one_frame = true;
-            } else {
-                int32_t current_frame = static_cast<int32_t>(cap.get(cv::CAP_PROP_POS_FRAMES));
-                cap.set(cv::CAP_PROP_POS_FRAMES, current_frame + 100);
-            }
-            break;
-        case '<':
-            int32_t current_frame = static_cast<int32_t>(cap.get(cv::CAP_PROP_POS_FRAMES));
-            if (is_pause) {
-                is_process_one_frame = true;
-                cap.set(cv::CAP_PROP_POS_FRAMES, current_frame - 2);
-            } else {
-                cap.set(cv::CAP_PROP_POS_FRAMES, current_frame - 100);
-            }
-            break;
-        }
-    } while (is_pause && !is_process_one_frame);
-
-    return ret_to_quit;
-}
-
 int32_t main(int argc, char* argv[])
 {
     /*** Initialize ***/
@@ -128,7 +47,7 @@ int32_t main(int argc, char* argv[])
     /* Find source image */
     std::string input_name = (argc > 1) ? argv[1] : DEFAULT_INPUT_IMAGE;
     cv::VideoCapture cap;   /* if cap is not opened, src is still image */
-    if (!FindSourceImage(input_name, cap)) {
+    if (!CommonHelper::FindSourceImage(input_name, cap)) {
         return -1;
     }
 
@@ -169,7 +88,7 @@ int32_t main(int argc, char* argv[])
         if (cap.isOpened()) {
             /* this code needs to be before calculating processing time because cv::waitKey includes image output */
             /* however, when 'q' key is pressed (cap.released()), processing time significantly incraeases. So escape from the loop before calculating time */
-            if (InputKeyCommand(cap)) break;
+            if (CommonHelper::InputKeyCommand(cap)) break;
         };
 
         /* Print processing time */
