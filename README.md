@@ -140,6 +140,7 @@ You also need to select framework when calling `InferenceHelper::create` .
     - FIle -> Project Structure -> Dependencies -> app -> Declared Dependencies -> + -> Module Dependencies
         - select sdk
     - In case you cannot import OpenCV module, remove sdk module and dependency of app to sdk in Project Structure
+        - Do `git update-index --skip-worktree ViewAndroid/app/build.gradle ViewAndroid/settings.gradle ViewAndroid/.idea/gradle.xml` not to save modified settings including opencv sdk
 - Modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to call image processor function you want to use.
     - `set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_arprobe/ImageProcessor")`
 - Copy `resource` directory to `/storage/emulated/0/Android/data/com.iwatake.viewandroidtflite/files/Documents/resource` (<- e.g.) . The directory will be created after running the app (so the first run should fail because model files cannot be read)
