@@ -5,7 +5,7 @@ set(ProjectName "main")
 project(${ProjectName})
 
 # Select build system and set compile options
-include(${CMAKE_CURRENT_LIST_DIR}/../InferenceHelper/common_helper/cmakes/build_setting.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../common_helper/cmakes/build_setting.cmake)
 
 # Create executable file
 add_executable(${ProjectName} main.cpp)

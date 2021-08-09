@@ -28,12 +28,12 @@ limitations under the License.
 namespace CommonHelper
 {
 enum {
-    kCropResizeTypeStretch = 0,
-    kCropResizeTypeCut,
-    kCropResizeTypeExpand,
+    kCropTypeStretch = 0,
+    kCropTypeCut,
+    kCropTypeExpand,
 };
 
-void CropResize(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x, int32_t& crop_y, int32_t& crop_w, int32_t& crop_h, int32_t type = kCropResizeTypeStretch, bool resize_by_linear = true);
+void CropResizeCvt(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x, int32_t& crop_y, int32_t& crop_w, int32_t& crop_h, bool is_rgb = true, int32_t crop_type = kCropTypeStretch, bool resize_by_linear = true);
 
 }
 

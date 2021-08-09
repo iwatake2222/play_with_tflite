@@ -31,15 +31,15 @@ limitations under the License.
 
 
 
-void CommonHelper::CropResize(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x, int32_t& crop_y, int32_t& crop_w, int32_t& crop_h, int32_t type, bool resize_by_linear)
+void CommonHelper::CropResizeCvt(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x, int32_t& crop_y, int32_t& crop_w, int32_t& crop_h, bool is_rgb, int32_t crop_type, bool resize_by_linear)
 {
     const int32_t interpolation_flag = resize_by_linear ? cv::INTER_LINEAR : cv::INTER_NEAREST;
 
     cv::Mat src = org(cv::Rect(crop_x, crop_y, crop_w, crop_h));
 
-    if (type == kCropResizeTypeStretch) {
+    if (crop_type == kCropTypeStretch) {
         cv::resize(src, dst, dst.size(), 0, 0, interpolation_flag);
-    } else if (type == kCropResizeTypeCut) {
+    } else if (crop_type == kCropTypeCut) {
         float aspect_ratio_src = static_cast<float>(src.cols) / src.rows;
         float aspect_ratio_dst = static_cast<float>(dst.cols) / dst.rows;
         cv::Rect target_rect(0, 0, src.cols, src.rows);
@@ -74,4 +74,15 @@ void CommonHelper::CropResize(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x,
         crop_w = dst.cols * crop_w / target_rect.width;
         crop_h = dst.rows * crop_h / target_rect.height;
     }
+
+#ifdef CV_COLOR_IS_RGB
+    if (!is_rg) {
+        cv::cvtColor(dst, dst, cv::COLOR_RGB2BGR);
+    }
+#else
+    if (is_rgb) {
+        cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
+    }
+#endif
+
 }
