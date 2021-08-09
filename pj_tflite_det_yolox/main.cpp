@@ -32,6 +32,15 @@ limitations under the License.
 #define LOOP_NUM_FOR_TIME_MEASUREMENT 10
 
 /*** Function ***/
+/* https://github.com/JetsonHacksNano/CSI-Camera/blob/master/simple_camera.cpp */
+/* modified by iwatake2222 */
+static std::string gstreamer_pipeline (int capture_width, int capture_height, int display_width, int display_height, int framerate, int flip_method) {
+    return "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)" + std::to_string(capture_width) + ", height=(int)" +
+           std::to_string(capture_height) + ", format=(string)NV12, framerate=(fraction)" + std::to_string(framerate) +
+           "/1 ! nvvidconv flip-method=" + std::to_string(flip_method) + " ! video/x-raw, width=(int)" + std::to_string(display_width) + ", height=(int)" +
+           std::to_string(display_height) + ", format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink max-buffers=1 drop=True";
+}
+
 static bool FindSourceImage(const std::string& input_name, cv::VideoCapture& cap)
 {
     if (input_name.find(".mp4") != std::string::npos || input_name.find(".avi") != std::string::npos || input_name.find(".webm") != std::string::npos) {
@@ -46,19 +55,23 @@ static bool FindSourceImage(const std::string& input_name, cv::VideoCapture& cap
             return false;
         }
     } else {
-        int32_t cam_id = -1;
-        try {
-            cam_id = std::stoi(input_name);
+        if (input_name == "jetson") {
+            cap = cv::VideoCapture(gstreamer_pipeline(1280, 720, 1280, 720, 60, 2));
+        } else {
+            int32_t cam_id = -1;
+            try {
+                cam_id = std::stoi(input_name);
+            }
+            catch (...) {}
+            cap = (cam_id >= 0) ? cv::VideoCapture(cam_id): cv::VideoCapture(input_name);
+            cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+            cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+            cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
         }
-        catch (...) {}
-        cap = (cam_id >= 0) ? cv::VideoCapture(cam_id): cv::VideoCapture(input_name);     
         if (!cap.isOpened()) {
             printf("Unable to open camera: %s\n", input_name.c_str());
             return false;
         }
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
-        cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
     }
     return true;
 }

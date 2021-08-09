@@ -42,7 +42,7 @@ float BoundingBoxUtils::CalculateIoU(const BoundingBox& obj0, const BoundingBox&
 
 
 
-void BoundingBoxUtils::Nms(std::vector<BoundingBox>& bbox_list, std::vector<BoundingBox>& bbox_nms_list, float threshold_nms_iou)
+void BoundingBoxUtils::Nms(std::vector<BoundingBox>& bbox_list, std::vector<BoundingBox>& bbox_nms_list, float threshold_nms_iou, bool check_class_id)
 {
     std::sort(bbox_list.begin(), bbox_list.end(), [](BoundingBox const& lhs, BoundingBox const& rhs) {
         //if (lhs.w * lhs.h > rhs.w * rhs.h) return true;
@@ -58,7 +58,7 @@ void BoundingBoxUtils::Nms(std::vector<BoundingBox>& bbox_list, std::vector<Boun
         candidates.push_back(bbox_list[index_high_score]);
         for (size_t index_low_score = index_high_score + 1; index_low_score < bbox_list.size(); index_low_score++) {
             if (is_merged[index_low_score]) continue;
-            if (bbox_list[index_high_score].class_id != bbox_list[index_low_score].class_id) continue;
+            if (check_class_id && bbox_list[index_high_score].class_id != bbox_list[index_low_score].class_id) continue;
             if (CalculateIoU(bbox_list[index_high_score], bbox_list[index_low_score]) > threshold_nms_iou) {
                 candidates.push_back(bbox_list[index_low_score]);
                 is_merged[index_low_score] = true;
@@ -69,3 +69,10 @@ void BoundingBoxUtils::Nms(std::vector<BoundingBox>& bbox_list, std::vector<Boun
     }
 }
 
+void BoundingBoxUtils::FixInScreen(BoundingBox& bbox, int32_t width, int32_t height)
+{
+    bbox.x = (std::max)(0, bbox.x);
+    bbox.y = (std::max)(0, bbox.y);
+    bbox.w = (std::min)(width - bbox.x, bbox.w);
+    bbox.h = (std::min)(width - bbox.y, bbox.h);
+}

@@ -30,6 +30,7 @@ limitations under the License.
 
 /* for My modules */
 #include "common_helper.h"
+#include "common_helper_cv.h"
 #include "inference_helper.h"
 #include "detection_engine.h"
 
@@ -39,11 +40,12 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
-#define MODEL_NAME  "yolox_nano_480x640.onnx"
+#define MODEL_NAME  "yolox_nano_480x640.tflite"
 #define INPUT_NAME  "images"
-#define IS_NCHW     true
-#define INPUT_DIMS  { 1, 3, 480, 640 }
-#define OUTPUT_NAME "output"
+#define INPUT_DIMS  { 1, 480, 640, 3 }
+#define IS_NCHW     false
+#define IS_RGB      true
+#define OUTPUT_NAME "Identity"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 static constexpr int32_t kGridScaleList[] = { 8, 16, 32 };
 static constexpr int32_t kGridChannel = 1;
@@ -78,12 +80,11 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
     output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME, TENSORTYPE));
 
     /* Create and Initialize Inference Helper */
-    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kOpencv));     // wokraround
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
-    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
-    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu1));
+    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
+    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
-    // inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
+    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
     
 
     if (!inference_helper_) {
@@ -162,24 +163,16 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     const auto& t_pre_process0 = std::chrono::steady_clock::now();
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
     /* do crop, resize and color conversion here because some inference engine doesn't support these operations */
-    float aspect_ratio_img = static_cast<float>(original_mat.cols) / original_mat.rows;
-    float aspect_ratio_tensor = static_cast<float>(input_tensor_info.GetWidth()) / input_tensor_info.GetHeight();
     int32_t crop_x = 0;
     int32_t crop_y = 0;
     int32_t crop_w = original_mat.cols;
     int32_t crop_h = original_mat.rows;
-    if (aspect_ratio_img > aspect_ratio_tensor) {
-        crop_w = static_cast<int32_t>(aspect_ratio_tensor * original_mat.rows);
-        crop_x = (original_mat.cols - crop_w) / 2;
-    } else {
-        crop_h = static_cast<int32_t>(original_mat.cols / aspect_ratio_tensor);
-        crop_y = (original_mat.rows - crop_h) / 2;
-    }
+    cv::Mat img_src = cv::Mat::zeros(input_tensor_info.GetHeight(), input_tensor_info.GetWidth(), CV_8UC3);
+    //CommonHelper::CropResize(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, CommonHelper::kCropResizeTypeStretch);
+    //CommonHelper::CropResize(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, CommonHelper::kCropResizeTypeCut);
+    CommonHelper::CropResize(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, CommonHelper::kCropResizeTypeExpand);
 
-    cv::Mat img_src;
-    cv::Mat img_crop = original_mat(cv::Rect(crop_x, crop_y, crop_w, crop_h));
-    cv::resize(img_crop, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
-#ifndef CV_COLOR_IS_RGB
+#if (defined(CV_COLOR_IS_RGB) && !defined(IS_RGB)) || (!defined(CV_COLOR_IS_RGB) && defined(IS_RGB))
     cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
 #endif
 
@@ -206,27 +199,25 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     }
     const auto& t_inference1 = std::chrono::steady_clock::now();
 
-
     /*** PostProcess ***/
     const auto& t_post_process0 = std::chrono::steady_clock::now();
     /* Get boundig box */
     std::vector<BoundingBox> bbox_list;
     float* output_data = output_tensor_info_list_[0].GetDataAsFloat();
-    for (const auto& scale : kGridScaleList) {
-        int32_t grid_w = input_tensor_info.GetWidth() / scale;
-        int32_t grid_h = input_tensor_info.GetHeight() / scale;
-        int32_t scale_x = scale;      // scale to input tensor size
-        int32_t scale_y = scale;
-        GetBoundingBox(output_data, static_cast<float>(scale_x), static_cast<float>(scale_y), grid_w, grid_h, bbox_list);
+    for (const auto& grid_scale : kGridScaleList) {
+        int32_t grid_w = input_tensor_info.GetWidth() / grid_scale;
+        int32_t grid_h = input_tensor_info.GetHeight() / grid_scale;
+        float scale_x = static_cast<float>(grid_scale) * crop_w / input_tensor_info.GetWidth();      /* scale to original image */
+        float scale_y = static_cast<float>(grid_scale) * crop_h / input_tensor_info.GetHeight();
+        GetBoundingBox(output_data, scale_x, scale_y, grid_w, grid_h, bbox_list);
         output_data += grid_w * grid_h * kGridChannel * kElementNumOfAnchor;
     }
 
 
+    /* Adjust bounding box */
     for (auto& bbox : bbox_list) {
-        bbox.x = (bbox.x * crop_w) / input_tensor_info.GetWidth() + crop_x;  // resize to the original image size
-        bbox.y = (bbox.y * crop_h) / input_tensor_info.GetHeight() + crop_y;
-        bbox.w = (bbox.w * crop_w) / input_tensor_info.GetWidth();
-        bbox.h = (bbox.h * crop_h) / input_tensor_info.GetHeight();
+        bbox.x += crop_x;  
+        bbox.y += crop_y;
         bbox.label = label_list_[bbox.class_id];
     }
 
@@ -238,10 +229,10 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 
     /* Return the results */
     result.bbox_list = bbox_nms_list;
-    result.crop_x = crop_x;
-    result.crop_y = crop_y;
-    result.crop_w = crop_w;
-    result.crop_h = crop_h;
+    result.crop_x = (std::max)(0, crop_x);
+    result.crop_y = (std::max)(0, crop_y);
+    result.crop_w = (std::min)(crop_w, original_mat.cols - result.crop_x);
+    result.crop_h = (std::min)(crop_h, original_mat.rows - result.crop_y);
     result.time_pre_process = static_cast<std::chrono::duration<double>>(t_pre_process1 - t_pre_process0).count() * 1000.0;
     result.time_inference = static_cast<std::chrono::duration<double>>(t_inference1 - t_inference0).count() * 1000.0;
     result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;
