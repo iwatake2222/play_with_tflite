@@ -30,6 +30,7 @@ limitations under the License.
 
 /* for My modules */
 #include "common_helper.h"
+#include "common_helper_cv.h"
 #include "inference_helper.h"
 #include "depth_engine.h"
 
@@ -41,8 +42,9 @@ limitations under the License.
 /* Model parameters */
 #define MODEL_NAME  "lite-model_midas_v2_1_small_1_lite_1.tflite"
 #define INPUT_NAME  "Const"
-#define IS_NCHW     false
 #define INPUT_DIMS  { 1, 256, 256, 3 }
+#define IS_NCHW     false
+#define IS_RGB      true
 #define OUTPUT_NAME "midas_net_custom/sequential/re_lu_9/Relu"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 
@@ -112,11 +114,15 @@ int32_t DepthEngine::Process(const cv::Mat& original_mat, Result& result)
     const auto& t_pre_process0 = std::chrono::steady_clock::now();
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
     /* do resize and color conversion here because some inference engine doesn't support these operations */
-    cv::Mat img_src;
-    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
-#ifndef CV_COLOR_IS_RGB
-    cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
-#endif
+    int32_t crop_x = 0;
+    int32_t crop_y = 0;
+    int32_t crop_w = original_mat.cols;
+    int32_t crop_h = original_mat.rows;
+    cv::Mat img_src = cv::Mat::zeros(input_tensor_info.GetHeight(), input_tensor_info.GetWidth(), CV_8UC3);
+    //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeStretch);
+    //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeCut);
+    CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeExpand);
+
     input_tensor_info.data = img_src.data;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.image_info.width = img_src.cols;

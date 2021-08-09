@@ -31,6 +31,7 @@ limitations under the License.
 
 /* for My modules */
 #include "common_helper.h"
+#include "common_helper_cv.h"
 #include "detection_engine.h"
 #include "image_processor.h"
 
@@ -43,29 +44,6 @@ limitations under the License.
 std::unique_ptr<DetectionEngine> s_engine;
 
 /*** Function ***/
-static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
-#ifdef CV_COLOR_IS_RGB
-    return cv::Scalar(r, g, b);
-#else
-    return cv::Scalar(b, g, r);
-#endif
-}
-
-static void DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
-{
-    int32_t baseline = 0;
-    cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, font_scale, thickness, &baseline);
-    baseline += thickness;
-    pos.y += textSize.height;
-    if (is_text_on_rect) {
-        cv::rectangle(mat, pos + cv::Point(0, baseline), pos + cv::Point(textSize.width, -textSize.height), color_back, -1);
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
-    } else {
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_back, thickness * 3);
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
-    }
-}
-
 static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
 {
     char text[64];
@@ -74,7 +52,7 @@ static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double f
     double fps = 1e9 / (time_now - time_previous).count();
     time_previous = time_now;
     snprintf(text, sizeof(text), "FPS: %.1f, Inference: %.1f [ms]", fps, time_inference);
-    DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CreateCvColor(0, 0, 0), CreateCvColor(180, 180, 180), true);
+    CommonHelper::DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 }
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
@@ -140,11 +118,11 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     /* Draw the result */
     for (const auto& object : det_result.object_list) {
         cv::rectangle(mat, cv::Rect(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y), static_cast<int32_t>(object.width), static_cast<int32_t>(object.height)), cv::Scalar(255, 255, 0), 3);
-        cv::putText(mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 0, 0), 3);
-        cv::putText(mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CreateCvColor(0, 255, 0), 1);
+        cv::putText(mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CommonHelper::CreateCvColor(0, 0, 0), 3);
+        cv::putText(mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CommonHelper::CreateCvColor(0, 255, 0), 1);
     }
 
-    DrawFps(mat, det_result.time_inference, cv::Point(0, 0), 0.5, 2, CreateCvColor(0, 0, 0), CreateCvColor(180, 180, 180), true);
+    DrawFps(mat, det_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     /* Return the results */
     int32_t object_num = 0;

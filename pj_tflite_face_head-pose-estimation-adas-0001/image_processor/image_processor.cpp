@@ -31,6 +31,7 @@ limitations under the License.
 
 /* for My modules */
 #include "common_helper.h"
+#include "common_helper_cv.h"
 #include "bounding_box.h"
 #include "face_detection_engine.h"
 #include "headpose_engine.h"
@@ -47,30 +48,6 @@ std::unique_ptr<HeadposeEngine> s_headpose_engine;
 cv::Mat s_camera_matrix;
 
 /*** Function ***/
-static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r)
-{
-#ifdef CV_COLOR_IS_RGB
-    return cv::Scalar(r, g, b);
-#else
-    return cv::Scalar(b, g, r);
-#endif
-}
-
-static void DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
-{
-    int32_t baseline = 0;
-    cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, font_scale, thickness, &baseline);
-    baseline += thickness;
-    pos.y += textSize.height;
-    if (is_text_on_rect) {
-        cv::rectangle(mat, pos + cv::Point(0, baseline), pos + cv::Point(textSize.width, -textSize.height), color_back, -1);
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
-    } else {
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_back, thickness * 3);
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
-    }
-}
-
 static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
 {
     char text[64];
@@ -79,7 +56,7 @@ static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double f
     double fps = 1e9 / (time_now - time_previous).count();
     time_previous = time_now;
     snprintf(text, sizeof(text), "FPS: %.1f, Inference: %.1f [ms]", fps, time_inference);
-    DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CreateCvColor(0, 0, 0), CreateCvColor(180, 180, 180), true);
+    CommonHelper::DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 }
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
@@ -208,19 +185,19 @@ static void DrawHeadPoseAxes(cv::Mat& mat, const cv::Mat& camera_matrix, const c
 
     p2.x = static_cast<int>((xAxis.at<float>(0) / xAxis.at<float>(2) * s_camera_matrix.at<float>(0)) + cpoint.x);
     p2.y = static_cast<int>((xAxis.at<float>(1) / xAxis.at<float>(2) * s_camera_matrix.at<float>(4)) + cpoint.y);
-    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p2, CreateCvColor(0, 0, 255), 2);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p2, CommonHelper::CreateCvColor(0, 0, 255), 2);
 
     p2.x = static_cast<int>((yAxis.at<float>(0) / yAxis.at<float>(2) * s_camera_matrix.at<float>(0)) + cpoint.x);
     p2.y = static_cast<int>((yAxis.at<float>(1) / yAxis.at<float>(2) * s_camera_matrix.at<float>(4)) + cpoint.y);
-    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p2, CreateCvColor(0, 255, 0), 2);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p2, CommonHelper::CreateCvColor(0, 255, 0), 2);
 
     p1.x = static_cast<int>((zAxis1.at<float>(0) / zAxis1.at<float>(2) * s_camera_matrix.at<float>(0)) + cpoint.x);
     p1.y = static_cast<int>((zAxis1.at<float>(1) / zAxis1.at<float>(2) * s_camera_matrix.at<float>(4)) + cpoint.y);
 
     p2.x = static_cast<int>((zAxis.at<float>(0) / zAxis.at<float>(2) * s_camera_matrix.at<float>(0)) + cpoint.x);
     p2.y = static_cast<int>((zAxis.at<float>(1) / zAxis.at<float>(2) * s_camera_matrix.at<float>(4)) + cpoint.y);
-    //cv::line(mat, p1, p2, CreateCvColor(255, 0, 0), 2);
-    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p2, CreateCvColor(255, 0, 0), 2);
+    //cv::line(mat, p1, p2, CommonHelper::CreateCvColor(255, 0, 0), 2);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p2, CommonHelper::CreateCvColor(255, 0, 0), 2);
 }
 
 static void DrawHeadPoseAxesEuler(cv::Mat& mat, const cv::Mat& camera_matrix, const cv::Point& cpoint, float yaw, float pitch, float roll, float scale)
@@ -232,15 +209,15 @@ static void DrawHeadPoseAxesEuler(cv::Mat& mat, const cv::Mat& camera_matrix, co
     cv::Point p;
     p.x = static_cast<int32_t>(scale * (std::cos(yaw) * std::cos(roll)) + cpoint.x);
     p.y = static_cast<int32_t>(scale * (std::cos(pitch) * std::sin(roll) + std::cos(roll) * std::sin(pitch) * std::sin(yaw)) + cpoint.y);
-    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CreateCvColor(0, 0, 255), 2);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CommonHelper::CreateCvColor(0, 0, 255), 2);
 
     p.x = static_cast<int32_t>(scale * (-std::cos(yaw) * std::sin(roll)) + cpoint.x);
     p.y = static_cast<int32_t>(scale * (std::cos(pitch) * std::cos(roll) - std::sin(pitch) * std::sin(yaw) * std::sin(roll)) + cpoint.y);
-    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CreateCvColor(0, 255, 0), 2);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CommonHelper::CreateCvColor(0, 255, 0), 2);
 
     p.x = static_cast<int32_t>(scale * (std::sin(yaw)) + cpoint.x);
     p.y = static_cast<int32_t>(scale * (-std::cos(yaw) * std::sin(pitch)) + cpoint.y);
-    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CreateCvColor(255, 0, 0), 2);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CommonHelper::CreateCvColor(255, 0, 0), 2);
 }
 
 
@@ -269,16 +246,16 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
 
     /* Display target area  */
-    cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CreateCvColor(0, 0, 0), 2);
+    cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
 
     /* Display detection result and keypoint */
     for (const auto& bbox : det_result.bbox_list) {
-        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CreateCvColor(0, 200, 0), 1);
+        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CommonHelper::CreateCvColor(0, 200, 0), 1);
     }
 
     for (const auto& keypoint : det_result.keypoint_list) {
         for (const auto& p : keypoint) {
-            cv::circle(mat, cv::Point(p.first, p.second), 1, CreateCvColor(0, 255, 0));
+            cv::circle(mat, cv::Point(p.first, p.second), 1, CommonHelper::CreateCvColor(0, 255, 0));
         }
     }
 
@@ -300,7 +277,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         //DrawHeadPoseAxesEuler(mat, s_camera_matrix, cpoint, headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll, line_scale);
     }
 
-    DrawText(mat, "DET: " + std::to_string(bbox_list.size()), cv::Point(0, 20), 0.7, 2, CreateCvColor(0, 0, 0), CreateCvColor(220, 220, 220));
+    CommonHelper::DrawText(mat, "DET: " + std::to_string(bbox_list.size()), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
 
     /* Return the results */
     result.time_pre_process = det_result.time_pre_process;
@@ -312,7 +289,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         result.time_post_process += headpose_result.time_post_process;
     }
 
-    DrawFps(mat, result.time_inference, cv::Point(0, 0), 0.5, 2, CreateCvColor(0, 0, 0), CreateCvColor(180, 180, 180), true);
+    DrawFps(mat, result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     return 0;
 }

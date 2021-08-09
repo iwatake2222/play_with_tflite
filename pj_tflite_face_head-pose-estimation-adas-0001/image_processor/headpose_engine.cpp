@@ -30,6 +30,7 @@ limitations under the License.
 
 /* for My modules */
 #include "common_helper.h"
+#include "common_helper_cv.h"
 #include "inference_helper.h"
 #include "headpose_engine.h"
 
@@ -40,14 +41,14 @@ limitations under the License.
 
 /* Model parameters */
 #define MODEL_NAME  "head-pose-estimation-adas-0001.tflite"
+#define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #define INPUT_NAME  "data"
 #define IS_NCHW     false
+#define IS_RGB      false
 #define INPUT_DIMS  { 1, 60, 60, 3 }
 #define OUTPUT_NAME_0 "Identity"
 #define OUTPUT_NAME_1 "Identity_1"
 #define OUTPUT_NAME_2 "Identity_2"
-#define TENSORTYPE  TensorInfo::kTensorTypeFp32
-
 
 /*** Function ***/
 int32_t HeadposeEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
@@ -127,14 +128,17 @@ int32_t HeadposeEngine::Process(const cv::Mat& original_mat, const std::vector<B
     for (const auto& bbox : bbox_list) {
         /*** PreProcess ***/
         const auto& t_pre_process0 = std::chrono::steady_clock::now();
-        cv::Mat img_src;
-        cv::Mat img_crop = original_mat(cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h));
-        cv::resize(img_crop, img_src, cv::Size(model_w, model_h));
-
-        /* Expected color order is BGR */
-#ifndef CV_COLOR_IS_RGB
-        //cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
-#endif
+        int32_t cx = bbox.x + bbox.w / 2;
+        int32_t cy = bbox.y + bbox.h / 2;
+        int32_t face_size = (std::max)(bbox.w, bbox.h);
+        int32_t crop_x = (std::max)(0, cx - face_size / 2);
+        int32_t crop_y = (std::max)(0, cy - face_size / 2);
+        int32_t crop_w = (std::min)(face_size, original_mat.cols - crop_x);
+        int32_t crop_h = (std::min)(face_size, original_mat.rows - crop_y);
+        cv::Mat img_src = cv::Mat::zeros(input_tensor_info.GetHeight(), input_tensor_info.GetWidth(), CV_8UC3);
+        //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeStretch);
+        //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeCut);
+        CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeExpand);
 
         input_tensor_info.data = img_src.data;
         input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;

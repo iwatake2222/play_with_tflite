@@ -33,8 +33,10 @@ enum {
     kCropTypeExpand,
 };
 
-void CropResizeCvt(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x, int32_t& crop_y, int32_t& crop_w, int32_t& crop_h, bool is_rgb = true, int32_t crop_type = kCropTypeStretch, bool resize_by_linear = true);
 
+cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r);
+void DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true);
+void CropResizeCvt(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x, int32_t& crop_y, int32_t& crop_w, int32_t& crop_h, bool is_rgb = true, int32_t crop_type = kCropTypeStretch, bool resize_by_linear = true);
 std::string CreateGStreamerPipeline(int capture_width, int capture_height, int display_width, int display_height, int framerate, int flip_method);
 bool FindSourceImage(const std::string& input_name, cv::VideoCapture& cap, int32_t width = 640, int32_t height = 480);
 bool InputKeyCommand(cv::VideoCapture& cap);

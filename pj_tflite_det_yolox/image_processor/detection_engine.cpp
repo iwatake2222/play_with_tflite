@@ -41,12 +41,12 @@ limitations under the License.
 
 /* Model parameters */
 #define MODEL_NAME  "yolox_nano_480x640.tflite"
+#define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #define INPUT_NAME  "images"
 #define INPUT_DIMS  { 1, 480, 640, 3 }
 #define IS_NCHW     false
 #define IS_RGB      true
 #define OUTPUT_NAME "Identity"
-#define TENSORTYPE  TensorInfo::kTensorTypeFp32
 static constexpr int32_t kGridScaleList[] = { 8, 16, 32 };
 static constexpr int32_t kGridChannel = 1;
 static constexpr int32_t kNumberOfClass = 80;
@@ -225,10 +225,10 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 
     /* Return the results */
     result.bbox_list = bbox_nms_list;
-    result.crop_x = (std::max)(0, crop_x);
-    result.crop_y = (std::max)(0, crop_y);
-    result.crop_w = (std::min)(crop_w, original_mat.cols - result.crop_x);
-    result.crop_h = (std::min)(crop_h, original_mat.rows - result.crop_y);
+    result.crop.x = (std::max)(0, crop_x);
+    result.crop.y = (std::max)(0, crop_y);
+    result.crop.w = (std::min)(crop_w, original_mat.cols - result.crop.x);
+    result.crop.h = (std::min)(crop_h, original_mat.rows - result.crop.y);
     result.time_pre_process = static_cast<std::chrono::duration<double>>(t_pre_process1 - t_pre_process0).count() * 1000.0;
     result.time_inference = static_cast<std::chrono::duration<double>>(t_inference1 - t_inference0).count() * 1000.0;
     result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;

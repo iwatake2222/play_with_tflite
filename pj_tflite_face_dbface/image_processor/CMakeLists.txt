@@ -3,9 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 set(LibraryName "ImageProcessor")
 
 # Create library
-add_library (${LibraryName} image_processor.cpp image_processor.h face_detection_engine.cpp face_detection_engine.h
-    bounding_box.cpp bounding_box.h
-)
+add_library (${LibraryName} image_processor.cpp image_processor.h face_detection_engine.cpp face_detection_engine.h)
 
 # For OpenCV
 find_package(OpenCV REQUIRED)

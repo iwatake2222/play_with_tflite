@@ -30,6 +30,7 @@ limitations under the License.
 
 /* for My modules */
 #include "common_helper.h"
+#include "common_helper_cv.h"
 #include "inference_helper.h"
 #include "face_detection_engine.h"
 
@@ -41,22 +42,24 @@ limitations under the License.
 /* Model parameters */
 #if 1
 #define MODEL_NAME  "dbface_mbnv2_480x640.tflite"
+#define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #define INPUT_NAME  "input_1"
-#define IS_NCHW     false
 #define INPUT_DIMS  { 1, 480, 640, 3 }
+#define IS_NCHW     false
+#define IS_RGB      false
 #define OUTPUT_NAME_0 "Identity"    /* key */
 #define OUTPUT_NAME_1 "Identity_1"  /* reg */
 #define OUTPUT_NAME_2 "Identity_2"  /* hm */
-#define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #else
 #define MODEL_NAME  "dbface_mbnv3_480x640.mnn"
+#define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #define INPUT_NAME  "input.1"
-#define IS_NCHW     true
 #define INPUT_DIMS  { 1, 3, 480, 640 }
+#define IS_NCHW     true
+#define IS_RGB      false
 #define OUTPUT_NAME_0 "1027"     /* key */
 #define OUTPUT_NAME_1 "1029"     /* reg */
 #define OUTPUT_NAME_2 "1028"     /* hm  */
-#define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #endif
 
 
@@ -140,27 +143,14 @@ int32_t FaceDetectionEngine::Process(const cv::Mat& original_mat, Result& result
     const auto& t_pre_process0 = std::chrono::steady_clock::now();
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
     /* do crop, resize and color conversion here because some inference engine doesn't support these operations */
-    float aspect_ratio_img = static_cast<float>(original_mat.cols) / original_mat.rows;
-    float aspect_ratio_tensor = static_cast<float>(input_tensor_info.GetWidth()) / input_tensor_info.GetHeight();
     int32_t crop_x = 0;
     int32_t crop_y = 0;
     int32_t crop_w = original_mat.cols;
     int32_t crop_h = original_mat.rows;
-    if (aspect_ratio_img > aspect_ratio_tensor) {
-        crop_w = static_cast<int32_t>(aspect_ratio_tensor * original_mat.rows);
-        crop_x = (original_mat.cols - crop_w) / 2;
-    } else {
-        crop_h = static_cast<int32_t>(original_mat.cols / aspect_ratio_tensor);
-        crop_y = (original_mat.rows - crop_h) / 2;
-    }
-
-    cv::Mat img_src;
-    cv::Mat img_crop = original_mat(cv::Rect(crop_x, crop_y, crop_w, crop_h));
-    cv::resize(img_crop, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
-#ifndef CV_COLOR_IS_RGB
-    /* It looks they use BGR */
-    //cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
-#endif
+    cv::Mat img_src = cv::Mat::zeros(input_tensor_info.GetHeight(), input_tensor_info.GetWidth(), CV_8UC3);
+    //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeStretch);
+    //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeCut);
+    CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeExpand);
 
     input_tensor_info.data = img_src.data;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
@@ -274,10 +264,10 @@ int32_t FaceDetectionEngine::Process(const cv::Mat& original_mat, Result& result
     /* Return the results */
     result.bbox_list = bbox_nms_list;
     result.keypoint_list = keypoint_list;
-    result.crop.x = crop_x;
-    result.crop.y = crop_y;
-    result.crop.w = crop_w;
-    result.crop.h = crop_h;
+    result.crop.x = (std::max)(0, crop_x);
+    result.crop.y = (std::max)(0, crop_y);
+    result.crop.w = (std::min)(crop_w, original_mat.cols - result.crop.x);
+    result.crop.h = (std::min)(crop_h, original_mat.rows - result.crop.y);
     result.time_pre_process = static_cast<std::chrono::duration<double>>(t_pre_process1 - t_pre_process0).count() * 1000.0;
     result.time_inference = static_cast<std::chrono::duration<double>>(t_inference1 - t_inference0).count() * 1000.0;
     result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;

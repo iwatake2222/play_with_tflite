@@ -27,8 +27,33 @@ limitations under the License.
 /* for OpenCV */
 #include <opencv2/opencv.hpp>
 
+#include "common_helper.h"
 #include "common_helper_cv.h"
 
+
+cv::Scalar CommonHelper::CreateCvColor(int32_t b, int32_t g, int32_t r)
+{
+#ifdef CV_COLOR_IS_RGB
+    return cv::Scalar(r, g, b);
+#else
+    return cv::Scalar(b, g, r);
+#endif
+}
+
+void CommonHelper::DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect)
+{
+    int32_t baseline = 0;
+    cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, font_scale, thickness, &baseline);
+    baseline += thickness;
+    pos.y += textSize.height;
+    if (is_text_on_rect) {
+        cv::rectangle(mat, pos + cv::Point(0, baseline), pos + cv::Point(textSize.width, -textSize.height), color_back, -1);
+        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
+    } else {
+        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_back, thickness * 3);
+        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
+    }
+}
 
 void CommonHelper::CropResizeCvt(const cv::Mat& org, cv::Mat& dst, int32_t& crop_x, int32_t& crop_y, int32_t& crop_w, int32_t& crop_h, bool is_rgb, int32_t crop_type, bool resize_by_linear)
 {

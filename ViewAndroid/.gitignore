@@ -15,4 +15,6 @@
 
 sdk/
 jniLibs/
-
+.idea/gradle.xml
+app/build.gradle
+settings.gradle

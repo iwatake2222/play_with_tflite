@@ -30,6 +30,7 @@ limitations under the License.
 
 /* for My modules */
 #include "common_helper.h"
+#include "common_helper_cv.h"
 #include "inference_helper.h"
 #include "pose_engine.h"
 
@@ -42,19 +43,21 @@ limitations under the License.
 #if 0
 /* Official model. https://tfhub.dev/google/lite-model/movenet/singlepose/lightning/3 */
 #define MODEL_NAME  "lite-model_movenet_singlepose_lightning_3.tflite"
-#define INPUT_NAME  "serving_default_input:0"
-#define IS_NCHW     false
-#define INPUT_DIMS  { 1, 192, 192, 3 }
-#define OUTPUT_NAME "StatefulPartitionedCall:0"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
+#define INPUT_NAME  "serving_default_input:0"
+#define INPUT_DIMS  { 1, 192, 192, 3 }
+#define IS_NCHW     false
+#define IS_RGB      true
+#define OUTPUT_NAME "StatefulPartitionedCall:0"
 #else
 /* PINTO_model_zoo. https://github.com/PINTO0309/PINTO_model_zoo */
 #define MODEL_NAME  "movenet_lightning.tflite"
-#define INPUT_NAME  "serving_default_input_0:0"
-#define IS_NCHW     false
-#define INPUT_DIMS  { 1, 192, 192, 3 }
-#define OUTPUT_NAME "StatefulPartitionedCall_0:0"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
+#define INPUT_NAME  "serving_default_input_0:0"
+#define INPUT_DIMS  { 1, 192, 192, 3 }
+#define IS_NCHW     false
+#define IS_RGB      true
+#define OUTPUT_NAME "StatefulPartitionedCall_0:0"
 #endif
 
 /*** Function ***/
@@ -131,11 +134,15 @@ int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
 
     /* do resize and color conversion here because some inference engine doesn't support these operations */
-    cv::Mat img_src;
-    cv::resize(original_mat, img_src, cv::Size(input_tensor_info.GetWidth(), input_tensor_info.GetHeight()));
-#ifndef CV_COLOR_IS_RGB
-    cv::cvtColor(img_src, img_src, cv::COLOR_BGR2RGB);
-#endif
+    int32_t crop_x = 0;
+    int32_t crop_y = 0;
+    int32_t crop_w = original_mat.cols;
+    int32_t crop_h = original_mat.rows;
+    cv::Mat img_src = cv::Mat::zeros(input_tensor_info.GetHeight(), input_tensor_info.GetWidth(), CV_8UC3);
+    //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeStretch);
+    //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeCut);
+    CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeExpand);
+
     input_tensor_info.data = img_src.data;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
     input_tensor_info.image_info.width = img_src.cols;
@@ -166,10 +173,10 @@ int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
     /* Retrieve the result */
     float* val_float = output_tensor_info_list_[0].GetDataAsFloat();
     std::vector<float> pose_keypoint_scores;	// z
-    std::vector<std::pair<float,float>> pose_keypoint_coords;	// x, y
+    std::vector<std::pair<int32_t, int32_t>> pose_keypoint_coords;	// x, y
     for (int32_t partIndex = 0; partIndex < output_tensor_info_list_[0].tensor_dims[2]; partIndex++) {
         // PRINT("%f, %f, %f\n", val_float[1], val_float[0], val_float[2]);
-        pose_keypoint_coords.push_back(std::pair<float,float>(val_float[1], val_float[0]));
+        pose_keypoint_coords.push_back(std::pair<int32_t, int32_t>(static_cast<int32_t>(val_float[1] * crop_w + crop_x), static_cast<int32_t>(val_float[0] * crop_h + crop_y)));
         pose_keypoint_scores.push_back(val_float[2]);
         val_float += 3;
     }

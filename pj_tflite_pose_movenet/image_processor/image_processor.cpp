@@ -31,6 +31,7 @@ limitations under the License.
 
 /* for My modules */
 #include "common_helper.h"
+#include "common_helper_cv.h"
 #include "pose_engine.h"
 #include "image_processor.h"
 
@@ -43,29 +44,6 @@ limitations under the License.
 std::unique_ptr<PoseEngine> s_pose_engine;
 
 /*** Function ***/
-static cv::Scalar CreateCvColor(int32_t b, int32_t g, int32_t r) {
-#ifdef CV_COLOR_IS_RGB
-    return cv::Scalar(r, g, b);
-#else
-    return cv::Scalar(b, g, r);
-#endif
-}
-
-static void DrawText(cv::Mat& mat, const std::string& text, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
-{
-    int32_t baseline = 0;
-    cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, font_scale, thickness, &baseline);
-    baseline += thickness;
-    pos.y += textSize.height;
-    if (is_text_on_rect) {
-        cv::rectangle(mat, pos + cv::Point(0, baseline), pos + cv::Point(textSize.width, -textSize.height), color_back, -1);
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
-    } else {
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_back, thickness * 3);
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, font_scale, color_front, thickness);
-    }
-}
-
 static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
 {
     char text[64];
@@ -74,7 +52,7 @@ static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double f
     double fps = 1e9 / (time_now - time_previous).count();
     time_previous = time_now;
     snprintf(text, sizeof(text), "FPS: %.1f, Inference: %.1f [ms]", fps, time_inference);
-    DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CreateCvColor(0, 0, 0), CreateCvColor(180, 180, 180), true);
+    CommonHelper::DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 }
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
@@ -165,24 +143,22 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 
     for (const auto& jointLine : jointLineList) {
         if (score_list[jointLine.first] >= score_threshold && score_list[jointLine.second] >= score_threshold) {
-            int32_t x0 = static_cast<int32_t>(part_list[jointLine.first].first * mat.cols);
-            int32_t y0 = static_cast<int32_t>(part_list[jointLine.first].second * mat.rows);
-            int32_t x1 = static_cast<int32_t>(part_list[jointLine.second].first * mat.cols);
-            int32_t y1 = static_cast<int32_t>(part_list[jointLine.second].second * mat.rows);
-            cv::line(mat, cv::Point(x0, y0), cv::Point(x1, y1) , CreateCvColor(200, 200, 200), 2);
+            int32_t x0 = part_list[jointLine.first].first;
+            int32_t y0 = part_list[jointLine.first].second;
+            int32_t x1 = part_list[jointLine.second].first;
+            int32_t y1 = part_list[jointLine.second].second;
+            cv::line(mat, cv::Point(x0, y0), cv::Point(x1, y1) , CommonHelper::CreateCvColor(200, 200, 200), 2);
         }
     }
 
     for (int32_t i = 0; i < part_num; i++) {
-        int32_t x = static_cast<int32_t>(part_list[i].first * mat.cols);
-        int32_t y = static_cast<int32_t>(part_list[i].second * mat.rows);
         float score = score_list[i];
         if (score >= score_threshold) {
-            cv::circle(mat, cv::Point(x, y), 5, CreateCvColor(0, 255, 0), -1);
+            cv::circle(mat, cv::Point(part_list[i].first, part_list[i].second), 5, CommonHelper::CreateCvColor(0, 255, 0), -1);
         }
     
     }
-    DrawFps(mat, pose_result.time_inference, cv::Point(0, 0), 0.5, 2, CreateCvColor(0, 0, 0), CreateCvColor(180, 180, 180), true);
+    DrawFps(mat, pose_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     /* Return the results */
     result.time_pre_process = pose_result.time_pre_process;
