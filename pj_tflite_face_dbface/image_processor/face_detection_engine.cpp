@@ -279,13 +279,13 @@ int32_t FaceDetectionEngine::Process(const cv::Mat& original_mat, Result& result
 float FaceDetectionEngine::ExpSpecial(float x)
 {
     static constexpr int32_t gate = 1;
-    static const float base = std::expf(1);
+    static const float base = std::exp(1);
     if (std::abs(x) < gate) {
         return x * base;
     } else if (x > 0) {
-        return std::expf(x);
+        return std::exp(x);
     } else {
-        return -std::expf(-x);
+        return -std::exp(-x);
     }
 }
 

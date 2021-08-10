@@ -269,7 +269,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
 
     /* Display head poses */
-    for (int32_t i = 0; i < (std::min)(bbox_list.size(), headpose_result_list.size()); i++) {
+    for (size_t i = 0; i < (std::min)(bbox_list.size(), headpose_result_list.size()); i++) {
         PRINT("%f %f %f\n", headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll);
         cv::Point cpoint(bbox_list[i].x + bbox_list[i].w / 2, bbox_list[i].y + bbox_list[i].h / 2);
         float line_scale = bbox_list[i].h * 0.8f;

@@ -165,7 +165,7 @@ int32_t FacemeshEngine::Process(const cv::Mat& original_mat, const std::vector<B
         /* reference : https://github.com/google/mediapipe/blob/master/docs/solutions/face_mesh.md#output */
         Result result;
         result.score = score_list[0];
-        for (int32_t i = 0; i < result.keypoint_list.size(); i++) {
+        for (size_t i = 0; i < result.keypoint_list.size(); i++) {
             result.keypoint_list[i].first = static_cast<int32_t>(landmark_list[3 * i + 0] * scale_w + 0.5f + crop_x);
             result.keypoint_list[i].second = static_cast<int32_t>(landmark_list[3 * i + 1] * scale_h + 0.5f + crop_y);
         }

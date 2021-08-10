@@ -120,11 +120,7 @@ int32_t HeadposeEngine::Process(const cv::Mat& original_mat, const std::vector<B
     }
 
     result_list.clear();
-
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
-    int32_t model_w = input_tensor_info.GetWidth();
-    int32_t model_h = input_tensor_info.GetHeight();
-
     for (const auto& bbox : bbox_list) {
         /*** PreProcess ***/
         const auto& t_pre_process0 = std::chrono::steady_clock::now();
