@@ -71,8 +71,6 @@ public:
         threshold_nms_iou_ = threshold_nms_iou;
     }
 
-    float Sigmoid(float x);
-    float Logit(float x);
     void  CreateAnchor(int32_t width, int32_t height, std::vector<std::pair<float, float>>& anchor_list);
     void  GetBoundingBox(const std::vector<float>& score_list, const std::vector<float>& regressor_list, const std::vector<std::pair<float, float>>& anchor_list, float threshold_score_logit, float scale_x, float scale_y, std::vector<BoundingBox>& bbox_list);
 

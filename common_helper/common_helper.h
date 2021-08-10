@@ -42,4 +42,12 @@ limitations under the License.
     COMMON_HELPER_PRINT_(__VA_ARGS__); \
 } while(0);
 
+namespace CommonHelper
+{
+
+float Sigmoid(float x);
+float Logit(float x);
+
+}
+
 #endif

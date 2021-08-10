@@ -213,7 +213,7 @@ int32_t FaceDetectionEngine::Process(const cv::Mat& original_mat, Result& result
 
     /* Get boundig box */
     std::vector<BoundingBox> bbox_list;
-    float score_logit = Logit(threshold_confidence_);
+    float score_logit = CommonHelper::Logit(threshold_confidence_);
     GetBoundingBox(score_list, regressor_list, anchor_list_, score_logit, static_cast<float>(crop_w) / input_tensor_info.GetWidth(), static_cast<float>(crop_h) / input_tensor_info.GetHeight(), bbox_list);
 
     /* NMS */
@@ -226,7 +226,7 @@ int32_t FaceDetectionEngine::Process(const cv::Mat& original_mat, Result& result
         int32_t anchor_index = bbox.class_id;
         bbox.class_id = 0;
         bbox.label = "FACE";
-        bbox.score = Sigmoid(bbox.score);
+        bbox.score = CommonHelper::Sigmoid(bbox.score);
         bbox.x += crop_x;
         bbox.y += crop_y;
         BoundingBoxUtils::FixInScreen(bbox, original_mat.cols, original_mat.rows);
@@ -256,27 +256,6 @@ int32_t FaceDetectionEngine::Process(const cv::Mat& original_mat, Result& result
     result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;
 
     return kRetOk;
-}
-
-
-float FaceDetectionEngine::Sigmoid(float x)
-{
-    if (x >= 0) {
-        return 1.0f / (1.0f + std::expf(-x));
-    } else {
-        return std::expf(x) / (1.0f + std::expf(x));    /* to aovid overflow */
-    }
-}
-
-float FaceDetectionEngine::Logit(float x)
-{
-    if (x == 0) {
-        return -FLT_MAX;
-    } else  if (x == 1) {
-        return FLT_MAX;
-    } else {
-        return std::logf(x / (1.0f - x));
-    }
 }
 
 /* reference: https://github.com/tensorflow/tfjs-models/blob/master/blazeface/src/face.ts#L62 */
