@@ -146,9 +146,9 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         /* Display boundinb box */
         const auto& bbox = det_result.bbox_list[i];
         cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CommonHelper::CreateCvColor(255, 0, 0), 2);
-        CommonHelper::DrawText(mat, bbox.label, cv::Point(bbox.x, bbox.y - 13), 0.35, 1, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
+        //CommonHelper::DrawText(mat, bbox.label, cv::Point(bbox.x, bbox.y - 13), 0.35, 1, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
 
-        if (bbox.h < 100) continue; /*  the scores of the detected keypoints seems not trusted. instead of using the score, just ignore small object */
+        if (bbox.h < 50) continue; /*  the scores of the detected keypoints seems not trusted. instead of using the score, just ignore small object */
         /* Display joint lines */
         const auto& keypoint = det_result.keypoint_list[i];
         const auto& keypoint_score = det_result.keypoint_score_list[i];

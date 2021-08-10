@@ -170,42 +170,46 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     float* keypoint_score_raw_list = output_tensor_info_list_[0].GetDataAsFloat();
     int32_t num_det = static_cast<int32_t>(num_raw_list[0]);
 
+    /* Get boundig box */
     std::vector<BoundingBox> bbox_list;
-    std::vector<KeyPoint> keypoint_list;
-    std::vector<KeyPointScore> keypoint_score_list;
     for (int32_t i = 0; i < num_det; i++) {
         if (score_raw_list[i] < threshold_confidence_) continue;
-        /* Get boundig box */
         BoundingBox bbox;
-        bbox.class_id = static_cast<int32_t>(label_raw_list[i]);
-        bbox.label = std::to_string(bbox.class_id);
+        //bbox.class_id = static_cast<int32_t>(label_raw_list[i]);
+        //bbox.label = std::to_string(bbox.class_id);
+        bbox.class_id = i;  // use class_id to temporary save index number. so that I can get correspoinding keypoint after NMS (todo. can be better)
+        bbox.label = "";
         bbox.score = score_raw_list[i];
         bbox.x = static_cast<int32_t>(bbox_raw_list[i * 4 + 1] * crop_w) + crop_x;
         bbox.y = static_cast<int32_t>(bbox_raw_list[i * 4 + 0] * crop_h) + crop_y;
         bbox.w = static_cast<int32_t>((bbox_raw_list[i * 4 + 3] - bbox_raw_list[i * 4 + 1]) * crop_w);
         bbox.h = static_cast<int32_t>((bbox_raw_list[i * 4 + 2] - bbox_raw_list[i * 4 + 0]) * crop_h);
         bbox_list.push_back(bbox);
+    }
 
-        /* Get keypoint */
+    /* NMS */
+    std::vector<BoundingBox> bbox_nms_list;
+    BoundingBoxUtils::Nms(bbox_list, bbox_nms_list, threshold_nms_iou_);
+
+    /* Get keypoint */
+    std::vector<KeyPoint> keypoint_list;
+    std::vector<KeyPointScore> keypoint_score_list;
+    for (const auto& bbox : bbox_nms_list) {
+        int32_t index = bbox.class_id;
         KeyPoint keypoint;
         KeyPointScore keypoint_score;
         for (size_t key = 0; key < keypoint.size(); key++) {
-            keypoint[key].first = static_cast<int32_t>(keypoint_raw_list[i * 17 * 2 + key * 2 + 1] * crop_w) + crop_x;
-            keypoint[key].second = static_cast<int32_t>(keypoint_raw_list[i * 17 * 2 + key * 2 + 0] * crop_h) + crop_y;
-            keypoint_score[key] = keypoint_score_raw_list[i * 17 + key];    /* result seems wrong */
+            keypoint[key].first = static_cast<int32_t>(keypoint_raw_list[index * 17 * 2 + key * 2 + 1] * crop_w) + crop_x;
+            keypoint[key].second = static_cast<int32_t>(keypoint_raw_list[index * 17 * 2 + key * 2 + 0] * crop_h) + crop_y;
+            keypoint_score[key] = keypoint_score_raw_list[index * 17 + key];    /* result seems wrong */
         }
         keypoint_list.push_back(keypoint);
         keypoint_score_list.push_back(keypoint_score);
     }
-
-    /* NMS */
-    //std::vector<BoundingBox> bbox_nms_list;
-    //BoundingBoxUtils::Nms(bbox_list, bbox_nms_list, threshold_nms_iou_);
-
     const auto& t_post_process1 = std::chrono::steady_clock::now();
 
     /* Return the results */
-    result.bbox_list = bbox_list;
+    result.bbox_list = bbox_nms_list;
     result.keypoint_list = keypoint_list;
     result.keypoint_score_list = keypoint_score_list;
     result.crop.x = (std::max)(0, crop_x);
