@@ -1,0 +1,207 @@
+/* Copyright 2021 iwatake2222
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+/*** Include ***/
+/* for general */
+#include <cstdint>
+#include <cstdlib>
+#include <cmath>
+#include <cstring>
+#include <string>
+#include <vector>
+#include <array>
+#include <algorithm>
+#include <chrono>
+#include <fstream>
+#include <memory>
+
+/* for OpenCV */
+#include <opencv2/opencv.hpp>
+
+/* for My modules */
+#include "common_helper.h"
+#include "common_helper_cv.h"
+#include "bounding_box.h"
+#include "face_detection_engine.h"
+#include "headpose_engine.h"
+#include "image_processor.h"
+
+/*** Macro ***/
+#define TAG "ImageProcessor"
+#define PRINT(...)   COMMON_HELPER_PRINT(TAG, __VA_ARGS__)
+#define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
+
+/*** Global variable ***/
+std::unique_ptr<FaceDetectionEngine> s_facedet_engine;
+std::unique_ptr<HeadposeEngine> s_headpose_engine;
+
+/*** Function ***/
+static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
+{
+    char text[64];
+    static auto time_previous = std::chrono::steady_clock::now();
+    auto time_now = std::chrono::steady_clock::now();
+    double fps = 1e9 / (time_now - time_previous).count();
+    time_previous = time_now;
+    snprintf(text, sizeof(text), "FPS: %.1f, Inference: %.1f [ms]", fps, time_inference);
+    CommonHelper::DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
+}
+
+int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
+{
+    if (s_facedet_engine || s_headpose_engine) {
+        PRINT_E("Already initialized\n");
+        return -1;
+    }
+
+    s_facedet_engine.reset(new FaceDetectionEngine());
+    if (s_facedet_engine->Initialize(input_param.work_dir, input_param.num_threads) != FaceDetectionEngine::kRetOk) {
+        s_facedet_engine->Finalize();
+        s_facedet_engine.reset();
+        return -1;
+    }
+
+    s_headpose_engine.reset(new HeadposeEngine());
+    if (s_headpose_engine->Initialize(input_param.work_dir, input_param.num_threads) != HeadposeEngine::kRetOk) {
+        s_headpose_engine->Finalize();
+        s_headpose_engine.reset();
+        return -1;
+    }
+
+    return 0;
+}
+
+int32_t ImageProcessor::Finalize(void)
+{
+    if (!s_facedet_engine || !s_headpose_engine) {
+        PRINT_E("Not initialized\n");
+        return -1;
+    }
+
+    if (s_facedet_engine->Finalize() != HeadposeEngine::kRetOk) {
+        return -1;
+    }
+
+    if (s_headpose_engine->Finalize() != HeadposeEngine::kRetOk) {
+        return -1;
+    }
+
+    return 0;
+}
+
+
+int32_t ImageProcessor::Command(int32_t cmd)
+{
+    if (!s_facedet_engine || !s_headpose_engine) {
+        PRINT_E("Not initialized\n");
+        return -1;
+    }
+
+    switch (cmd) {
+    case 0:
+    default:
+        PRINT_E("command(%d) is not supported\n", cmd);
+        return -1;
+    }
+}
+
+
+static void DrawHeadPoseAxesEuler(cv::Mat& mat, const cv::Point& cpoint, float yaw, float pitch, float roll, float scale)
+{
+    pitch *= -static_cast<float>(CV_PI / 180.0);
+    yaw *= static_cast<float>(CV_PI / 180.0);
+    roll *= static_cast<float>(CV_PI / 180.0);
+
+    cv::Point p;
+    p.x = static_cast<int32_t>(scale * (std::cos(yaw) * std::cos(roll)) + cpoint.x);
+    p.y = static_cast<int32_t>(scale * (std::cos(pitch) * std::sin(roll) + std::cos(roll) * std::sin(pitch) * std::sin(yaw)) + cpoint.y);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CommonHelper::CreateCvColor(0, 0, 255), 2);
+
+    p.x = static_cast<int32_t>(scale * (-std::cos(yaw) * std::sin(roll)) + cpoint.x);
+    p.y = static_cast<int32_t>(scale * (std::cos(pitch) * std::cos(roll) - std::sin(pitch) * std::sin(yaw) * std::sin(roll)) + cpoint.y);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CommonHelper::CreateCvColor(0, 255, 0), 2);
+
+    p.x = static_cast<int32_t>(scale * (std::sin(yaw)) + cpoint.x);
+    p.y = static_cast<int32_t>(scale * (-std::cos(yaw) * std::sin(pitch)) + cpoint.y);
+    cv::line(mat, cv::Point(cpoint.x, cpoint.y), p, CommonHelper::CreateCvColor(255, 0, 0), 2);
+}
+
+
+static float CalcFocalLength(int32_t pixel_size, float fov)
+{
+    fov *= static_cast<float>(CV_PI / 180.0);
+    return (pixel_size / 2) / tanf(fov / 2);
+}
+
+int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
+{
+    if (!s_facedet_engine || !s_headpose_engine) {
+        PRINT_E("Not initialized\n");
+        return -1;
+    }
+
+    /* Detect face */
+    FaceDetectionEngine::Result det_result;
+    if (s_facedet_engine->Process(mat, det_result) != FaceDetectionEngine::kRetOk) {
+        return -1;
+    }
+
+    /* Display target area  */
+    cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
+
+    /* Display detection result and keypoint */
+    for (const auto& bbox : det_result.bbox_list) {
+        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CommonHelper::CreateCvColor(0, 200, 0), 1);
+    }
+
+    for (const auto& keypoint : det_result.keypoint_list) {
+        for (const auto& p : keypoint) {
+            cv::circle(mat, cv::Point(p.first, p.second), 1, CommonHelper::CreateCvColor(0, 255, 0));
+        }
+    }
+
+    /* Use fixed value for test image */
+    std::vector<BoundingBox> bbox_list = det_result.bbox_list;
+
+    /* Estimate head pose */
+    std::vector<HeadposeEngine::Result> headpose_result_list;
+    if (s_headpose_engine->Process(mat, bbox_list, headpose_result_list) != HeadposeEngine::kRetOk) {
+        return -1;
+    }
+
+    /* Display head poses */
+    for (int32_t i = 0; i < (std::min)(bbox_list.size(), headpose_result_list.size()); i++) {
+        PRINT("%f %f %f\n", headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll);
+        cv::Point cpoint(bbox_list[i].x + bbox_list[i].w / 2, bbox_list[i].y + bbox_list[i].h / 2);
+        float line_scale = bbox_list[i].h * 0.8f;
+        DrawHeadPoseAxesEuler(mat, cpoint, headpose_result_list[i].yaw, headpose_result_list[i].pitch, headpose_result_list[i].roll, line_scale);
+    }
+
+    CommonHelper::DrawText(mat, "DET: " + std::to_string(bbox_list.size()), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
+
+    /* Return the results */
+    result.time_pre_process = det_result.time_pre_process;
+    result.time_inference = det_result.time_inference;
+    result.time_post_process = det_result.time_post_process;
+    for (const auto& headpose_result : headpose_result_list) {
+        result.time_pre_process += headpose_result.time_pre_process;
+        result.time_inference += headpose_result.time_inference;
+        result.time_post_process += headpose_result.time_post_process;
+    }
+
+    DrawFps(mat, result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
+
+    return 0;
+}
+
