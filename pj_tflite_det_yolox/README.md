@@ -1,4 +1,4 @@
-# YOLOX with ~~TensorFlow Lite~~ OpenCV(cv::dnn + ONNX) in C++
+# YOLOX with TensorFlow Lite / OpenCV(cv::dnn + ONNX) in C++
 Sample project to run YOLOX + SORT
 
 Click the image to open in YouTube
@@ -9,7 +9,10 @@ Click the image to open in YouTube
 ## Target Environment, How to Build, How to Run
 1. Please follow the instruction: https://github.com/iwatake2222/play_with_tflite/blob/master/README.md
 2. Additional steps:
-    - Download the model using the following script
+    - Download the model using the following script (For tflite)
+        - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/132_YOLOX/download_nano_new.sh
+        - copy `saved_model_yolox_nano_480x640/model_float32.tflite` to `resource/model/yolox_nano_480x640.tflite`
+    - Download the model using the following script (For onnx)
         - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/132_YOLOX/download_nano.sh
         - copy `saved_model_yolox_nano_480x640/yolox_nano_480x640.onnx` to `resource/model/yolox_nano_480x640.onnx`
     - Place  `resource/kite.jpg` and `resource/model/label_coco_80.txt`
@@ -17,9 +20,10 @@ Click the image to open in YouTube
         - https://github.com/iwatake2222/play_with_tflite/files/6938693/label_coco_80.txt
     - Build  `pj_tflite_det_yolox` project (this directory)
 
-
 ## Notice
-OpenCV (cv::dnn) and onnx model is used in this project, althouth this repository is for TensorFlow Lite. It's because tflite model seems not perfectly ready.
+- By default it uses tflite model. If you want to use onnx model please change ifdef switch in `detection_engine.cpp`
+    - `#define MODEL_TYPE_TFLITE`
+    - `#define MODEL_TYPE_ONNX`
 
 ## Play more ?
 - You can run the project on Windows, Linux (x86_64), Linux (ARM) and Android

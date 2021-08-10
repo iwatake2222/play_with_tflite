@@ -100,7 +100,7 @@ void CommonHelper::CropResizeCvt(const cv::Mat& org, cv::Mat& dst, int32_t& crop
     }
 
 #ifdef CV_COLOR_IS_RGB
-    if (!is_rg) {
+    if (!is_rgb) {
         cv::cvtColor(dst, dst, cv::COLOR_RGB2BGR);
     }
 #else

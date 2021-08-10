@@ -40,6 +40,10 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
+#define MODEL_TYPE_TFLITE
+//#define MODEL_TYPE_ONNX
+
+#if defined(MODEL_TYPE_TFLITE)
 #define MODEL_NAME  "yolox_nano_480x640.tflite"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #define INPUT_NAME  "images"
@@ -47,6 +51,16 @@ limitations under the License.
 #define IS_NCHW     false
 #define IS_RGB      true
 #define OUTPUT_NAME "Identity"
+#elif defined(MODEL_TYPE_ONNX)
+#define MODEL_NAME  "yolox_nano_480x640.onnx"
+#define TENSORTYPE  TensorInfo::kTensorTypeFp32
+#define INPUT_NAME  "images"
+#define INPUT_DIMS  { 1, 3, 480, 640 }
+#define IS_NCHW     true
+#define IS_RGB      true
+#define OUTPUT_NAME "output"
+#endif
+
 static constexpr int32_t kGridScaleList[] = { 8, 16, 32 };
 static constexpr int32_t kGridChannel = 1;
 static constexpr int32_t kNumberOfClass = 80;
@@ -80,12 +94,15 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
     output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME, TENSORTYPE));
 
     /* Create and Initialize Inference Helper */
+#if defined(MODEL_TYPE_TFLITE)
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
     inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
-    
+#elif defined(MODEL_TYPE_ONNX)
+    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kOpencv));
+#endif
 
     if (!inference_helper_) {
         return kRetErr;
