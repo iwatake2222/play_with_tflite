@@ -34,7 +34,8 @@ limitations under the License.
 #include "common_helper_cv.h"
 #include "bounding_box.h"
 #include "detection_engine.h"
-#include "tracker.h"
+#include "feature_engine.h"
+#include "tracker_deepsort.h"
 #include "image_processor.h"
 
 /*** Macro ***/
@@ -43,18 +44,19 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-std::unique_ptr<DetectionEngine> s_engine;
-Tracker s_tracker;
+std::unique_ptr<DetectionEngine> s_det_engine;
+std::unique_ptr<FeatureEngine> s_feature_engine;
+TrackerDeepSort s_tracker(50, 0.3f, 0.2f);
 
 /*** Function ***/
-static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
+static void DrawFps(cv::Mat& mat, double time_inference_det, double time_inference_feature, int32_t num_feature, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
 {
-    char text[64];
+    char text[128];
     static auto time_previous = std::chrono::steady_clock::now();
     auto time_now = std::chrono::steady_clock::now();
     double fps = 1e9 / (time_now - time_previous).count();
     time_previous = time_now;
-    snprintf(text, sizeof(text), "FPS: %.1f, Inference: %.1f [ms]", fps, time_inference);
+    snprintf(text, sizeof(text), "FPS: %4.1f, Inference: DET: %4.1f[ms], FEATURE:%3d x %4.1f[ms]", fps, time_inference_det, num_feature, time_inference_feature / num_feature);
     CommonHelper::DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 }
 
@@ -73,28 +75,40 @@ static cv::Scalar GetColorForId(int32_t id)
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
 {
-    if (s_engine) {
+    if (s_det_engine || s_feature_engine) {
         PRINT_E("Already initialized\n");
         return -1;
     }
 
-    s_engine.reset(new DetectionEngine());
-    if (s_engine->Initialize(input_param.work_dir, input_param.num_threads) != DetectionEngine::kRetOk) {
-        s_engine->Finalize();
-        s_engine.reset();
+    s_det_engine.reset(new DetectionEngine());
+    if (s_det_engine->Initialize(input_param.work_dir, input_param.num_threads) != DetectionEngine::kRetOk) {
+        s_det_engine->Finalize();
+        s_det_engine.reset();
         return -1;
     }
+
+    s_feature_engine.reset(new FeatureEngine());
+    if (s_feature_engine->Initialize(input_param.work_dir, input_param.num_threads) != FeatureEngine::kRetOk) {
+        s_feature_engine->Finalize();
+        s_feature_engine.reset();
+        return -1;
+    }
+    
     return 0;
 }
 
 int32_t ImageProcessor::Finalize(void)
 {
-    if (!s_engine) {
+    if (!s_det_engine || !s_feature_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
 
-    if (s_engine->Finalize() != DetectionEngine::kRetOk) {
+    if (s_det_engine->Finalize() != DetectionEngine::kRetOk) {
+        return -1;
+    }
+
+    if (s_feature_engine->Finalize() != FeatureEngine::kRetOk) {
         return -1;
     }
 
@@ -104,7 +118,7 @@ int32_t ImageProcessor::Finalize(void)
 
 int32_t ImageProcessor::Command(int32_t cmd)
 {
-    if (!s_engine) {
+    if (!s_det_engine || !s_feature_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
@@ -121,15 +135,26 @@ int32_t ImageProcessor::Command(int32_t cmd)
 
 int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
-    if (!s_engine) {
+    if (!s_det_engine || !s_feature_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
 
+    /* Detection */
     DetectionEngine::Result det_result;
-    if (s_engine->Process(mat, det_result) != DetectionEngine::kRetOk) {
+    if (s_det_engine->Process(mat, det_result) != DetectionEngine::kRetOk) {
         return -1;
     }
+
+    /* Extract feature for the detected objects */
+    FeatureEngine::Result feature_result;
+#if 1
+    if (s_feature_engine->Process(mat, det_result.bbox_list, feature_result) != DetectionEngine::kRetOk) {
+        return -1;
+    }
+#else
+    feature_result.feature_list.resize(det_result.bbox_list.size());
+#endif
 
     /* Display target area  */
     cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
@@ -142,14 +167,14 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
 
     /* Display tracking result  */
-    s_tracker.Update(det_result.bbox_list);
+    s_tracker.Update(det_result.bbox_list, feature_result.feature_list);
     int32_t num_track = 0;
     auto& track_list = s_tracker.GetTrackList();
     for (auto& track : track_list) {
         if (track.GetDetectedCount() < 2) continue;
         const auto& bbox = track.GetLatestData().bbox;
-        /* Use white rectangle for the object which was not detected but just predicted */
-        cv::Scalar color = bbox.score == 0 ? CommonHelper::CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
+        if (bbox.score == 0) continue;
+        cv::Scalar color = GetColorForId(track.GetId());
         cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
         CommonHelper::DrawText(mat, std::to_string(track.GetId()) + ": " + bbox.label, cv::Point(bbox.x, bbox.y - 13), 0.35, 1, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
 
@@ -157,12 +182,13 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         for (size_t i = 1; i < track_history.size(); i++) {
             cv::Point p0(track_history[i].bbox.x + track_history[i].bbox.w / 2, track_history[i].bbox.y + track_history[i].bbox.h);
             cv::Point p1(track_history[i - 1].bbox.x + track_history[i - 1].bbox.w / 2, track_history[i - 1].bbox.y + track_history[i - 1].bbox.h);
-            cv::line(mat, p0, p1, CommonHelper::CreateCvColor(255, 0, 0));
+            cv::line(mat, p0, p1, color);
         }
         num_track++;
     }
     CommonHelper::DrawText(mat, "DET: " + std::to_string(num_det) + ", TRACK: " + std::to_string(num_track), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
-    DrawFps(mat, det_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
+
+    DrawFps(mat, det_result.time_inference, feature_result.time_inference, static_cast<int32_t>(feature_result.feature_list.size()), cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     /* Return the results */
     int32_t bbox_num = 0;
