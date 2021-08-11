@@ -1,4 +1,4 @@
-/* Copyright 2020 iwatake2222
+/* Copyright 2021 iwatake2222
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ limitations under the License.
 
 /* for My modules */
 #include "inference_helper.h"
+#include "bounding_box.h"
 
 
 class DetectionEngine {
@@ -37,44 +38,47 @@ public:
         kRetErr = -1,
     };
 
-    typedef struct Object_ {
-        int32_t     class_id;
-        std::string label;
-        float  score;
-        float  x;
-        float  y;
-        float  width;
-        float  height;
-        Object_() : class_id(0), label(""), score(0), x(0), y(0), width(0), height(0)
-        {}
-    } Object;
-
     typedef struct Result_ {
-        std::vector<Object> object_list;
-        double            time_pre_process;		// [msec]
-        double            time_inference;		// [msec]
-        double            time_post_process;	// [msec]
+        std::vector<BoundingBox> bbox_list;
+        struct crop_ {
+            int32_t x;
+            int32_t y;
+            int32_t w;
+            int32_t h;
+            crop_() : x(0), y(0), w(0), h(0) {}
+        } crop;
+        double                   time_pre_process;		// [msec]
+        double                   time_inference;		// [msec]
+        double                   time_post_process;	    // [msec]
         Result_() : time_pre_process(0), time_inference(0), time_post_process(0)
         {}
     } Result;
 
 public:
-    DetectionEngine() {}
+    DetectionEngine() {
+        threshold_confidence_ = 0.5f;
+        threshold_nms_iou_ = 0.5f;
+    }
     ~DetectionEngine() {}
     int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
     int32_t Finalize(void);
     int32_t Process(const cv::Mat& original_mat, Result& result);
+    void SetThreshold(float threshold_confidence, float threshold_nms_iou) {
+        threshold_confidence_ = threshold_confidence;
+        threshold_nms_iou_ = threshold_nms_iou;
+    }
 
 private:
     int32_t ReadLabel(const std::string& filename, std::vector<std::string>& label_list);
-    int32_t GetObject(std::vector<Object>& object_list, const float *output_box_list, const float *output_class_list, const float *output_score_list, const int32_t output_num,
-        const double threshold, const int32_t width, const int32_t height);
 
 private:
     std::unique_ptr<InferenceHelper> inference_helper_;
     std::vector<InputTensorInfo> input_tensor_info_list_;
     std::vector<OutputTensorInfo> output_tensor_info_list_;
     std::vector<std::string> label_list_;
+
+    float threshold_confidence_;
+    float threshold_nms_iou_;
 };
 
 #endif

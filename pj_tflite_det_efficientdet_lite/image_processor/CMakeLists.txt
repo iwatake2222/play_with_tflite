@@ -17,7 +17,6 @@ target_link_libraries(${LibraryName} CommonHelper)
 
 # For InferenceHelper
 set(INFERENCE_HELPER_DIR ${CMAKE_CURRENT_LIST_DIR}/../../InferenceHelper/)
-set(INFERENCE_HELPER_ENABLE_OPENCV ON CACHE BOOL "OPENCV")
 set(INFERENCE_HELPER_ENABLE_TFLITE ON CACHE BOOL "TFLITE")
 set(INFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK ON CACHE BOOL "TFLITE_XNNPACK")
 add_subdirectory(${INFERENCE_HELPER_DIR}/inference_helper inference_helper)

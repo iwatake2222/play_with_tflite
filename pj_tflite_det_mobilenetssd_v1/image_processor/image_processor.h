@@ -37,16 +37,6 @@ typedef struct {
 } InputParam;
 
 typedef struct {
-    int32_t object_num;
-    struct {
-        int32_t  class_id;
-        char     label[256];
-        double   score;
-        int32_t  x;
-        int32_t  y;
-        int32_t  width;
-        int32_t  height;
-    } object_list[NUM_MAX_RESULT];
     double time_pre_process;   // [msec]
     double time_inference;    // [msec]
     double time_post_process;  // [msec]

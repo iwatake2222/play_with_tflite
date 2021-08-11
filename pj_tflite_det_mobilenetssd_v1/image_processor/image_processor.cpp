@@ -1,4 +1,4 @@
-/* Copyright 2020 iwatake2222
+/* Copyright 2021 iwatake2222
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,9 @@ limitations under the License.
 /* for My modules */
 #include "common_helper.h"
 #include "common_helper_cv.h"
+#include "bounding_box.h"
 #include "detection_engine.h"
+#include "tracker.h"
 #include "image_processor.h"
 
 /*** Macro ***/
@@ -42,6 +44,7 @@ limitations under the License.
 
 /*** Global variable ***/
 std::unique_ptr<DetectionEngine> s_engine;
+Tracker s_tracker;
 
 /*** Function ***/
 static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
@@ -53,6 +56,19 @@ static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double f
     time_previous = time_now;
     snprintf(text, sizeof(text), "FPS: %.1f, Inference: %.1f [ms]", fps, time_inference);
     CommonHelper::DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
+}
+
+static cv::Scalar GetColorForId(int32_t id)
+{
+    static constexpr int32_t kMaxNum = 100;
+    static std::vector<cv::Scalar> color_list;
+    if (color_list.empty()) {
+        std::srand(123);
+        for (int32_t i = 0; i < kMaxNum; i++) {
+            color_list.push_back(CommonHelper::CreateCvColor(std::rand() % 255, std::rand() % 255, std::rand() % 255));
+        }
+    }
+    return color_list[id % kMaxNum];
 }
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
@@ -102,42 +118,53 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
+
 int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
     if (!s_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
-    
+
     DetectionEngine::Result det_result;
-    det_result.object_list.clear();
     if (s_engine->Process(mat, det_result) != DetectionEngine::kRetOk) {
         return -1;
     }
 
-    /* Draw the result */
-    for (const auto& object : det_result.object_list) {
-        cv::rectangle(mat, cv::Rect(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y), static_cast<int32_t>(object.width), static_cast<int32_t>(object.height)), cv::Scalar(255, 255, 0), 3);
-        cv::putText(mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CommonHelper::CreateCvColor(0, 0, 0), 3);
-        cv::putText(mat, object.label, cv::Point(static_cast<int32_t>(object.x), static_cast<int32_t>(object.y) + 10), cv::FONT_HERSHEY_PLAIN, 1, CommonHelper::CreateCvColor(0, 255, 0), 1);
+    /* Display target area  */
+    cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
+
+    /* Display detection result (black rectangle) */
+    int32_t num_det = 0;
+    for (const auto& bbox : det_result.bbox_list) {
+        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CommonHelper::CreateCvColor(0, 0, 0), 1);
+        num_det++;
     }
 
+    /* Display tracking result  */
+    s_tracker.Update(det_result.bbox_list);
+    int32_t num_track = 0;
+    auto& track_list = s_tracker.GetTrackList();
+    for (auto& track : track_list) {
+        if (track.GetDetectedCount() < 2) continue;
+        const auto& bbox = track.GetLatestData().bbox;
+        /* Use white rectangle for the object which was not detected but just predicted */
+        cv::Scalar color = bbox.score == 0 ? CommonHelper::CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
+        cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
+        CommonHelper::DrawText(mat, std::to_string(track.GetId()) + ": " + bbox.label, cv::Point(bbox.x, bbox.y - 13), 0.35, 1, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
+
+        auto& track_history = track.GetDataHistory();
+        for (size_t i = 1; i < track_history.size(); i++) {
+            cv::Point p0(track_history[i].bbox.x + track_history[i].bbox.w / 2, track_history[i].bbox.y + track_history[i].bbox.h);
+            cv::Point p1(track_history[i - 1].bbox.x + track_history[i - 1].bbox.w / 2, track_history[i - 1].bbox.y + track_history[i - 1].bbox.h);
+            cv::line(mat, p0, p1, CommonHelper::CreateCvColor(255, 0, 0));
+        }
+        num_track++;
+    }
+    CommonHelper::DrawText(mat, "DET: " + std::to_string(num_det) + ", TRACK: " + std::to_string(num_track), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
     DrawFps(mat, det_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     /* Return the results */
-    int32_t object_num = 0;
-    for (const auto& object : det_result.object_list) {
-        result.object_list[object_num].class_id = object.class_id;
-        snprintf(result.object_list[object_num].label, sizeof(result.object_list[object_num].label), "%s", object.label.c_str());
-        result.object_list[object_num].score = object.score;
-        result.object_list[object_num].x = static_cast<int32_t>(object.x);
-        result.object_list[object_num].y = static_cast<int32_t>(object.y);
-        result.object_list[object_num].width = static_cast<int32_t>(object.width);
-        result.object_list[object_num].height = static_cast<int32_t>(object.height);
-        object_num++;
-        if (object_num >= NUM_MAX_RESULT) break;
-    }
-    result.object_num = object_num;
     result.time_pre_process = det_result.time_pre_process;
     result.time_inference = det_result.time_inference;
     result.time_post_process = det_result.time_post_process;
