@@ -77,7 +77,7 @@ private:
     static constexpr float kCostMax = 1.0F;
 
 public:
-    TrackerDeepSort(int32_t threshold_frame_to_delete = 50, float threshold_iou_to_track = 0.3F, float threshold_feature_distance_to_use = 0.01F);
+    TrackerDeepSort(int32_t threshold_frame_to_delete = 70);
     ~TrackerDeepSort();
     void Reset();
 
@@ -86,15 +86,13 @@ public:
     std::vector<TrackDeepSort>& GetTrackList();
 
 private:
-    float CalculateCost(const BoundingBox& bbox0, const BoundingBox& bbox1, const std::array<float, 512>& feature0, const std::array<float, 512>& feature1);
+    float CalculateCost(TrackDeepSort& track, const BoundingBox& det_bbox, const std::array<float, 512>& det_feature);
 
 private:
     std::vector<TrackDeepSort> track_list_;
     int32_t track_sequence_num_;
 
     int32_t threshold_frame_to_delete_;
-    float threshold_iou_to_track_;
-    float threshold_feature_distance_to_use_;   // use the distanec of feature as cost if it is less than this threshold
 };
 
 #endif

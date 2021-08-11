@@ -46,7 +46,7 @@ limitations under the License.
 /*** Global variable ***/
 std::unique_ptr<DetectionEngine> s_det_engine;
 std::unique_ptr<FeatureEngine> s_feature_engine;
-TrackerDeepSort s_tracker(50, 0.3f, 0.2f);
+TrackerDeepSort s_tracker(70);
 
 /*** Function ***/
 static void DrawFps(cv::Mat& mat, double time_inference_det, double time_inference_feature, int32_t num_feature, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
@@ -80,7 +80,7 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param
         return -1;
     }
 
-    s_det_engine.reset(new DetectionEngine());
+    s_det_engine.reset(new DetectionEngine(0.4f, 0.2f, 0.5f));
     if (s_det_engine->Initialize(input_param.work_dir, input_param.num_threads) != DetectionEngine::kRetOk) {
         s_det_engine->Finalize();
         s_det_engine.reset();
@@ -206,9 +206,9 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
     result.object_num = bbox_num;
 
-    result.time_pre_process = det_result.time_pre_process;
-    result.time_inference = det_result.time_inference;
-    result.time_post_process = det_result.time_post_process;
+    result.time_pre_process = det_result.time_pre_process + feature_result.time_pre_process;
+    result.time_inference = det_result.time_inference + feature_result.time_inference;
+    result.time_post_process = det_result.time_post_process + feature_result.time_post_process;
 
     return 0;
 }

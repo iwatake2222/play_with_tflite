@@ -21,6 +21,7 @@ limitations under the License.
 #include <list>
 #include <array>
 #include <memory>
+#include <numeric>
 
 /* for My modules */
 #include "common_helper.h"
@@ -231,12 +232,10 @@ BoundingBox TrackDeepSort::KalmanStatus2Bbox(const SimpleMatrix& X)
 
 
 constexpr float TrackerDeepSort::kCostMax;  // for link error in Android Studio (clang)
-TrackerDeepSort::TrackerDeepSort(int32_t threshold_frame_to_delete, float threshold_iou_to_track, float threshold_feature_distance_to_use)
+TrackerDeepSort::TrackerDeepSort(int32_t threshold_frame_to_delete)
 {
     track_sequence_num_ = 0;
     threshold_frame_to_delete_ = threshold_frame_to_delete;
-    threshold_iou_to_track_ = threshold_iou_to_track;
-    threshold_feature_distance_to_use_ = threshold_feature_distance_to_use;
 }
 
 TrackerDeepSort::~TrackerDeepSort()
@@ -255,7 +254,7 @@ std::vector<TrackDeepSort>& TrackerDeepSort::GetTrackList()
     return track_list_;
 }
 
-static float CosineDistance(const std::array<float, 512>& feature0, const std::array<float, 512>& feature1)
+static float CosineSimilarity(const std::array<float, 512>& feature0, const std::array<float, 512>& feature1)
 {
     float norm_0 = 0;
     float norm_1 = 0;
@@ -265,8 +264,10 @@ static float CosineDistance(const std::array<float, 512>& feature0, const std::a
         norm_1 += feature1[i] * feature1[i];
         dot += feature0[i] * feature1[i];
     }
-    if (norm_0 == 0 || norm_1 == 0) return 0;
-    return 1 - (std::max)(0.0f, dot / (std::sqrtf(norm_0) * std::sqrtf(norm_1)));
+    
+    if (norm_0 == 0 || norm_1 == 0) return 999; /* invalid */
+
+    return (std::max)(0.0f, dot / (std::sqrtf(norm_0) * std::sqrtf(norm_1)));
 }
 
 //static float EuclidDistance(const std::array<float, 512>& feature0, const std::array<float, 512>& feature1)
@@ -278,42 +279,73 @@ static float CosineDistance(const std::array<float, 512>& feature0, const std::a
 //    return std::sqrtf(distance);
 //}
 
-float TrackerDeepSort::CalculateCost(const BoundingBox& bbox0, const BoundingBox& bbox1, const std::array<float, 512>& feature0, const std::array<float, 512>& feature1)
+static inline float AdjustFeatureSimilarity(float value)
 {
-#if 1
-    float feature_distance = CosineDistance(feature0, feature1);    /* 0.0(same) - 1.0(different) */
+    /* experimentally determined */
+    /* similarity becomes around 0.8 - 0.99 even b/w different individuals */
+    static constexpr float kScake = 10;
+    static constexpr float kOffset = 1.0f - 1 / kScake;
+    value = (value - kOffset) * kScake;
+    return (std::max)(0.0f, value);
+}
 
-    if (feature_distance < threshold_feature_distance_to_use_) {
-        return  feature_distance;
+float TrackerDeepSort::CalculateCost(TrackDeepSort& track, const BoundingBox& det_bbox, const std::array<float, 512>& det_feature)
+{
+    const auto& track_bbox = track.GetLatestBoundingBox();
+
+    /*  Shouldn't match different class */
+    if (track_bbox.class_id != det_bbox.class_id) {
+        return kCostMax;
     }
-#endif
 
-    float iou = BoundingBoxUtils::CalculateIoU(bbox0, bbox1);
-    if (iou > 0.9) {
-        /* must be the same object (do not check class id because class id may be mistaken) */
-    } else if (iou < threshold_iou_to_track_) {
-        /* cannot be the same object */
-        iou = 0;
-    } else {
-        if (bbox0.class_id == bbox1.class_id) {
-            /* can be the same object */
-        } else {
-            /* cannot be the same object */
-            iou = 0;
+    /*  Shouldn't match far object */
+    const double distance_image_pow2 = std::pow(track_bbox.x - det_bbox.x, 2) + std::pow(track_bbox.y - det_bbox.y, 2);
+    const double threshold_distance = std::pow((track_bbox.w + track_bbox.h + det_bbox.w + det_bbox.h) / 4, 2) * 4; /* experimentally determined */
+    if (distance_image_pow2 > threshold_distance) {
+        return kCostMax;
+    }
+
+    /* Calculate cosine similarity of feature (DEEP) */
+    float weight_feature = 1.0f;
+    float similarity_feature = 0;
+
+    if (track_bbox.class_id == 0) { /* Use feature only for person */
+        std::vector<float> similarity_history;
+        for (int32_t i = static_cast<int32_t>(track.GetDataHistory().size()) - 2; i >= 0; i -= 5) {
+            const auto& data = track.GetDataHistory()[i];
+            if (data.bbox_raw.score == 0) continue;
+            float val = CosineSimilarity(data.feature, det_feature);    /* 0.0(different) - 1.0(same) */
+            if (val == 999) {
+                weight_feature = 0.0f;
+                break;
+            }
+            similarity_history.push_back(val);
         }
-    }
+        if (similarity_history.size() > 0) {
+            similarity_feature = std::accumulate(similarity_history.begin(), similarity_history.end(), 0.0f) / similarity_history.size();
+        }
 
-    return kCostMax - iou;
+        similarity_feature = AdjustFeatureSimilarity(similarity_feature);
+    } else {
+        weight_feature = 0.0f;
+        similarity_feature = 1.0f;
+    }
+    
+    /* Calculate IOU */
+    constexpr float weight_iou = 1.0f;
+    float iou = BoundingBoxUtils::CalculateIoU(track_bbox, det_bbox);
+
+    float similarity = (weight_feature * similarity_feature + weight_iou * iou) / (weight_feature + weight_iou);
+
+    return kCostMax - similarity;
 }
 
 
 void TrackerDeepSort::Update(const std::vector<BoundingBox>& det_list, const std::vector<std::array<float, 512>>& feature_list)
 {
     /*** Predict the position at the current frame using the previous status for all tracked bbox ***/
-    std::vector<BoundingBox> bbox_pred_list;
     for (auto& track : track_list_) {
-        BoundingBox bbox_prd = track.Predict();
-        bbox_pred_list.push_back(bbox_prd);
+        track.Predict();
     }
 
     /*** Association ***/
@@ -322,7 +354,7 @@ void TrackerDeepSort::Update(const std::vector<BoundingBox>& det_list, const std
     std::vector<std::vector<float>> cost_matrix(size_cost_matrix, std::vector<float>(size_cost_matrix, kCostMax));
     for (size_t i_track = 0; i_track < track_list_.size(); i_track++) {
         for (size_t i_det = 0; i_det < det_list.size(); i_det++) {
-            cost_matrix[i_track][i_det] = CalculateCost(bbox_pred_list[i_track], det_list[i_det], track_list_[i_track].GetLatestData().feature, feature_list[i_det]);
+            cost_matrix[i_track][i_det] = CalculateCost(track_list_[i_track], det_list[i_det], feature_list[i_det]);
         }
     }
 
