@@ -1,7 +1,7 @@
 # YOLOX with TensorFlow Lite / OpenCV(cv::dnn + ONNX) in C++
 Sample project to run YOLOX + SORT
 
-Click the image to open in YouTube
+Click the image to open in YouTube. https://youtu.be/bl19Ik4uz7c
 
 [![00_doc/yolox_sort.jpg](00_doc/yolox_sort.jpg)](https://youtu.be/bl19Ik4uz7c)
 

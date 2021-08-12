@@ -1,7 +1,7 @@
 # Depth estimation (midas/v2_1_small) with TensorFlow Lite in C++
 Sample project to run depth estimation
 
-Click the image to open in YouTube
+Click the image to open in YouTube. https://youtu.be/ho6KGlHmWHk
 
 [![00_doc/depth_midas.jpg](00_doc/depth_midas.jpg)](https://youtu.be/ho6KGlHmWHk)
 

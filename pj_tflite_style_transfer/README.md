@@ -1,7 +1,7 @@
 # Artistic Style Transfer with TensorFlow Lite in C++
 Sample project to run Artistic Style Transfer
 
-Click the image to open in YouTube
+Click the image to open in YouTube. https://youtu.be/wzPrwGR4jis
 
 [![00_doc/artistic_style_transfer.jpg](00_doc/artistic_style_transfer.jpg)](https://youtu.be/wzPrwGR4jis)
 
