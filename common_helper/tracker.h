@@ -49,8 +49,8 @@ public:
     void UpdateNoDetect();
 
     std::deque<Data>& GetDataHistory();
-    const Data& GetLatestData() const ;
-    const BoundingBox& GetLatestBoundingBox() const;
+    Data& GetLatestData() ;
+    BoundingBox& GetLatestBoundingBox();
 
     const int32_t GetId() const;
     const int32_t GetUndetectedCount() const;
@@ -76,7 +76,7 @@ private:
     static constexpr float kCostMax = 1.0F;
 
 public:
-    Tracker();
+    Tracker(int32_t threshold_frame_to_delete = 2);
     ~Tracker();
     void Reset();
 
@@ -85,14 +85,13 @@ public:
     std::vector<Track>& GetTrackList();
 
 private:
-    float CalculateSimilarity(const BoundingBox& bbox0, const BoundingBox& bbox1);
+    float CalculateCost(Track& track, const BoundingBox& det_bbox);
 
 private:
     std::vector<Track> track_list_;
     int32_t track_sequence_num_;
 
     int32_t threshold_frame_to_delete_;
-    float threshold_iou_to_track_;
 };
 
 #endif

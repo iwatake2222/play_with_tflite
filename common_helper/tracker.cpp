@@ -59,7 +59,7 @@ BoundingBox Track::Predict()
     bbox.y = bbox_pred.y;
     bbox.score = 0.0F;
 
-    Data data;
+    Data data = GetLatestData();
     data.bbox = bbox;
     data.bbox_raw = bbox;
     data_history_.push_back(data);
@@ -102,12 +102,12 @@ std::deque<Track::Data>& Track::GetDataHistory()
     return data_history_;
 }
 
-const Track::Data& Track::GetLatestData() const
+Track::Data& Track::GetLatestData()
 {
     return data_history_.back();
 }
 
-const BoundingBox& Track::GetLatestBoundingBox() const
+BoundingBox& Track::GetLatestBoundingBox()
 {
     return data_history_.back().bbox;
 }
@@ -230,11 +230,10 @@ BoundingBox Track::KalmanStatus2Bbox(const SimpleMatrix& X)
 
 
 constexpr float Tracker::kCostMax;  // for link error in Android Studio (clang)
-Tracker::Tracker()
+Tracker::Tracker(int32_t threshold_frame_to_delete)
 {
     track_sequence_num_ = 0;
-    threshold_frame_to_delete_ = 2;
-    threshold_iou_to_track_ = 0.3F;
+    threshold_frame_to_delete_ = threshold_frame_to_delete;
 }
 
 Tracker::~Tracker()
@@ -253,16 +252,17 @@ std::vector<Track>& Tracker::GetTrackList()
     return track_list_;
 }
 
-float Tracker::CalculateSimilarity(const BoundingBox& bbox0, const BoundingBox& bbox1)
+float Tracker::CalculateCost(Track& track, const BoundingBox& det_bbox)
 {
-    float iou = BoundingBoxUtils::CalculateIoU(bbox0, bbox1);
+    const auto& track_bbox = track.GetLatestBoundingBox();
+    float iou = BoundingBoxUtils::CalculateIoU(track_bbox, det_bbox);
     if (iou > 0.9) {
         /* must be the same object (do not check class id because class id may be mistaken) */
-    } else if (iou < threshold_iou_to_track_) {
+    } else if (iou < 0.3) {
         /* cannot be the same object */
         iou = 0;
     } else {
-        if (bbox0.class_id == bbox1.class_id) {
+        if (track_bbox.class_id == det_bbox.class_id) {
             /* can be the same object */
         } else {
             /* cannot be the same object */
@@ -276,10 +276,8 @@ float Tracker::CalculateSimilarity(const BoundingBox& bbox0, const BoundingBox& 
 void Tracker::Update(const std::vector<BoundingBox>& det_list)
 {
     /*** Predict the position at the current frame using the previous status for all tracked bbox ***/
-    std::vector<BoundingBox> bbox_pred_list;
     for (auto& track : track_list_) {
-        BoundingBox bbox_prd = track.Predict();
-        bbox_pred_list.push_back(bbox_prd);
+        track.Predict();
     }
 
     /*** Association ***/
@@ -288,7 +286,7 @@ void Tracker::Update(const std::vector<BoundingBox>& det_list)
     std::vector<std::vector<float>> cost_matrix(size_cost_matrix, std::vector<float>(size_cost_matrix, kCostMax));
     for (size_t i_track = 0; i_track < track_list_.size(); i_track++) {
         for (size_t i_det = 0; i_det < det_list.size(); i_det++) {
-            cost_matrix[i_track][i_det] = CalculateSimilarity(bbox_pred_list[i_track], det_list[i_det]);
+            cost_matrix[i_track][i_det] = CalculateCost(track_list_[i_track], det_list[i_det]);
         }
     }
 

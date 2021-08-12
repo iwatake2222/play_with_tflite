@@ -60,18 +60,14 @@ public:
     } Result;
 
 public:
-    DetectionEngine() {
-        threshold_confidence_ = 0.4f;
-        threshold_nms_iou_ = 0.5f;
+    DetectionEngine(float threshold_confidence = 0.4f, float threshold_nms_iou = 0.5f) {
+        threshold_confidence_ = threshold_confidence;
+        threshold_nms_iou_ = threshold_nms_iou;
     }
     ~DetectionEngine() {}
     int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
     int32_t Finalize(void);
     int32_t Process(const cv::Mat& original_mat, Result& result);
-    void SetThreshold(float threshold_confidence, float threshold_nms_iou) {
-        threshold_confidence_ = threshold_confidence;
-        threshold_nms_iou_ = threshold_nms_iou;
-    }
 
 private:
     std::unique_ptr<InferenceHelper> inference_helper_;

@@ -58,18 +58,14 @@ public:
     } Result;
 
 public:
-    FaceDetectionEngine() {
-        threshold_confidence_ = 0.6f;
-        threshold_nms_iou_ = 0.6f;
+    FaceDetectionEngine(float threshold_confidence = 0.4f, float threshold_nms_iou = 0.5f) {
+        threshold_confidence_ = threshold_confidence;
+        threshold_nms_iou_ = threshold_nms_iou;
     }
     ~FaceDetectionEngine() {}
     int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
     int32_t Finalize(void);
     int32_t Process(const cv::Mat& original_mat, Result& result);
-    void SetThreshold(float threshold_confidence, float threshold_nms_iou) {
-        threshold_confidence_ = threshold_confidence;
-        threshold_nms_iou_ = threshold_nms_iou;
-    }
 
     void  CreateAnchor(int32_t width, int32_t height, std::vector<std::pair<float, float>>& anchor_list);
     void  GetBoundingBox(const std::vector<float>& score_list, const std::vector<float>& regressor_list, const std::vector<std::pair<float, float>>& anchor_list, float threshold_score_logit, float scale_x, float scale_y, std::vector<BoundingBox>& bbox_list);
