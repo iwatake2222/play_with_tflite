@@ -20,6 +20,9 @@ Click the image to open in YouTube. https://youtu.be/7BtEOCb3wMk
         - https://github.com/iwatake2222/play_with_tflite/files/6938693/label_coco_80.txt
     - Build  `pj_tflite_track_deepsort` project (this directory)
 
+## Note
+- There is a large space can be improved in tracking algorithm
+
 ## Acknowledgements
 - https://arxiv.org/abs/1703.07402
 - https://github.com/mikel-brostrom/Yolov5_DeepSort_Pytorch

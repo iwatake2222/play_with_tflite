@@ -259,7 +259,7 @@ static float CosineSimilarity(const std::array<float, 512>& feature0, const std:
     float norm_0 = 0;
     float norm_1 = 0;
     float dot = 0;
-    for (int32_t i = 0; i < feature0.size(); i++) {
+    for (size_t i = 0; i < feature0.size(); i++) {
         norm_0 += feature0[i] * feature0[i];
         norm_1 += feature1[i] * feature1[i];
         dot += feature0[i] * feature1[i];
@@ -267,7 +267,7 @@ static float CosineSimilarity(const std::array<float, 512>& feature0, const std:
     
     if (norm_0 == 0 || norm_1 == 0) return 999; /* invalid */
 
-    return (std::max)(0.0f, dot / (std::sqrtf(norm_0) * std::sqrtf(norm_1)));
+    return (std::max)(0.0f, dot / (std::sqrt(norm_0) * std::sqrt(norm_1)));
 }
 
 //static float EuclidDistance(const std::array<float, 512>& feature0, const std::array<float, 512>& feature1)
