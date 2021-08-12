@@ -77,7 +77,7 @@ private:
     static constexpr float kCostMax = 1.0F;
 
 public:
-    TrackerDeepSort(int32_t threshold_frame_to_delete = 70);
+    TrackerDeepSort(int32_t threshold_frame_to_delete = 2);
     ~TrackerDeepSort();
     void Reset();
 

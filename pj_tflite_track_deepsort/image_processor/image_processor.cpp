@@ -43,10 +43,16 @@ limitations under the License.
 #define PRINT(...)   COMMON_HELPER_PRINT(TAG, __VA_ARGS__)
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
+#define USE_DEEPSORT
+
 /*** Global variable ***/
 std::unique_ptr<DetectionEngine> s_det_engine;
 std::unique_ptr<FeatureEngine> s_feature_engine;
-TrackerDeepSort s_tracker(70);
+#ifdef USE_DEEPSORT
+TrackerDeepSort s_tracker(30);
+#else
+TrackerDeepSort s_tracker(2);
+#endif
 
 /*** Function ***/
 static void DrawFps(cv::Mat& mat, double time_inference_det, double time_inference_feature, int32_t num_feature, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
@@ -148,7 +154,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 
     /* Extract feature for the detected objects */
     FeatureEngine::Result feature_result;
-#if 1
+#ifdef USE_DEEPSORT
     if (s_feature_engine->Process(mat, det_result.bbox_list, feature_result) != DetectionEngine::kRetOk) {
         return -1;
     }

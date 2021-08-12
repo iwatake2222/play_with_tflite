@@ -293,11 +293,6 @@ float TrackerDeepSort::CalculateCost(TrackDeepSort& track, const BoundingBox& de
 {
     const auto& track_bbox = track.GetLatestBoundingBox();
 
-    /*  Shouldn't match different class */
-    if (track_bbox.class_id != det_bbox.class_id) {
-        return kCostMax;
-    }
-
     /*  Shouldn't match far object */
     const double distance_image_pow2 = std::pow(track_bbox.x - det_bbox.x, 2) + std::pow(track_bbox.y - det_bbox.y, 2);
     const double threshold_distance = std::pow((track_bbox.w + track_bbox.h + det_bbox.w + det_bbox.h) / 4, 2) * 4; /* experimentally determined */
@@ -305,10 +300,20 @@ float TrackerDeepSort::CalculateCost(TrackDeepSort& track, const BoundingBox& de
         return kCostMax;
     }
 
+    /* Calculate IOU */
+    constexpr float weight_iou = 1.0f;
+    float iou = BoundingBoxUtils::CalculateIoU(track_bbox, det_bbox);
+
+    /* check class id */
+    /* those two objects are difference if those of class id are difference */
+    /* however, if iou is big enough, they can be the same (detector may output wrong class id) */
+    if ((iou < 0.8) && (track_bbox.class_id != det_bbox.class_id)) {
+        return kCostMax;
+    }
+
     /* Calculate cosine similarity of feature (DEEP) */
     float weight_feature = 1.0f;
     float similarity_feature = 0;
-
     if (track_bbox.class_id == 0) { /* Use feature only for person */
         std::vector<float> similarity_history;
         for (int32_t i = static_cast<int32_t>(track.GetDataHistory().size()) - 2; i >= 0; i -= 5) {
@@ -330,11 +335,8 @@ float TrackerDeepSort::CalculateCost(TrackDeepSort& track, const BoundingBox& de
         weight_feature = 0.0f;
         similarity_feature = 1.0f;
     }
-    
-    /* Calculate IOU */
-    constexpr float weight_iou = 1.0f;
-    float iou = BoundingBoxUtils::CalculateIoU(track_bbox, det_bbox);
 
+    /* Calculate similarity using some metrcs */
     float similarity = (weight_feature * similarity_feature + weight_iou * iou) / (weight_feature + weight_iou);
 
     return kCostMax - similarity;
