@@ -1,5 +1,7 @@
 # Play with tflite
-Sample projects to use Tensorflow Lite for multi-platform
+- Sample projects to use TensorFlow Lite in C++ for multi-platform
+- Typical project structure is like the following diagram
+    - ![00_doc/design.jpg](00_doc/design.jpg)
 
 ## Target Environment
 - Platform
