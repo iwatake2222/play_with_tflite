@@ -39,7 +39,7 @@ public:
     };
 
     typedef struct Result_ {
-        std::vector<std::array<float, 512>> feature_list;
+        std::vector<float> feature;
         double time_pre_process;    // [msec]
         double time_inference;      // [msec]
         double time_post_process;   // [msec]
@@ -52,7 +52,7 @@ public:
     ~FeatureEngine() {}
     int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
     int32_t Finalize(void);
-    int32_t Process(const cv::Mat& original_mat, const std::vector<BoundingBox>& bbox_list, Result& result_list);
+    int32_t Process(const cv::Mat& original_mat, const BoundingBox& bbox, Result& result);
 
 
 private:

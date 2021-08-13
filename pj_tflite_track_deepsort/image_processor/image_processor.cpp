@@ -138,7 +138,6 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
-
 int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
     if (!s_det_engine || !s_feature_engine) {
@@ -153,14 +152,28 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
 
     /* Extract feature for the detected objects */
-    FeatureEngine::Result feature_result;
+    std::vector<std::vector<float>> feature_list;
+    double time_pre_process_feature = 0;   // [msec]
+    double time_inference_feature = 0;    // [msec]
+    double time_post_process_feature = 0;  // [msec]
+    for (const auto& bbox : det_result.bbox_list) {
 #ifdef USE_DEEPSORT
-    if (s_feature_engine->Process(mat, det_result.bbox_list, feature_result) != DetectionEngine::kRetOk) {
-        return -1;
-    }
+        if (bbox.class_id == 0) {   /* Calculate face feature for person only */
+            FeatureEngine::Result feature_result;
+            if (s_feature_engine->Process(mat, bbox, feature_result) != DetectionEngine::kRetOk) {
+                return -1;
+            }
+            feature_list.push_back(feature_result.feature);
+            time_pre_process_feature += feature_result.time_pre_process;
+            time_inference_feature += feature_result.time_inference;
+            time_post_process_feature += feature_result.time_post_process;
+        } else {
+            feature_list.push_back(std::vector<float>());   /* the length of feature is 0. so it's not used in tracker (DeepSORT) */
+        }
 #else
-    feature_result.feature_list.resize(det_result.bbox_list.size());
+        feature_list.push_back(std::vector<float>());   /* the length of feature is 0. so it's not used in tracker (DeepSORT) */
 #endif
+    }
 
     /* Display target area  */
     cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
@@ -173,13 +186,13 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
 
     /* Display tracking result  */
-    s_tracker.Update(det_result.bbox_list, feature_result.feature_list);
+    s_tracker.Update(det_result.bbox_list, feature_list);
     int32_t num_track = 0;
     auto& track_list = s_tracker.GetTrackList();
     for (auto& track : track_list) {
-        if (track.GetDetectedCount() < 2) continue;
+        if (track.GetDetectedCount() < 2) continue; /* To decrease FP */
         const auto& bbox = track.GetLatestData().bbox;
-        if (bbox.score == 0) continue;
+        if (bbox.score == 0) continue;  /* the oboject is in tracker, but not detected at the current frame */
         cv::Scalar color = GetColorForId(track.GetId());
         cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
         CommonHelper::DrawText(mat, std::to_string(track.GetId()) + ": " + bbox.label, cv::Point(bbox.x, bbox.y - 13), 0.35, 1, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
@@ -194,27 +207,12 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
     CommonHelper::DrawText(mat, "DET: " + std::to_string(num_det) + ", TRACK: " + std::to_string(num_track), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
 
-    DrawFps(mat, det_result.time_inference, feature_result.time_inference, static_cast<int32_t>(feature_result.feature_list.size()), cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
+    DrawFps(mat, det_result.time_inference, time_inference_feature, static_cast<int32_t>(feature_list.size()), cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     /* Return the results */
-    int32_t bbox_num = 0;
-    for (auto& track : track_list) {
-        const auto& bbox = track.GetLatestData().bbox;
-        result.object_list[bbox_num].class_id = bbox.class_id;
-        snprintf(result.object_list[bbox_num].label, sizeof(result.object_list[bbox_num].label), "%s", bbox.label.c_str());
-        result.object_list[bbox_num].score = bbox.score;
-        result.object_list[bbox_num].x = bbox.x;
-        result.object_list[bbox_num].y = bbox.y;
-        result.object_list[bbox_num].width = bbox.w;
-        result.object_list[bbox_num].height = bbox.h;
-        bbox_num++;
-        if (bbox_num >= NUM_MAX_RESULT) break;
-    }
-    result.object_num = bbox_num;
-
-    result.time_pre_process = det_result.time_pre_process + feature_result.time_pre_process;
-    result.time_inference = det_result.time_inference + feature_result.time_inference;
-    result.time_post_process = det_result.time_post_process + feature_result.time_post_process;
+    result.time_pre_process = det_result.time_pre_process + time_pre_process_feature;
+    result.time_inference = det_result.time_inference + time_inference_feature;
+    result.time_post_process = det_result.time_post_process + time_post_process_feature;
 
     return 0;
 }

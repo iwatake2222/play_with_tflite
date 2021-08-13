@@ -38,11 +38,11 @@ public:
     typedef struct Data_ {
         BoundingBox bbox;
         BoundingBox bbox_raw;
-        std::array<float, 512> feature;
+        std::vector<float> feature;
     } Data;
 
 public:
-    TrackDeepSort(const int32_t id, const BoundingBox& bbox_det, const std::array<float, 512>& feature);
+    TrackDeepSort(const int32_t id, const BoundingBox& bbox_det, const std::vector<float>& feature);
     ~TrackDeepSort();
 
     BoundingBox Predict();
@@ -81,12 +81,12 @@ public:
     ~TrackerDeepSort();
     void Reset();
 
-    void Update(const std::vector<BoundingBox>& det_list, const std::vector<std::array<float, 512>>& feature_list);
+    void Update(const std::vector<BoundingBox>& det_list, const std::vector<std::vector<float>>& feature_list);
 
     std::vector<TrackDeepSort>& GetTrackList();
 
 private:
-    float CalculateCost(TrackDeepSort& track, const BoundingBox& det_bbox, const std::array<float, 512>& det_feature);
+    float CalculateCost(TrackDeepSort& track, const BoundingBox& det_bbox, const std::vector<float>& det_feature);
 
 private:
     std::vector<TrackDeepSort> track_list_;

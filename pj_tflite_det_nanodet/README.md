@@ -16,6 +16,8 @@ Sample project to run NanoDet
 
 ## Note
 - Currently, the project uses ONNX model and cv::dnn
+    - You need OpenCV with dnn module enabled
+    - I confirmed with OpenCV 4.5. Execution failed with OpenCV 4.1
 - Code for tflite is WIP
 
 ## Acknowledgements

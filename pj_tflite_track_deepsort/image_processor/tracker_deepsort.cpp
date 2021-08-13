@@ -30,7 +30,7 @@ limitations under the License.
 #include "hungarian_algorithm.h"
 
 
-TrackDeepSort::TrackDeepSort(const int32_t id, const BoundingBox& bbox_det, const std::array<float, 512>& feature)
+TrackDeepSort::TrackDeepSort(const int32_t id, const BoundingBox& bbox_det, const std::vector<float>& feature)
 {
     Data data;
     data.bbox = bbox_det;
@@ -254,8 +254,11 @@ std::vector<TrackDeepSort>& TrackerDeepSort::GetTrackList()
     return track_list_;
 }
 
-static float CosineSimilarity(const std::array<float, 512>& feature0, const std::array<float, 512>& feature1)
+static float CosineSimilarity(const std::vector<float>& feature0, const std::vector<float>& feature1)
 {
+    if (feature0.size() == 0 || feature1.size() == 0 || feature0.size() != feature1.size()) {
+        return 999; /* invalid */
+    }
     float norm_0 = 0;
     float norm_1 = 0;
     float dot = 0;
@@ -289,52 +292,51 @@ static inline float AdjustFeatureSimilarity(float value)
     return (std::max)(0.0f, value);
 }
 
-float TrackerDeepSort::CalculateCost(TrackDeepSort& track, const BoundingBox& det_bbox, const std::array<float, 512>& det_feature)
+float TrackerDeepSort::CalculateCost(TrackDeepSort& track, const BoundingBox& det_bbox, const std::vector<float>& det_feature)
 {
     const auto& track_bbox = track.GetLatestBoundingBox();
 
-    /*  Shouldn't match far object */
+    /***  Shouldn't match far object ***/
     const double distance_image_pow2 = std::pow(track_bbox.x - det_bbox.x, 2) + std::pow(track_bbox.y - det_bbox.y, 2);
     const double threshold_distance = std::pow((track_bbox.w + track_bbox.h + det_bbox.w + det_bbox.h) / 4, 2) * 4; /* experimentally determined */
     if (distance_image_pow2 > threshold_distance) {
         return kCostMax;
     }
 
-    /* Calculate IOU */
+    /*** Calculate IOU ***/
     constexpr float weight_iou = 1.0f;
     float iou = BoundingBoxUtils::CalculateIoU(track_bbox, det_bbox);
 
-    /* check class id */
+    /*** check class id ***/
     /* those two objects are difference if those of class id are difference */
     /* however, if iou is big enough, they can be the same (detector may output wrong class id) */
     if ((iou < 0.8) && (track_bbox.class_id != det_bbox.class_id)) {
         return kCostMax;
     }
 
-    /* Calculate cosine similarity of feature (DEEP) */
+    /*** Calculate cosine similarity of feature (DEEP) ***/
     float weight_feature = 1.0f;
     float similarity_feature = 0;
-    if (track_bbox.class_id == 0) { /* Use feature only for person */
-        std::vector<float> similarity_history;
-        for (int32_t i = static_cast<int32_t>(track.GetDataHistory().size()) - 2; i >= 0; i -= 5) {
-            const auto& data = track.GetDataHistory()[i];
-            if (data.bbox_raw.score == 0) continue;
-            float val = CosineSimilarity(data.feature, det_feature);    /* 0.0(different) - 1.0(same) */
-            if (val == 999) {
-                weight_feature = 0.0f;
-                break;
-            }
-            similarity_history.push_back(val);
-        }
-        if (similarity_history.size() > 0) {
-            similarity_feature = std::accumulate(similarity_history.begin(), similarity_history.end(), 0.0f) / similarity_history.size();
-        }
 
-        similarity_feature = AdjustFeatureSimilarity(similarity_feature);
-    } else {
-        weight_feature = 0.0f;
-        similarity_feature = 1.0f;
+    /* compare "the feature of the det object at the current frame" with "the features in the past frames of the tracked object"  */
+    /* just comparaing with the previous frame may not be enough. so I compare with those in the past few frames. but no need to compare every frame. maybe once every 5 frames */
+    std::vector<float> similarity_history;
+    for (int32_t i = static_cast<int32_t>(track.GetDataHistory().size()) - 2; i >= 0; i -= 5) {
+        const auto& data = track.GetDataHistory()[i];
+        if (data.bbox_raw.score == 0) continue; /* do not compare if the object was not detected */
+        float val = CosineSimilarity(data.feature, det_feature);    /* 0.0(different) - 1.0(same) */
+        if (val == 999) {
+            weight_feature = 0.0f;  /* do not use appearance feature if it's invalid (objects whose feature is not calculated) */
+            break;
+        }
+        similarity_history.push_back(val);
+        if (similarity_history.size() > 10) break;  /* use the feature up to past 50 (5 * 10) frame */
     }
+    if (similarity_history.size() > 0) {
+        similarity_feature = std::accumulate(similarity_history.begin(), similarity_history.end(), 0.0f) / similarity_history.size();   /* take average similarity */
+    }
+
+    similarity_feature = AdjustFeatureSimilarity(similarity_feature);
 
     /* Calculate similarity using some metrcs */
     float similarity = (weight_feature * similarity_feature + weight_iou * iou) / (weight_feature + weight_iou);
@@ -343,7 +345,7 @@ float TrackerDeepSort::CalculateCost(TrackDeepSort& track, const BoundingBox& de
 }
 
 
-void TrackerDeepSort::Update(const std::vector<BoundingBox>& det_list, const std::vector<std::array<float, 512>>& feature_list)
+void TrackerDeepSort::Update(const std::vector<BoundingBox>& det_list, const std::vector<std::vector<float>>& feature_list)
 {
     /*** Predict the position at the current frame using the previous status for all tracked bbox ***/
     for (auto& track : track_list_) {
