@@ -40,7 +40,7 @@ limitations under the License.
 
 /* Model parameters */
 #define MODEL_NAME   "efficientnet_lite3_int8_2.tflite"
-#define LABEL_NAME   "imagenet_labels.txt"
+#define LABEL_NAME   "label_imagenet.txt"
 
 
 /*** Function ***/

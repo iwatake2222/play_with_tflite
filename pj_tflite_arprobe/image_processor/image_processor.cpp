@@ -163,27 +163,6 @@ static void drawRing(cv::Mat &mat, Rect rect, cv::Scalar color, int animCount)
     cv::ellipse(mat, cv::Point(center), radius, 0 + animCount, 0, 50, color, ring_thickness);
 }
 
-static void CommonHelper::DrawText(cv::Mat &mat, Rect rect, cv::Scalar color, std::string str, int animCount)
-{
-    /* Reference: https://github.com/Kazuhito00/object-detection-bbox-art */
-    double font_size = std::min((rect.width + rect.height) / 2 * 0.1, 1.0);
-    cv::Point drawpoint1(rect.x + rect.width / 2, rect.y + rect.height / 2);
-    cv::Point drawpoint2(rect.x + rect.width - rect.width / 10, rect.y + int(rect.height / 10));
-    cv::Point drawpoint3(rect.x + rect.width + int(rect.width / 2), rect.y + int(rect.height / 10));
-    cv::Point textpoint(drawpoint2.x, drawpoint2.y - int(font_size * 2.0));
-    if (drawpoint3.x > mat.cols) {
-        drawpoint2 = cv::Point(rect.x + rect.width / 10, rect.y + int(rect.height / 10));
-        drawpoint3 = cv::Point(rect.x - rect.width / 2, rect.y + int(rect.height / 10));
-        textpoint = cv::Point(drawpoint3.x, drawpoint2.y - int(font_size * 1.5));
-    }
-    cv::circle(mat, drawpoint1, int(rect.width / 40), color, -1);
-    cv::line(mat, drawpoint1, drawpoint2, color, std::max(2, rect.width / 80));
-    cv::line(mat, drawpoint2, drawpoint3, color, std::max(2, rect.width / 80));
-
-    cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, CommonHelper::CreateCvColor(171, 97, 50), 5);
-    cv::putText(mat, str, textpoint, cv::FONT_HERSHEY_DUPLEX, font_size, color, 2);
-}
-
 static std::string classify(cv::Mat &mat, const cv::Rect &selectedArea)
 {
     /* Classify the selected area */

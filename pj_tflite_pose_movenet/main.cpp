@@ -29,7 +29,7 @@ limitations under the License.
 
 /*** Macro ***/
 #define WORK_DIR                      RESOURCE_DIR
-#define DEFAULT_INPUT_IMAGE           RESOURCE_DIR"/body.jpg"
+#define DEFAULT_INPUT_IMAGE           RESOURCE_DIR"/body_00.jpg"
 #define LOOP_NUM_FOR_TIME_MEASUREMENT 10
 
 /*** Function ***/
@@ -57,7 +57,10 @@ int32_t main(int argc, char* argv[])
 
     /* Initialize image processor library */
     ImageProcessor::InputParam input_param = { WORK_DIR, 4 };
-    ImageProcessor::Initialize(input_param);
+    if (ImageProcessor::Initialize(input_param) != 0) {
+        printf("Initialization Error\n");
+        return -1;
+    }
 
     /*** Process for each frame ***/
     int32_t frame_cnt = 0;

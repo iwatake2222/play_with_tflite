@@ -52,7 +52,7 @@ limitations under the License.
 #define OUTPUT_NAME_3 "TFLite_Detection_PostProcess:3"   /* The locations of the detected boxes. */
 #define TENSORTYPE_OUTPUT  TensorInfo::kTensorTypeFp32
 
-#define LABEL_NAME   "coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.txt"
+#define LABEL_NAME   "label_coco_90.txt"
 
 
 /*** Function ***/
@@ -177,7 +177,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     for (int32_t i = 0; i < num_det; i++) {
         if (score_raw_list[i] < threshold_confidence_) continue;
         BoundingBox bbox;
-        bbox.class_id = static_cast<int32_t>(label_raw_list[i]) + 1;
+        bbox.class_id = static_cast<int32_t>(label_raw_list[i]);
         bbox.label = label_list_[bbox.class_id];
         bbox.score = score_raw_list[i];
         bbox.x = static_cast<int32_t>(bbox_raw_list[i * 4 + 1] * crop_w) + crop_x;

@@ -139,7 +139,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 
     for (const auto& keypoint : det_result.keypoint_list) {
         for (const auto& p : keypoint) {
-            cv::circle(mat, cv::Point(p.first, p.second), 1, CommonHelper::CreateCvColor(0, 255, 0));
+            cv::circle(mat, cv::Point(p.first, p.second), 2, CommonHelper::CreateCvColor(0, 255, 0));
         }
     }
 

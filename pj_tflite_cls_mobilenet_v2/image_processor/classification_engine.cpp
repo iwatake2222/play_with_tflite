@@ -70,7 +70,7 @@ limitations under the License.
 #define OUTPUT_NAME "output"
 #endif
 
-#define LABEL_NAME   "imagenet_labels.txt"
+#define LABEL_NAME   "label_imagenet.txt"
 
 
 /*** Function ***/
