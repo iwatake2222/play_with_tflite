@@ -12,8 +12,6 @@ Click the image to open in YouTube. https://youtu.be/9XP13y0P57w
     - Download the model using the following script
         - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/115_MoveNet/download_lightning_v4.sh
         - copy `saved_model/model_float32.tflite` to `resource/model/movenet_lightning.tflite`
-    - Place  `resource/body.jpg`
-        - https://user-images.githubusercontent.com/11009876/128474751-a8a51709-8c2d-483b-b6bf-db6cb2160496.jpg
     - Build  `pj_tflite_pose_movenet` project (this directory)
 
 ## Play more ?

@@ -12,9 +12,6 @@ Click the image to open in YouTube. https://youtu.be/YhxTmtAuAUA
     - Download the model using the following script
         - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/059_yolov5/22_yolov5s_new/download.sh
         - copy `saved_model_480x640/model_float32.tflite` to `resource/model/yolov5_480x640.tflite`
-    - Place  `resource/kite.jpg` and `resource/model/label_coco_80.txt`
-        - https://user-images.githubusercontent.com/11009876/128452081-4ea8e635-5085-4d9f-b95f-cb4fb7475900.jpg
-        - https://github.com/iwatake2222/play_with_tflite/files/6938693/label_coco_80.txt
     - Build  `pj_tflite_det_yolov5` project (this directory)
 
 ## Play more ?

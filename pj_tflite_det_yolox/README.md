@@ -15,9 +15,6 @@ Click the image to open in YouTube. https://youtu.be/bl19Ik4uz7c
     - Download the model using the following script (For onnx)
         - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/132_YOLOX/download_nano.sh
         - copy `saved_model_yolox_nano_480x640/yolox_nano_480x640.onnx` to `resource/model/yolox_nano_480x640.onnx`
-    - Place  `resource/kite.jpg` and `resource/model/label_coco_80.txt`
-        - https://user-images.githubusercontent.com/11009876/128452081-4ea8e635-5085-4d9f-b95f-cb4fb7475900.jpg
-        - https://github.com/iwatake2222/play_with_tflite/files/6938693/label_coco_80.txt
     - Build  `pj_tflite_det_yolox` project (this directory)
 
 ## Notice

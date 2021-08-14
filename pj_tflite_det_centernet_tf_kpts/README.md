@@ -12,8 +12,6 @@ Click the image to open in YouTube. https://youtu.be/-xpBWLw-A-I
     - Download the model using the following script
         - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/042_centernet/20_tensorflow_models/download_centernet_mobilenetv2_fpn_kpts_480x640.sh
         - copy `saved_model/model_float32.tflite` to `resource/model/centernet_mobilenetv2_fpn_kpts_480x640.tflite`
-    - Place  `resource/kite.jpg`
-        - https://user-images.githubusercontent.com/11009876/128452081-4ea8e635-5085-4d9f-b95f-cb4fb7475900.jpg
     - Build  `pj_tflite_det_yolov5` project (this directory)
 
 ## Acknowledgements

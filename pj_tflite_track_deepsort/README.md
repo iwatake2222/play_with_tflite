@@ -15,9 +15,6 @@ Click the image to open in YouTube. https://youtu.be/7BtEOCb3wMk
     - Download the Deep SORT model using the following script
         - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/087_DeepSort/download.sh
         - copy `model_float32.tflite` to `resource/model/deepsort_128x64.tflite`
-    - Place  `resource/kite.jpg` and `resource/model/label_coco_80.txt`
-        - https://user-images.githubusercontent.com/11009876/128452081-4ea8e635-5085-4d9f-b95f-cb4fb7475900.jpg
-        - https://github.com/iwatake2222/play_with_tflite/files/6938693/label_coco_80.txt
     - Build  `pj_tflite_track_deepsort` project (this directory)
 
 ## Note

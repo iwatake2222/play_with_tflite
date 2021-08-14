@@ -9,8 +9,6 @@ Sample project to run EfficientDet-Lite
     - Download the model
         - https://tfhub.dev/tensorflow/lite-model/efficientdet/lite0/detection/metadata/1
         - save the model into `resource/model/lite-model_efficientdet_lite0_detection_metadata_1.tflite`
-    - Place `resource/model/label_coco_90.txt`
-        - https://github.com/iwatake2222/play_with_tflite/files/6967247/label_coco_90.txt
     - Build  `pj_tflite_det_efficientdet_lite` project (this directory)
 
 
