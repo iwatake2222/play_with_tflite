@@ -57,7 +57,7 @@
     git clone https://github.com/iwatake2222/play_with_tflite.git
     cd play_with_tflite
 
-    git submodule update --init --recursive
+    git submodule update --init --recursive --recommend-shallow --depth 1
     cd InferenceHelper/third_party/tensorflow
     chmod +x tensorflow/lite/tools/make/download_dependencies.sh
     tensorflow/lite/tools/make/download_dependencies.sh
@@ -77,8 +77,17 @@
 - Open `main.sln`
 - Set `main` project as a startup project, then build and run!
 
-**Note**
+**Note for debug**
+
 Running with `Debug` causes exception, so use `Release` or `RelWithDebInfo` in Visual Studio.
+
+**Note for EdgeTPU**
+
+- Install `edgetpu_runtime_20210119.zip`
+    - Execution failed with `edgetpu_runtime_20210726.zip` for some reasons in my environment
+    - If you have already installed `edgetpu_runtime_20210726.zip` , uninstall it. Also uninstall `UsbDk Runtime Libraries` from Windows
+- Delete `C:\Windows\System32\edgetpu.dll` so that your project uses the created edgetpu.dll
+    - or copy the created edgetpu.dll to `C:\Windows\System32\edgetpu.dll`
 
 ### Linux (PC Ubuntu, Raspberry Pi, Jetson Nano, etc.)
 ```sh
@@ -87,6 +96,13 @@ mkdir build && cd build
 cmake ..
 make
 ./main
+```
+
+**Note for EdgeTPU**
+
+```sh
+cp libedgetpu.so.1.0 libedgetpu.so.1
+sudo LD_LIBRARY_PATH=./ ./main
 ```
 
 ### Options (Delegate)
@@ -160,16 +176,16 @@ By default, NNAPI will select the most appropreate accelerator for the model. Yo
 ```
 
 
-## How to create pre-built Tensorflow Lite library
-Pre-built Tensorflow Lite libraries are stored in `InferenceHelper/ThirdParty/tensorflow_prebuilt` . If you want to build them by yourself, please use the following instruction
+## How to create pre-built library (Tensorflow Lite & EdgeTPU)
+Pre-built libraries are stored in `InferenceHelper/ThirdParty/tensorflow_prebuilt` and `InferenceHelper/ThirdParty/edgetpu_prebuilt` .
+If you want to build them by yourself, please use the following instruction:
+- v2.4.0
+    - [00_doc/how_to_create_prebuilt_tensorflow_lite_library_v2.4.0.md](00_doc/how_to_create_prebuilt_tensorflow_lite_library_v2.4.0.md)
+    - [00_doc/how_to_create_prebuilt_edgetpu_library_v2.4.0.md](00_doc/how_to_create_prebuilt_edgetpu_library_v2.4.0.md)
+- v2.6.0
+    - [00_doc/how_to_create_prebuilt_library_v2.6_linux.md](00_doc/how_to_create_prebuilt_library_v2.6_linux.md)
+    - [00_doc/how_to_create_prebuilt_library_v2.6_windows.md](00_doc/how_to_create_prebuilt_library_v2.6_windows.md)
 
-[00_doc/how_to_create_prebuilt_tensorflow_lite_library_v2.4.0.md](00_doc/how_to_create_prebuilt_tensorflow_lite_library_v2.4.0.md)
-
-## How to create pre-built EdgeTPU library
-You can download the official libraries from https://github.com/google-coral/libedgetpu . However, you need to use the same tflite version as used in EdgeTPU library. Since I use v2.4.0 version here, I built my own libraries for EdgeTPU using tensorflow v2.4.0. They are stored in `InferenceHelper/ThirdParty/edgetpu_prebuilt` , and the projects link these libraries.
-If you want to build them by yourself, please use the following instruction.
-
-[00_doc/how_to_create_prebuilt_edgetpu_library_v2.4.0.md](00_doc/how_to_create_prebuilt_edgetpu_library_v2.4.0.md)
 
 # License
 - play_with_tflite
