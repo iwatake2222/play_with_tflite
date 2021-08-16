@@ -1,7 +1,8 @@
 # How to create prebuilt library
 - Artifacts:
-    - libtensorflowlite.so
-    - libedgetpu.so
+    - libtensorflowlite.so,  libtensorflowlite.so.if.lib
+        - It's actually DLL although the extension is so
+    - edgetpu.dll,   edgetpu.dll.if.lib
 - Targets:
     - Windows (x64)
 
