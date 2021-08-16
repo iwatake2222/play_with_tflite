@@ -8,6 +8,7 @@
     - Linux (armv7, aarch64)
     - Android (armv7, aarch64)
 
+# Preparation
 ## Requirements
 - Ubuntu (18.04 or 20.04)
     - Using 18.04 may be better for compatibility (glibc version)
@@ -60,8 +61,8 @@ unzip android-ndk-r21e-linux-x86_64.zip
     - `sha256sum 919f693420e35d00c8d0a42100837ae3718f7927.tar.gz`
 - Note the above numbers. I will use them when building libedgetpu later
 
-## Build TensorFlow Lite library
-### Get source code
+# Build TensorFlow Lite library
+## Get source code
 ```sh
 cd ~/
 git clone https://github.com/tensorflow/tensorflow.git
@@ -70,7 +71,7 @@ git checkout v2.6.0
 
 TFLITE_OUT=/out/tensorflow_prebuilt/
 ```
-### Build for Linux (x64)
+## Build for Linux (x64)
 - Set default setting during `python3 configure.py`
 
 ```sh
@@ -93,9 +94,9 @@ cp bazel-bin/tensorflow/lite/libtensorflowlite.so ${TFLITE_OUT}/x64_linux/.
 cp bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so ${TFLITE_OUT}/x64_linux/.
 ```
 
-### Linux (armv7, aarch64)
-- Bazel option is from build_pip_package_with_bazel.sh
+## Linux (armv7, aarch64)
 - Set default setting during `python3 configure.py`
+- Note: Bazel option is from build_pip_package_with_bazel.sh
 
 ```sh
 python3 configure.py
@@ -144,7 +145,27 @@ cp bazel-bin/tensorflow/lite/libtensorflowlite.so ${TFLITE_OUT}/aarch64/.
 cp bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so ${TFLITE_OUT}/aarch64/.
 ```
 
-### Build for Android (armv7, aarch64)
+## Build for Android (armv7, aarch64)
+### Modify BUILD script for Android with NNAPI delegate (if needed). This is a workaround. there should be an appropreate option
+- `nano tensorflow/lite/BUILD`
+    - Add `nnapi:nnapi_delegate` and `nnapi:nnapi_implementation` in `cc_library(name = "framework_experimental",) ...` section
+    ``` diff
+    diff --git a/tensorflow/lite/BUILD b/tensorflow/lite/BUILD
+    index 72a46e6675f..6587b2ddfa9 100644
+    --- a/tensorflow/lite/BUILD
+    +++ b/tensorflow/lite/BUILD
+    @@ -353,6 +353,8 @@ cc_library(
+            "//tensorflow/lite/core/api:verifier",
+            "//tensorflow/lite/experimental/resource",
+            "//tensorflow/lite/schema:schema_fbs",
+    +        "//tensorflow/lite/delegates/nnapi:nnapi_delegate",
+    +        "//tensorflow/lite/nnapi:nnapi_implementation",
+            "@flatbuffers//:runtime_cc",
+        ],
+        alwayslink = 1,  # TODO(b/161243354): eliminate this.
+    ```
+
+### Build
 - Set Android SDK and Android NDK path setting during `python3 configure.py`
     - Answer yes to "`Would you like to interactively configure ./WORKSPACE for Android builds`"
         - `/root/android-ndk-r21e`
@@ -192,24 +213,24 @@ cp bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so ${T
 ```
 
 
-## Build EdgeTPU library
+# Build EdgeTPU library
 If you use Ubuntu on Docker, the following process may fail (docker on docker).
 I run the following commands on WSL2.
 
-### Get source code
+## Get source code
 ```sh
 git clone https://github.com/google-coral/libedgetpu.git
 cd libedgetpu
 git checkout ea1eaddbddece0c9ca1166e868f8fd
 ```
 
-### Modify commit id
+## Modify commit id
 ```sh
 sed -i s/a4dfb8d1a71385bd6d122e4f27f86dcebb96712d/919f693420e35d00c8d0a42100837ae3718f7927/g workspace.bzl
 sed -i s/cb99f136dc5c89143669888a44bfdd134c086e1e2d9e36278c1eb0f03fe62d76/70a865814b9d773024126a6ce6fea68fefe907b7ae6f9ac7e656613de93abf87/g workspace.bzl
 ```
 
-### Build for Linux (x64, armv7, aarch64)
+## Build for Linux (x64, armv7, aarch64)
 ```sh
 # DOCKER_CPUS="k8" DOCKER_IMAGE="ubuntu:18.04" DOCKER_TARGETS=libedgetpu make docker-build
 # DOCKER_CPUS="armv7a aarch64" DOCKER_IMAGE="debian:stretch" DOCKER_TARGETS=libedgetpu make docker-build

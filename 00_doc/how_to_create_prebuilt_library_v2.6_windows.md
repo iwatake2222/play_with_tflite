@@ -5,6 +5,7 @@
 - Targets:
     - Windows (x64)
 
+# Preparation
 ## Requirements
 - Windows 10 64-bit
 - Visual Studio 2019 (Community)
@@ -27,15 +28,15 @@
 
 - If you have added GitBash to path, remove it 
 
-## Build TensorFlow Lite library
-### Get source code
+# Build TensorFlow Lite library
+## Get source code
 ```sh
 git clone https://github.com/tensorflow/tensorflow.git
 cd tensorflow
 git checkout v2.6.0
 ```
 
-### Build for Windows
+## Build for Windows
 - Open PowerShell
 - Set default setting during `python3 configure.py`
 
@@ -57,21 +58,21 @@ cp bazel-bin/tensorflow/lite/libtensorflowlite.so.if.lib x64_windows/.
 ```
 
 
-## Build EdgeTPU library
-### Get source code
+# Build EdgeTPU library
+## Get source code
 ```sh
 git clone https://github.com/google-coral/libedgetpu.git
 cd libedgetpu
 git checkout ea1eaddbddece0c9ca1166e868f8fd
 ```
 
-### Modify commit id
+## Modify commit id
 ```sh
 sed -i s/a4dfb8d1a71385bd6d122e4f27f86dcebb96712d/919f693420e35d00c8d0a42100837ae3718f7927/g workspace.bzl
 sed -i s/cb99f136dc5c89143669888a44bfdd134c086e1e2d9e36278c1eb0f03fe62d76/70a865814b9d773024126a6ce6fea68fefe907b7ae6f9ac7e656613de93abf87/g workspace.bzl
 ```
 
-### Download libusb
+## Download libusb
 - https://github.com/libusb/libusb/releases/download/v1.0.24/libusb-1.0.24.7z
 - Place libusb/ at the same directory as libedgetpu/
     ```
@@ -80,10 +81,10 @@ sed -i s/cb99f136dc5c89143669888a44bfdd134c086e1e2d9e36278c1eb0f03fe62d76/70a865
        - libedgetpu/
     ```
 
-### Workaround
+## Workaround
 - Resave `driver/usb/usb_driver.cc` as UTF-8 with BOM (You may not need this step)
 
-### Workaround
+## Workaround
 - Modify `build.bat` to specify BAZEL_VC if needed
     ```diff
     $ git diff build.bat
@@ -104,7 +105,7 @@ sed -i s/cb99f136dc5c89143669888a44bfdd134c086e1e2d9e36278c1eb0f03fe62d76/70a865
     for /f %%i in ('%PYTHON% -c "import sys;print(sys.executable)"') do set PYTHON_BIN_PATH=%%i
     ```
 
-### Build for Windows
+## Build for Windows
 - Open Visual Studio 2019 Developer Command Prompt
 
 ```sh
@@ -114,7 +115,7 @@ set BAZEL_VC="C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC"
 build.bat
 ```
 
-### For runtime
+## For runtime
 - Install `edgetpu_runtime_20210119.zip`
     - Execution failed with `edgetpu_runtime_20210726.zip` for some reasons
     - If you have already installed `edgetpu_runtime_20210726.zip` , uninstall it. Also uninstall `UsbDk Runtime Libraries` from windows

@@ -47,9 +47,6 @@
 ## How to build application
 ### Requirements
 - OpenCV 4.x
-- Edge TPU runtime if needed
-    - https://coral.ai/docs/accelerator/get-started/#1-install-the-edge-tpu-runtime
-    - https://dl.google.com/coral/edgetpu_api/edgetpu_runtime_20201204.zip
 
 ### Common 
 - Get source code
@@ -81,11 +78,11 @@
 
 Running with `Debug` causes exception, so use `Release` or `RelWithDebInfo` in Visual Studio.
 
-**Note for EdgeTPU**
+**Note for EdgeTPU in Windows**
 
 - Install `edgetpu_runtime_20210119.zip`
     - Execution failed with `edgetpu_runtime_20210726.zip` for some reasons in my environment
-    - If you have already installed `edgetpu_runtime_20210726.zip` , uninstall it. Also uninstall `UsbDk Runtime Libraries` from Windows
+    - If you have already installed `edgetpu_runtime_20210726.zip` , uninstall it. Also uninstall `UsbDk Runtime Libraries` from Windows. Then isntall `edgetpu_runtime_20210119.zip`
 - Delete `C:\Windows\System32\edgetpu.dll` so that your project uses the created edgetpu.dll
     - or copy the created edgetpu.dll to `C:\Windows\System32\edgetpu.dll`
 
