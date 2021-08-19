@@ -28,7 +28,7 @@ limitations under the License.
 
 /* for My modules */
 #include "inference_helper.h"
-
+#include "bounding_box.h"
 
 class PoseEngine {
 public:
@@ -37,10 +37,19 @@ public:
         kRetErr = -1,
     };
 
+    typedef std::array<std::pair<int32_t, int32_t>, 17> KeyPoint;
+    typedef std::array<float, 17> KeyPointScore;
+
     typedef struct Result_ {
-        std::vector<float>                                  pose_scores;			// [body]
-        std::vector<std::vector<float>>                     pose_keypoint_scores;	// [body][part]
-        std::vector<std::vector<std::pair<int32_t, int32_t>>>   pose_keypoint_coords;	// [body][part][x, y]
+        std::vector<KeyPoint>    keypoint_list;
+        std::vector<KeyPointScore> keypoint_score_list;
+        struct crop_ {
+            int32_t x;
+            int32_t y;
+            int32_t w;
+            int32_t h;
+            crop_() : x(0), y(0), w(0), h(0) {}
+        } crop;
         double    time_pre_process;		// [msec]
         double    time_inference;		// [msec]
         double    time_post_process;	// [msec]
@@ -54,6 +63,7 @@ public:
     int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
     int32_t Finalize(void);
     int32_t Process(const cv::Mat& original_mat, Result& result);
+
 private:
     std::unique_ptr<InferenceHelper> inference_helper_;
     std::vector<InputTensorInfo> input_tensor_info_list_;

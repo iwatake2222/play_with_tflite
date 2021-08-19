@@ -71,12 +71,6 @@ int32_t PoseEngine::Initialize(const std::string& work_dir, const int32_t num_th
     InputTensorInfo input_tensor_info(INPUT_NAME, TENSORTYPE, IS_NCHW);
     input_tensor_info.tensor_dims = INPUT_DIMS;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
-    // input_tensor_info.normalize.mean[0] = 0.485f;   	/* https://github.com/onnx/models/tree/master/vision/classification/mobilenet#preprocessing */
-    // input_tensor_info.normalize.mean[1] = 0.456f;
-    // input_tensor_info.normalize.mean[2] = 0.406f;
-    // input_tensor_info.normalize.norm[0] = 0.229f;
-    // input_tensor_info.normalize.norm[1] = 0.224f;
-    // input_tensor_info.normalize.norm[2] = 0.225f;
     /* 0 - 255 (https://tfhub.dev/google/lite-model/movenet/singlepose/lightning/3) */
     input_tensor_info.normalize.mean[0] = 0;
     input_tensor_info.normalize.mean[1] = 0;
@@ -172,23 +166,27 @@ int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
 
     /* Retrieve the result */
     float* val_float = output_tensor_info_list_[0].GetDataAsFloat();
-    std::vector<float> pose_keypoint_scores;	// z
-    std::vector<std::pair<int32_t, int32_t>> pose_keypoint_coords;	// x, y
-    for (int32_t partIndex = 0; partIndex < output_tensor_info_list_[0].tensor_dims[2]; partIndex++) {
-        // PRINT("%f, %f, %f\n", val_float[1], val_float[0], val_float[2]);
-        pose_keypoint_coords.push_back(std::pair<int32_t, int32_t>(static_cast<int32_t>(val_float[1] * crop_w + crop_x), static_cast<int32_t>(val_float[0] * crop_h + crop_y)));
-        pose_keypoint_scores.push_back(val_float[2]);
-        val_float += 3;
+    std::vector<KeyPoint>    keypoint_list;
+    std::vector<KeyPointScore> keypoint_score_list;
+    KeyPoint keypoint;
+    KeyPointScore keypoint_score;
+    for (size_t key = 0; key < keypoint.size(); key++) {
+        keypoint[key].first = static_cast<int32_t>(val_float[key * 3 + 1] * crop_w) + crop_x;
+        keypoint[key].second = static_cast<int32_t>(val_float[key * 3 + 0] * crop_h) + crop_y;
+        keypoint_score[key] = val_float[key * 3 + 2];
     }
+    keypoint_list.push_back(keypoint);
+    keypoint_score_list.push_back(keypoint_score);
 
-    /* Find the max score */
-    /* note: we have only one body with this model */
-    result.pose_scores.push_back(1.0);
-    result.pose_keypoint_scores.push_back(pose_keypoint_scores);
-    result.pose_keypoint_coords.push_back(pose_keypoint_coords);
     const auto& t_post_process1 = std::chrono::steady_clock::now();
 
     /* Return the results */
+    result.keypoint_list = keypoint_list;
+    result.keypoint_score_list = keypoint_score_list;
+    result.crop.x = (std::max)(0, crop_x);
+    result.crop.y = (std::max)(0, crop_y);
+    result.crop.w = (std::min)(crop_w, original_mat.cols - result.crop.x);
+    result.crop.h = (std::min)(crop_h, original_mat.rows - result.crop.y);
     result.time_pre_process = static_cast<std::chrono::duration<double>>(t_pre_process1 - t_pre_process0).count() * 1000.0;
     result.time_inference = static_cast<std::chrono::duration<double>>(t_inference1 - t_inference0).count() * 1000.0;
     result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;

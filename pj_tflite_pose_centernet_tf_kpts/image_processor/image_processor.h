@@ -26,8 +26,6 @@ namespace cv {
     class Mat;
 };
 
-#define NUM_MAX_RESULT 100
-
 namespace ImageProcessor
 {
 

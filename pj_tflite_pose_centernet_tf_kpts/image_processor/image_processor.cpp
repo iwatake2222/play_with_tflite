@@ -32,9 +32,7 @@ limitations under the License.
 /* for My modules */
 #include "common_helper.h"
 #include "common_helper_cv.h"
-#include "bounding_box.h"
-#include "detection_engine.h"
-#include "tracker.h"
+#include "pose_engine.h"
 #include "image_processor.h"
 
 /*** Macro ***/
@@ -43,8 +41,7 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-std::unique_ptr<DetectionEngine> s_engine;
-Tracker s_tracker;
+std::unique_ptr<PoseEngine> s_engine;
 
 /*** Function ***/
 static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
@@ -66,8 +63,8 @@ int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param
         return -1;
     }
 
-    s_engine.reset(new DetectionEngine());
-    if (s_engine->Initialize(input_param.work_dir, input_param.num_threads) != DetectionEngine::kRetOk) {
+    s_engine.reset(new PoseEngine());
+    if (s_engine->Initialize(input_param.work_dir, input_param.num_threads) != PoseEngine::kRetOk) {
         s_engine->Finalize();
         s_engine.reset();
         return -1;
@@ -82,7 +79,7 @@ int32_t ImageProcessor::Finalize(void)
         return -1;
     }
 
-    if (s_engine->Finalize() != DetectionEngine::kRetOk) {
+    if (s_engine->Finalize() != PoseEngine::kRetOk) {
         return -1;
     }
 
@@ -106,25 +103,29 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 static const std::vector<std::pair<int32_t, int32_t>> kJointLineList {
-    {0, 1},
+    /* face */
     {0, 2},
-    {1, 3},
     {2, 4},
-    {0, 5},
-    {0, 6},
-    {5, 7},
-    {7, 9},
+    {0, 1},
+    {1, 3},
+    /* body */
+    {6, 5},
+    {5, 11},
+    {11, 12},
+    {12, 6},
+    /* arm */
     {6, 8},
     {8, 10},
-    {5, 6},
-    {5, 11},
-    {6, 12},
-    {11, 12},
-    {11, 13},
-    {13, 15},
+    {5, 7},
+    {7, 9},
+    /* leg */
     {12, 14},
     {14, 16},
+    {11, 13},
+    {13, 15},
 };
+
+static constexpr float kThresholdScoreKeyPoint = 0.0f;
 
 int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
@@ -133,27 +134,27 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         return -1;
     }
 
-    DetectionEngine::Result det_result;
-    if (s_engine->Process(mat, det_result) != DetectionEngine::kRetOk) {
+    PoseEngine::Result pose_result;
+    if (s_engine->Process(mat, pose_result) != PoseEngine::kRetOk) {
         return -1;
     }
 
     /* Display target area  */
-    cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
+    cv::rectangle(mat, cv::Rect(pose_result.crop.x, pose_result.crop.y, pose_result.crop.w, pose_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
 
     /* Display detection result and keypoint */
-    for (size_t i = 0; i < det_result.bbox_list.size(); i++) {
+    for (size_t i = 0; i < pose_result.bbox_list.size(); i++) {
         /* Display boundinb box */
-        const auto& bbox = det_result.bbox_list[i];
+        const auto& bbox = pose_result.bbox_list[i];
         cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CommonHelper::CreateCvColor(255, 0, 0), 2);
         //CommonHelper::DrawText(mat, bbox.label, cv::Point(bbox.x, bbox.y - 13), 0.35, 1, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
 
         if (bbox.h < 50) continue; /*  the scores of the detected keypoints seems not trusted. instead of using the score, just ignore small object */
         /* Display joint lines */
-        const auto& keypoint = det_result.keypoint_list[i];
-        const auto& keypoint_score = det_result.keypoint_score_list[i];
+        const auto& keypoint = pose_result.keypoint_list[i];
+        const auto& keypoint_score = pose_result.keypoint_score_list[i];
         for (const auto& jointLine : kJointLineList) {
-            if (keypoint_score[jointLine.first] >= 0.0 && keypoint_score[jointLine.second] >= 0.0) {
+            if (keypoint_score[jointLine.first] >= kThresholdScoreKeyPoint && keypoint_score[jointLine.second] >= kThresholdScoreKeyPoint) {
                 int32_t x0 = keypoint[jointLine.first].first;
                 int32_t y0 = keypoint[jointLine.first].second;
                 int32_t x1 = keypoint[jointLine.second].first;
@@ -164,7 +165,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 
         /* Display joints */
         for (size_t j = 0; j < keypoint.size(); j++) {
-            if (keypoint_score[j] >= 0.0) {
+            if (keypoint_score[j] >= kThresholdScoreKeyPoint) {
                 const auto& p = keypoint[j];
                 cv::circle(mat, cv::Point(p.first, p.second), 2, CommonHelper::CreateCvColor(0, 255, 0));
             }
@@ -172,14 +173,13 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
 
     /* Display det num  */
-    CommonHelper::DrawText(mat, "DET: " + std::to_string(det_result.bbox_list.size()), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
+    CommonHelper::DrawText(mat, "DET: " + std::to_string(pose_result.bbox_list.size()), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
 
-    DrawFps(mat, det_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
+    DrawFps(mat, pose_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
-    result.time_pre_process = det_result.time_pre_process;
-    result.time_inference = det_result.time_inference;
-    result.time_post_process = det_result.time_post_process;
+    result.time_pre_process = pose_result.time_pre_process;
+    result.time_inference = pose_result.time_inference;
+    result.time_post_process = pose_result.time_post_process;
 
     return 0;
 }
-

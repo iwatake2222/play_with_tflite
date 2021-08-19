@@ -32,10 +32,10 @@ limitations under the License.
 #include "common_helper.h"
 #include "common_helper_cv.h"
 #include "inference_helper.h"
-#include "detection_engine.h"
+#include "pose_engine.h"
 
 /*** Macro ***/
-#define TAG "DetectionEngine"
+#define TAG "PoseEngine"
 #define PRINT(...)   COMMON_HELPER_PRINT(TAG, __VA_ARGS__)
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
@@ -55,7 +55,7 @@ limitations under the License.
 
 
 /*** Function ***/
-int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
+int32_t PoseEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
 {
     /* Set model information */
     std::string model_filename = work_dir + "/model/" + MODEL_NAME;
@@ -105,7 +105,7 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
     return kRetOk;
 }
 
-int32_t DetectionEngine::Finalize()
+int32_t PoseEngine::Finalize()
 {
     if (!inference_helper_) {
         PRINT_E("Inference helper is not created\n");
@@ -117,7 +117,7 @@ int32_t DetectionEngine::Finalize()
 
 
 
-int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
+int32_t PoseEngine::Process(const cv::Mat& original_mat, Result& result)
 {
     if (!inference_helper_) {
         PRINT_E("Inference helper is not created\n");

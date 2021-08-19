@@ -67,6 +67,7 @@ public:
     int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
     int32_t Finalize(void);
     int32_t Process(const cv::Mat& original_mat, Result& result);
+
 private:
     std::unique_ptr<InferenceHelper> inference_helper_;
     std::vector<InputTensorInfo> input_tensor_info_list_;

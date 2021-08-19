@@ -102,25 +102,27 @@ int32_t ImageProcessor::Command(int32_t cmd)
     }
 }
 
-static const std::vector<std::pair<int32_t, int32_t>> kJointLineList{
-    {0, 1},
+static const std::vector<std::pair<int32_t, int32_t>> kJointLineList {
+    /* face */
     {0, 2},
-    {1, 3},
     {2, 4},
-    {0, 5},
-    {0, 6},
-    {5, 7},
-    {7, 9},
+    {0, 1},
+    {1, 3},
+    /* body */
+    {6, 5},
+    {5, 11},
+    {11, 12},
+    {12, 6},
+    /* arm */
     {6, 8},
     {8, 10},
-    {5, 6},
-    {5, 11},
-    {6, 12},
-    {11, 12},
-    {11, 13},
-    {13, 15},
+    {5, 7},
+    {7, 9},
+    /* leg */
     {12, 14},
     {14, 16},
+    {11, 13},
+    {13, 15},
 };
 
 static constexpr float kThresholdScoreKeyPoint = 0.2f;
