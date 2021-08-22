@@ -16,6 +16,7 @@ limitations under the License.
 /* for general */
 #include <cstdint>
 #include <cstdlib>
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <cstring>
 #include <string>
@@ -25,6 +26,7 @@ limitations under the License.
 #include <chrono>
 #include <fstream>
 #include <memory>
+#include <numeric>
 
 /* for OpenCV */
 #include <opencv2/opencv.hpp>
@@ -118,6 +120,75 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
+static void AnalyzeFlow(cv::Mat& mat, std::vector<Track>& track_list)
+{
+    constexpr int32_t kGridH = 10;
+    constexpr int32_t kGridW = 8;
+    constexpr int32_t kPastFrameToCalculateVelocity = 10;
+    constexpr int32_t kLineLength = 100;
+    for (int32_t grid_y = 0; grid_y < kGridH; grid_y++) {
+        int32_t y_start = grid_y * mat.rows / kGridH;
+        int32_t y_end = (grid_y + 1) * mat.rows / kGridH;
+        for (int32_t grid_x = 0; grid_x < kGridW; grid_x++) {
+            int32_t x_start = grid_x * mat.cols / kGridW;
+            int32_t x_end = (grid_x + 1) * mat.cols / kGridW;
+
+            std::vector<float> angle_list;
+            std::vector<float> velocity_list;
+            for (auto& track : track_list) {
+                const auto& data_list = track.GetDataHistory();
+                if (data_list.size() < kPastFrameToCalculateVelocity + 1) continue;
+                const auto& bbox = data_list.back().bbox;
+                if (x_start <= bbox.x && bbox.x <= x_end && y_start <= bbox.y && bbox.y <= y_end) {
+                    const auto& bbox_past = data_list[data_list.size() - kPastFrameToCalculateVelocity].bbox;
+                    float velocity = static_cast<float>(std::sqrt(std::pow(bbox.x - bbox_past.x, 2) + std::pow(bbox.y - bbox_past.y, 2)) / kPastFrameToCalculateVelocity);
+                    float angle = (bbox.x == bbox_past.x) ?
+                        (bbox.y > bbox_past.y) ? M_PI / 2 : -M_PI / 2
+                        : std::atanf((bbox.y - bbox_past.y) / static_cast<float>(bbox.x - bbox_past.x));
+                    if (bbox.x < bbox_past.x) angle += M_PI;
+                    //CommonHelper::DrawText(mat, std::to_string(angle * 180 / M_PI), cv::Point(bbox.x, bbox.y), 0.3, 1, cv::Scalar(255, 0, 0), cv::Scalar(255, 255, 255));
+
+                    velocity = (std::min)(5.0f, velocity / 5.0f);
+                    int32_t line_length = static_cast<int32_t>(kLineLength * velocity);
+                    cv::Point p0(bbox.x + bbox.w / 2, bbox.y + bbox.h / 2);
+                    cv::Point p1 = p0 + cv::Point(static_cast<int32_t>(line_length * cos(angle)), static_cast<int32_t>(line_length * sin(angle)));
+                    float angle_deg = static_cast<float>(angle * 180 / M_PI);
+                    float right_level = 0;
+                    if (std::abs(angle_deg) <= 90) right_level = 1.0f - std::abs(angle_deg) / 90.0f;
+                    float left_level = 0;
+                    if (std::abs(angle_deg) > 90) left_level = (std::abs(angle_deg) - 90.0f) / 90.0f;
+                    float up_level = 0;
+                    if (angle_deg < 0) up_level = 1.0f - std::abs(angle_deg + 90) / 90.0f;
+                    float down_level = 0;
+                    if (angle_deg > 0) down_level = 1.0f - std::abs(angle_deg - 90) / 90.0f;
+
+                    cv::arrowedLine(mat, p0, p1, CommonHelper::CreateCvColor(
+                        right_level * 255,
+                        left_level * 255,
+                        down_level * 255
+                        ),
+                        3);
+
+                    if (velocity > 0.5) {
+                        velocity_list.push_back(velocity);
+                        angle_list.push_back(angle);
+                    }
+
+                }
+            }
+
+            //if (angle_list.size() > 1) {
+            //    float velocity = std::accumulate(velocity_list.begin(), velocity_list.end(), 0.0f) / velocity_list.size();   /* take average similarity */
+            //    float angle = std::accumulate(angle_list.begin(), angle_list.end(), 0.0f) / angle_list.size();   /* take average similarity */
+            //    int32_t line_length = static_cast<int32_t>(kLineLength * velocity);
+            //    cv::Point p0(static_cast<int32_t>((grid_x + 0.5) * mat.cols / kGridW), static_cast<int32_t>((grid_y + 0.5) * mat.rows / kGridH));
+            //    cv::Point p1 = p0 + cv::Point(static_cast<int32_t>(line_length * cos(angle)), static_cast<int32_t>(line_length * sin(angle)));
+            //    //cv::arrowedLine(mat, p0, p1, CommonHelper::CreateCvColor(255, 0, 0), 15, 8, 0, 0.3);
+            //}
+
+        }
+    }
+}
 
 int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
@@ -161,6 +232,10 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         }
         num_track++;
     }
+
+
+    AnalyzeFlow(mat, track_list);
+
     CommonHelper::DrawText(mat, "DET: " + std::to_string(num_det) + ", TRACK: " + std::to_string(num_track), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
     DrawFps(mat, det_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
