@@ -41,10 +41,10 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
-#define MODEL_TYPE_CLASSIFICATION
-//#define MODEL_TYPE_REGRESSION
+//#define MODEL_TYPE_CLASSIFICATION
+#define MODEL_TYPE_REGRESSION
 
-#define MODEL_NAME  "model_float16_quant.tflite"
+#define MODEL_NAME  "deep_calib_regresion.tflite"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #define INPUT_NAME  "main_input"
 #define INPUT_DIMS  { 1, 299, 299, 3 }
@@ -79,18 +79,16 @@ int32_t CameraCalibrationEngine::Initialize(const std::string& work_dir, const i
     input_tensor_info.normalize.norm[0] = 0.5f;
     input_tensor_info.normalize.norm[1] = 0.5f;
     input_tensor_info.normalize.norm[2] = 0.5f;
-    //input_tensor_info.normalize.mean[0] = 0.0f;   /* [0.0, 1.0] */
-    //input_tensor_info.normalize.mean[1] = 0.0f;
-    //input_tensor_info.normalize.mean[2] = 0.0f;
-    //input_tensor_info.normalize.norm[0] = 1.0f;
-    //input_tensor_info.normalize.norm[1] = 1.0f;
-    //input_tensor_info.normalize.norm[2] = 1.0f;
-    //input_tensor_info.normalize.mean[0] = 0.0f;   /* [0.0, 255.0] */
-    //input_tensor_info.normalize.mean[1] = 0.0f;
-    //input_tensor_info.normalize.mean[2] = 0.0f;
-    //input_tensor_info.normalize.norm[0] = 1.0f / 255.0f;
-    //input_tensor_info.normalize.norm[1] = 1.0f / 255.0f;
-    //input_tensor_info.normalize.norm[2] = 1.0f / 255.0f;
+
+    /* !!! It's a strange part, but just follow the original logic !!! */
+    /* 1. normalize to [-1.0. 1.0] */
+    /* 2. do keras.applications.imagenet_utils.preprocess_input */
+    /*     substract [103.939, 116.779, 123.68] */
+    /* https://github.com/alexvbogdan/DeepCalib/blob/master/prediction/Regression/Single_net/predict_regressor_dist_focal_to_textfile.py#L94 */
+    input_tensor_info.normalize.mean[0] += 0.5f * 103.939f;
+    input_tensor_info.normalize.mean[1] += 0.5f * 116.779f;
+    input_tensor_info.normalize.mean[2] += 0.5f * 123.68f;
+
     input_tensor_info_list_.push_back(input_tensor_info);
 
     /* Set output tensor info */
@@ -116,7 +114,6 @@ int32_t CameraCalibrationEngine::Initialize(const std::string& work_dir, const i
         inference_helper_.reset();
         return kRetErr;
     }
-
 
     for (float i = kDistStart; i < kDistEnd; i += kDistInterval) class_dist_list_.push_back(i);
     for (float i = kFocalStart; i < kFocalEnd + 1; i += kFocalInterval) class_focal_list_.push_back(i);
@@ -186,26 +183,26 @@ int32_t CameraCalibrationEngine::Process(const cv::Mat& original_mat, Result& re
     std::vector<float> f_list(output_tensor_info_list_[1].GetDataAsFloat(), output_tensor_info_list_[1].GetDataAsFloat() + output_tensor_info_list_[1].GetElementNum());
 
 #if defined(MODEL_TYPE_CLASSIFICATION)
-    for (int32_t i = 0; i < xi_list.size(); i++) {
-        printf("%d:  %f\n", i, xi_list[i]);
-    }
-    for (int32_t i = 0; i < f_list.size(); i++) {
-        printf("%d:  %f\n", i, f_list[i]);
-    }
+    //for (int32_t i = 0; i < xi_list.size(); i++) {
+    //    printf("%d:  %f\n", i, xi_list[i]);
+    //}
+    //for (int32_t i = 0; i < f_list.size(); i++) {
+    //    printf("%d:  %f\n", i, f_list[i]);
+    //}
     float xi = class_dist_list_[GetMaxIndex(xi_list)];
     float f = class_focal_list_[GetMaxIndex(f_list)];
-    printf("%f %f\n", xi, f);
+    //printf("%f %f\n", xi, f);
 
 #elif defined(MODEL_TYPE_REGRESSION)
-    printf("%f %f\n", xi_list[0], f_list[0]);
+    //printf("%f %f\n", xi_list[0], f_list[0]);
     float xi = xi_list[0] * 1.2f;
     float f = f_list[0] * (kFocalEnd + 1.0f - kFocalStart) + kFocalStart;
 #else
     error
 #endif
 
-    f = f * crop_w / input_tensor_info.GetWidth();
-    printf("%f %f\n", xi, f);
+    f = f * crop_w / input_tensor_info.GetWidth();      /* Focal length on the original image size */
+    PRINT("xi: %f,  f: %f\n", xi, f);
 
     const auto& t_post_process1 = std::chrono::steady_clock::now();
 

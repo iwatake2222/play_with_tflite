@@ -29,7 +29,7 @@ limitations under the License.
 
 /*** Macro ***/
 #define WORK_DIR                      RESOURCE_DIR
-#define DEFAULT_INPUT_IMAGE           RESOURCE_DIR"/fisheye_01.jpg"
+#define DEFAULT_INPUT_IMAGE           RESOURCE_DIR"/fisheye_00.jpg"
 #define LOOP_NUM_FOR_TIME_MEASUREMENT 3
 
 /*** Function ***/
