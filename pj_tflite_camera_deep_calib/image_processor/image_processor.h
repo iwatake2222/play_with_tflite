@@ -36,7 +36,6 @@ typedef struct {
 } InputParam;
 
 typedef struct {
-    cv::Mat mat_result;
     double  time_pre_process;   // [msec]
     double  time_inference;    // [msec]
     double  time_post_process;  // [msec]

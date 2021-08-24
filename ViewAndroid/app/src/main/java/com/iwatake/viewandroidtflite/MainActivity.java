@@ -57,11 +57,18 @@ public class MainActivity extends AppCompatActivity {
         Running,
     };
 
+    private enum ViewMode {
+        Normal,
+        BeforeAfter,
+        Vr,
+    };
+
     /*** Views ***/
     private PreviewView previewView;
     private ImageView imageView;
     private ImageView imageView2;
     private Button buttonCamera;
+    private Button buttonBeforeAfter;
     private Button buttonVr;
     private Button buttonVrExit;
     private Button buttonCmd0;
@@ -78,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
 
     private int lensFacing = CameraSelector.LENS_FACING_BACK;
     private AppStatus appStatus = AppStatus.NotInitialized;
+    private ViewMode viewMode = ViewMode.Normal;
 
     static {
         System.loadLibrary("native-lib");
@@ -115,6 +123,7 @@ public class MainActivity extends AppCompatActivity {
         imageView = findViewById(R.id.imageView);
         imageView2 = findViewById(R.id.imageView2);
         buttonCamera = findViewById(R.id.buttonCamera);
+        buttonBeforeAfter = findViewById(R.id.buttonBeforeAfter);
         buttonVr = findViewById(R.id.buttonVr);
         buttonVrExit = findViewById(R.id.buttonVrExit);
         buttonCmd0 = findViewById(R.id.buttonCmd0);
@@ -160,6 +169,13 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        buttonBeforeAfter.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                switchBeforeAfterViewMode();
+            }
+        });
+
         buttonVr.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -184,10 +200,26 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void switchBeforeAfterViewMode() {
+        if (viewMode != ViewMode.BeforeAfter) {
+            /* OFF -> ON */
+            viewMode = ViewMode.BeforeAfter;
+            imageView2.setVisibility(View.VISIBLE);
+            imageView2.setLayoutParams(new TableRow.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
+        } else {
+            /* ON -> OFF */
+            viewMode = ViewMode.Normal;
+            imageView2.setVisibility(View.INVISIBLE);
+            imageView2.setLayoutParams(new TableRow.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0f));
+        }
+    }
+
     private void enterVrMode() {
+        viewMode = ViewMode.Vr;
         imageView2.setVisibility(View.VISIBLE);
         imageView2.setLayoutParams(new TableRow.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
         buttonCamera.setVisibility(View.INVISIBLE);
+        buttonBeforeAfter.setVisibility(View.INVISIBLE);
         buttonVr.setVisibility(View.INVISIBLE);
         buttonCmd0.setVisibility(View.INVISIBLE);
         buttonCmd1.setVisibility(View.INVISIBLE);
@@ -198,13 +230,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void exitVrMode() {
+        viewMode = ViewMode.Normal;
         imageView2.setVisibility(View.INVISIBLE);
         imageView2.setLayoutParams(new TableRow.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0f));
         buttonCamera.setVisibility(View.VISIBLE);
+        buttonBeforeAfter.setVisibility(View.VISIBLE);
         buttonVr.setVisibility(View.VISIBLE);
         buttonCmd0.setVisibility(View.VISIBLE);
-        buttonCmd1.setVisibility(View.VISIBLE);
-        buttonCmd2.setVisibility(View.VISIBLE);
+//        buttonCmd1.setVisibility(View.VISIBLE);
+//        buttonCmd2.setVisibility(View.VISIBLE);
         textViewFps.setVisibility(View.VISIBLE);
         textViewImageProcessTime.setVisibility(View.VISIBLE);
         buttonVrExit.setVisibility(View.INVISIBLE);
@@ -253,6 +287,15 @@ public class MainActivity extends AppCompatActivity {
 //            Log.i(TAG, "[analyze] width = " + image.getWidth() + ", height = " + image.getHeight() + "Rotation = " + previewView.getDisplay().getRotation());
 //            Log.i(TAG, "[analyze] mat width = " + matOrg.cols() + ", mat height = " + matOrg.rows());
 
+            /* store the original image */
+            Bitmap bitmap_src;
+            if (viewMode == ViewMode.BeforeAfter) {
+                bitmap_src = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
+                Utils.matToBitmap(mat, bitmap_src);
+            } else {
+                bitmap_src = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888); /* dummy */
+            }
+
             /* Do some image processing */
             appStatus = AppStatus.Running;
             long imageProcessTimeStart = System.nanoTime();
@@ -288,7 +331,11 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     imageView.setImageBitmap(bitmap);
-                    if (imageView2.getVisibility() == View.VISIBLE)  imageView2.setImageBitmap(bitmap);
+                    if (viewMode == ViewMode.Vr) {
+                        imageView2.setImageBitmap(bitmap);
+                    } else if (viewMode == ViewMode.BeforeAfter) {
+                        imageView2.setImageBitmap(bitmap_src);
+                    }
                     textViewFps.setText(fmFps.toString());
                     textViewImageProcessTime.setText(fmImageProcessTime.toString());
                 }

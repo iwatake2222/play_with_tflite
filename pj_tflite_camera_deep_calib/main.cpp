@@ -33,6 +33,47 @@ limitations under the License.
 #define LOOP_NUM_FOR_TIME_MEASUREMENT 3
 
 /*** Function ***/
+static bool InputKeyCommand(cv::VideoCapture& cap)
+{
+    bool ret_to_quit = false;
+    static bool is_pause = false;
+    bool is_process_one_frame = false;
+    do {
+        int32_t key = cv::waitKey(1) & 0xff;
+        switch (key) {
+        case '0':
+            ImageProcessor::Command(0);
+            break;
+        case 'q':
+            cap.release();
+            ret_to_quit = true;
+            break;
+        case 'p':
+            is_pause = !is_pause;
+            break;
+        case '>':
+            if (is_pause) {
+                is_process_one_frame = true;
+            } else {
+                int32_t current_frame = static_cast<int32_t>(cap.get(cv::CAP_PROP_POS_FRAMES));
+                cap.set(cv::CAP_PROP_POS_FRAMES, current_frame + 100);
+            }
+            break;
+        case '<':
+            int32_t current_frame = static_cast<int32_t>(cap.get(cv::CAP_PROP_POS_FRAMES));
+            if (is_pause) {
+                is_process_one_frame = true;
+                cap.set(cv::CAP_PROP_POS_FRAMES, current_frame - 2);
+            } else {
+                cap.set(cv::CAP_PROP_POS_FRAMES, current_frame - 100);
+            }
+            break;
+        }
+    } while (is_pause && !is_process_one_frame);
+
+    return ret_to_quit;
+}
+
 int32_t main(int argc, char* argv[])
 {
     /*** Initialize ***/
@@ -75,6 +116,7 @@ int32_t main(int argc, char* argv[])
             image = cv::imread(input_name);
         }
         if (image.empty()) break;
+        cv::Mat image_src = image.clone();
         const auto& time_cap1 = std::chrono::steady_clock::now();
 
         /* Call image processor library */
@@ -85,14 +127,14 @@ int32_t main(int argc, char* argv[])
 
         /* Display result */
         if (writer.isOpened()) writer.write(image);
-        cv::imshow("src", image);
-        cv::imshow("dst", result.mat_result);
+        cv::imshow("src", image_src);
+        cv::imshow("dst", image);
 
         /* Input key command */
         if (cap.isOpened()) {
             /* this code needs to be before calculating processing time because cv::waitKey includes image output */
             /* however, when 'q' key is pressed (cap.released()), processing time significantly incraeases. So escape from the loop before calculating time */
-            if (CommonHelper::InputKeyCommand(cap)) break;
+            if (InputKeyCommand(cap)) break;
         };
 
         /* Print processing time */

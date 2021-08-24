@@ -58,11 +58,13 @@ static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double f
 }
 
 /* reference: https://github.com/alexvbogdan/DeepCalib/blob/master/undistortion/undistSphIm.m */
+/* Unified projection model */
 static void CreateUndistortMap(cv::Size undist_image_size, float f_undist, float xi, float u0_undist, float v0_undist, float f_dist, float u0_dist, float v0_dist
     , cv::Mat& mapx, cv::Mat& mapy)
 {
     cv::Mat grid_x(undist_image_size, CV_32F);
     cv::Mat grid_y(undist_image_size, CV_32F);
+#pragma omp parallel for
     for (int32_t y = 0; y < undist_image_size.height; y++) {
         for (int32_t x = 0; x < undist_image_size.width; x++) {
             grid_x.at<float>(y, x) = x + 0.0f;
@@ -73,6 +75,7 @@ static void CreateUndistortMap(cv::Size undist_image_size, float f_undist, float
     cv::Mat X_Cam(undist_image_size, CV_32F);
     cv::Mat Y_Cam(undist_image_size, CV_32F);
     cv::Mat Z_Cam(undist_image_size, CV_32F);
+#pragma omp parallel for
     for (int32_t y = 0; y < undist_image_size.height; y++) {
         for (int32_t x = 0; x < undist_image_size.width; x++) {
             X_Cam.at<float>(y, x) = (grid_x.at<float>(y, x) - u0_undist) / f_undist;
@@ -82,6 +85,7 @@ static void CreateUndistortMap(cv::Size undist_image_size, float f_undist, float
     }
 
     cv::Mat Alpha_Cam(undist_image_size, CV_32F);
+#pragma omp parallel for
     for (int32_t y = 0; y < undist_image_size.height; y++) {
         for (int32_t x = 0; x < undist_image_size.width; x++) {
             Alpha_Cam.at<float>(y, x) = 1 / sqrtf(
@@ -95,6 +99,7 @@ static void CreateUndistortMap(cv::Size undist_image_size, float f_undist, float
     cv::Mat X_Sph(undist_image_size, CV_32F);
     cv::Mat Y_Sph(undist_image_size, CV_32F);
     cv::Mat Z_Sph(undist_image_size, CV_32F);
+#pragma omp parallel for
     for (int32_t y = 0; y < undist_image_size.height; y++) {
         for (int32_t x = 0; x < undist_image_size.width; x++) {
             X_Sph.at<float>(y, x) = X_Cam.at<float>(y, x) * Alpha_Cam.at<float>(y, x);
@@ -104,6 +109,7 @@ static void CreateUndistortMap(cv::Size undist_image_size, float f_undist, float
     }
 
     cv::Mat den(undist_image_size, CV_32F);
+#pragma omp parallel for
     for (int32_t y = 0; y < undist_image_size.height; y++) {
         for (int32_t x = 0; x < undist_image_size.width; x++) {
             den.at<float>(y, x) = xi * sqrtf(
@@ -116,6 +122,7 @@ static void CreateUndistortMap(cv::Size undist_image_size, float f_undist, float
 
     mapx = cv::Mat(undist_image_size, CV_32F);
     mapy = cv::Mat(undist_image_size, CV_32F);
+#pragma omp parallel for
     for (int32_t y = 0; y < undist_image_size.height; y++) {
         for (int32_t x = 0; x < undist_image_size.width; x++) {
             mapx.at<float>(y, x) = (X_Sph.at<float>(y, x) * f_dist) / den.at<float>(y, x) + u0_dist;
@@ -210,6 +217,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         /* Calculate undistort map */
         CreateUndistortMap(undist_image_size, f_undist, xi, u0_undist, v0_undist, f_dist, u0_dist, v0_dist, mapx, mapy);
 
+        CommonHelper::DrawText(mat, "Calibration Done", cv::Point(100, 100), 0.5, 2, CommonHelper::CreateCvColor(255, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), false);
         s_update_calib = false;
     }
     
@@ -218,11 +226,10 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     cv::remap(mat, image_undistorted, mapx, mapy, cv::INTER_LINEAR);
     cv::resize(image_undistorted, image_undistorted, cv::Size(), 1.0 / new_image_size_scale, 1.0 / new_image_size_scale);
 
-
-    DrawFps(mat, calib_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
+    DrawFps(image_undistorted, calib_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     /* Return the results */
-    result.mat_result = image_undistorted;
+    mat = image_undistorted;
     result.time_pre_process = calib_result.time_pre_process;
     result.time_inference = calib_result.time_inference;
     result.time_post_process = calib_result.time_post_process;

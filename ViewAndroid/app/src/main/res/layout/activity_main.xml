@@ -17,12 +17,12 @@
             android:layout_height="match_parent"
             android:layout_weight="0"/>
         <ImageView
-            android:id="@+id/imageView"
+            android:id="@+id/imageView2"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"/>
         <ImageView
-            android:id="@+id/imageView2"
+            android:id="@+id/imageView"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"/>
@@ -31,35 +31,42 @@
         android:id="@+id/buttonCamera"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         android:text="FRONT" />
+    <Button
+        android:id="@+id/buttonBeforeAfter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/buttonCamera"
+        android:text="BEFORE\n/ AFTER" />
     <Button
         android:id="@+id/buttonVr"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/buttonCamera"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/buttonBeforeAfter"
         android:text="VR" />
     <Button
         android:id="@+id/buttonCmd0"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toTopOf="@id/buttonVr"
         android:text="CMD0" />
     <Button
         android:id="@+id/buttonCmd1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toTopOf="@id/buttonCmd0"
         android:text="CMD1" />
     <Button
         android:id="@+id/buttonCmd2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toTopOf="@id/buttonCmd1"
         android:text="CMD2" />
     <TextView
