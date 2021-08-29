@@ -55,6 +55,18 @@ static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double f
     CommonHelper::DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 }
 
+static cv::Scalar GetColorForLine(int32_t id)
+{
+    static constexpr int32_t kMaxNum = 4;
+    static std::vector<cv::Scalar> color_list;
+    if (color_list.empty()) {
+        std::srand(123456);
+        for (int32_t i = 0; i < kMaxNum; i++) {
+            color_list.push_back(CommonHelper::CreateCvColor(std::rand() % 255, std::rand() % 255, std::rand() % 255));
+        }
+    }
+    return color_list[id % kMaxNum];
+}
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
 {
@@ -117,9 +129,16 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     /* Display target area  */
     cv::rectangle(mat, cv::Rect(lane_result.crop.x, lane_result.crop.y, lane_result.crop.w, lane_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
 
+    /* Draw line */
+    for (int32_t lane_index = 0; lane_index < lane_result.line_list.size(); lane_index++) {
+        const auto& line = lane_result.line_list[lane_index];
+        for (const auto& p : line) {
+            cv::circle(mat, cv::Point(p.first, p.second), 4, GetColorForLine(lane_index), -1);
+        }
+    }
 
     /* Display det num  */
-    CommonHelper::DrawText(mat, "DET: " + std::to_string(0), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
+    //CommonHelper::DrawText(mat, "DET: " + std::to_string(0), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
 
     DrawFps(mat, lane_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 

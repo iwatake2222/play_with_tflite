@@ -37,8 +37,10 @@ public:
         kRetErr = -1,
     };
 
+    typedef std::vector<std::pair<int32_t, int32_t>> Line;
 
     typedef struct Result_ {
+        std::vector<Line> line_list;
         struct crop_ {
             int32_t x;
             int32_t y;

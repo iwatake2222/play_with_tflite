@@ -29,8 +29,8 @@ limitations under the License.
 
 /*** Macro ***/
 #define WORK_DIR                      RESOURCE_DIR
-#define DEFAULT_INPUT_IMAGE           RESOURCE_DIR"/test.jpg"
-#define LOOP_NUM_FOR_TIME_MEASUREMENT 1
+#define DEFAULT_INPUT_IMAGE           RESOURCE_DIR"/dashcam_00.jpg"
+#define LOOP_NUM_FOR_TIME_MEASUREMENT 10
 
 /*** Function ***/
 int32_t main(int argc, char* argv[])

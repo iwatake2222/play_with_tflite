@@ -48,6 +48,11 @@ namespace CommonHelper
 float Sigmoid(float x);
 float Logit(float x);
 
+template<typename T>
+T& GetValue(std::vector<T>& val_list, std::vector<int32_t> shape, std::vector<int32_t> pos);
+template<typename T>
+void PrintValue(std::vector<T>& val_list, std::vector<int32_t> shape);
+
 }
 
 #endif
