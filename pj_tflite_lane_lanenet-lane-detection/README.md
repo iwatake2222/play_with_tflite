@@ -1,8 +1,9 @@
 # LaneNet-Lane-Detection with TensorFlow Lite in C++
 
-![00_doc/lane.jpg](00_doc/lane.jpg)
+![00_doc/lane_00.jpg](00_doc/lane_00.jpg)
 
-- Post process like line fitting is not implemented. Just drawing binary segmentation image
+![00_doc/lane_01.jpg](00_doc/lane_01.jpg)
+
 - Original video image is https://www.youtube.com/watch?v=tTuUjnISt9s (Copyright Dashcam Roadshow 2020)
 
 ## Target Environment, How to Build, How to Run

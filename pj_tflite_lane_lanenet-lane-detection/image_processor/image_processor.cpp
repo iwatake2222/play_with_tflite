@@ -130,9 +130,10 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     cv::rectangle(mat, cv::Rect(lane_result.crop.x, lane_result.crop.y, lane_result.crop.w, lane_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
 
     /* Draw line */
-    cv::Mat image_mask;
-    cv::cvtColor(lane_result.image_binary_seg, image_mask, cv::COLOR_GRAY2BGR);
-    cv::add(mat, image_mask, mat);
+    //cv::Mat image_mask;
+    //cv::cvtColor(lane_result.image_binary_seg, image_mask, cv::COLOR_GRAY2BGR);
+    //cv::add(mat, image_mask, mat);
+    cv::add(mat, lane_result.image_instance_seg, mat);
 
 
     /* Display det num  */

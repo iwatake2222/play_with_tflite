@@ -29,6 +29,9 @@ limitations under the License.
 /* for OpenCV */
 #include <opencv2/opencv.hpp>
 
+#include "dbscan.hpp"
+#include "kdtree.h"
+
 /* for My modules */
 #include "common_helper.h"
 #include "common_helper_cv.h"
@@ -66,6 +69,16 @@ static constexpr int32_t kNumWidth = 512;
 static constexpr int32_t kNumHeight = 256;
 
 /*** Function ***/
+static void gather_pixel_embedding_features(const cv::Mat& binary_mask, const cv::Mat& pixel_embedding, std::vector<cv::Point>& coords, std::vector<DBSCAMSample<float>>& embedding_samples);
+template <typename T1, typename T2>
+static void simultaneously_random_shuffle(std::vector<T1> src1, std::vector<T2> src2);
+static Feature<float> calculate_stddev_feature_vector(const std::vector<DBSCAMSample<float>>& input_samples, const Feature<float>& mean_feature_vec);
+static Feature<float> calculate_mean_feature_vector(const std::vector<DBSCAMSample<float>>& input_samples);
+static void normalize_sample_features(const std::vector<DBSCAMSample<float>>& input_samples, std::vector<DBSCAMSample<float>>& output_samples);
+static void cluster_pixem_embedding_features(std::vector<DBSCAMSample<float>>& embedding_samples, std::vector<std::vector<uint> >& cluster_ret, std::vector<uint>& noise);
+static void visualize_instance_segmentation_result(const std::vector<std::vector<uint> >& cluster_ret, const std::vector<cv::Point>& coords, cv::Mat& intance_segmentation_result);
+
+
 int32_t LaneEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
 {
     /* Set model information */
@@ -144,13 +157,13 @@ int32_t LaneEngine::Process(const cv::Mat& original_mat, Result& result)
 
     /* do resize and color conversion here because some inference engine doesn't support these operations */
     int32_t crop_x = 0;
-    int32_t crop_y = 0; // original_mat.rows * 1 / 3;
     int32_t crop_w = original_mat.cols;
-    int32_t crop_h = original_mat.rows; // *2 / 3;
+    int32_t crop_h = crop_w / 2;
+    int32_t crop_y = original_mat.rows - crop_h ;
     cv::Mat img_src = cv::Mat::zeros(input_tensor_info.GetHeight(), input_tensor_info.GetWidth(), CV_8UC3);
-    //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeStretch);
+    CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeStretch);
     //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeCut);
-    CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeExpand);
+    //CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeExpand);
 
     input_tensor_info.data = img_src.data;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
@@ -191,22 +204,34 @@ int32_t LaneEngine::Process(const cv::Mat& original_mat, Result& result)
     for (int32_t i = 0; i < output_binary.size(); i++) {
         image_binary.data[i] = output_binary[i] * 255;
     }
-    cv::resize(image_binary, image_binary, cv::Size(crop_w, crop_h));
 
+    cv::Mat image_instance(kNumHeight, kNumWidth, CV_32FC4, output_pixel_embedding.data());
+
+    std::vector<cv::Point> coords;
+    std::vector<DBSCAMSample<float>> pixel_embedding_samples;
+    gather_pixel_embedding_features(image_binary, image_instance, coords, pixel_embedding_samples);
+
+    simultaneously_random_shuffle<cv::Point, DBSCAMSample<float>>(coords, pixel_embedding_samples);
+    normalize_sample_features(pixel_embedding_samples, pixel_embedding_samples);
+    std::vector<std::vector<uint> > cluster_ret;
+    std::vector<uint> noise;
+    cluster_pixem_embedding_features(pixel_embedding_samples, cluster_ret, noise);
+    cv::Mat instance_seg_result = cv::Mat(kNumHeight, kNumWidth, CV_8UC3, cv::Scalar(0, 0, 0));
+    visualize_instance_segmentation_result(cluster_ret, coords, instance_seg_result);
+
+
+    cv::resize(image_binary, image_binary, cv::Size(crop_w, crop_h));
     result.image_binary_seg = cv::Mat(original_mat.size(), CV_8UC1);
     cv::Rect crop = cv::Rect(crop_x < 0 ? 0 : crop_x, crop_y < 0 ? 0 : crop_y, crop_x < 0 ? original_mat.cols : crop_w, crop_h < 0 ? original_mat.rows : crop_h);
     cv::Mat target = result.image_binary_seg(crop);
     image_binary(cv::Rect(crop_x < 0 ? -crop_x : 0, crop_y < 0 ? -crop_y : 0, crop_x < 0 ? original_mat.cols : crop_w, crop_h < 0 ? original_mat.rows : crop_h)).copyTo(target);
 
+    cv::resize(instance_seg_result, instance_seg_result, cv::Size(crop_w, crop_h));
+    result.image_instance_seg = cv::Mat(original_mat.size(), CV_8UC3);
+    crop = cv::Rect(crop_x < 0 ? 0 : crop_x, crop_y < 0 ? 0 : crop_y, crop_x < 0 ? original_mat.cols : crop_w, crop_h < 0 ? original_mat.rows : crop_h);
+    target = result.image_instance_seg(crop);
+    instance_seg_result(cv::Rect(crop_x < 0 ? -crop_x : 0, crop_y < 0 ? -crop_y : 0, crop_x < 0 ? original_mat.cols : crop_w, crop_h < 0 ? original_mat.rows : crop_h)).copyTo(target);
 
-    //cv::Mat image_instance(kNumHeight, kNumWidth, CV_8UC3);
-    //for (int32_t i = 0; i < output_binary.size(); i++) {
-    //    image_instance.data[i * 3 + 0] = output_pixel_embedding[i * 4 + 0] * 255;
-    //    image_instance.data[i * 3 + 1] = std::min(255.f, output_pixel_embedding[i * 4 + 1] * 255 + output_pixel_embedding[i * 4 + 3] * 255);
-    //    image_instance.data[i * 3 + 2] = std::min(255.f, output_pixel_embedding[i * 4 + 2] * 255 + output_pixel_embedding[i * 4 + 3] * 255);
-    //}
-    //cv::imshow("test", image_instance);
-    //cv::waitKey(-1);
 
     const auto& t_post_process1 = std::chrono::steady_clock::now();
 
@@ -221,4 +246,179 @@ int32_t LaneEngine::Process(const cv::Mat& original_mat, Result& result)
     result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;
 
     return kRetOk;
+}
+
+
+/***************************************************************************************************
+ * The following code is retrieved from https://github.com/xuanyuyt/lanenet-lane-detection
+ ***************************************************************************************************/
+/************************************************
+* Copyright 2019 Baidu Inc. All Rights Reserved.
+* Author: MaybeShewill-CV
+* File: lanenetModel.cpp
+* Date: 2019/11/5 ‰ºŒß5:19
+************************************************/
+static void gather_pixel_embedding_features(const cv::Mat& binary_mask, const cv::Mat& pixel_embedding,
+    std::vector<cv::Point>& coords,
+    std::vector<DBSCAMSample<float>>& embedding_samples) {
+
+
+    auto image_rows = kNumHeight;
+    auto image_cols = kNumWidth;
+
+    for (auto row = 0; row < image_rows; ++row) {
+        auto binary_image_row_data = binary_mask.ptr<uchar>(row);
+        auto embedding_image_row_data = pixel_embedding.ptr<cv::Vec4f>(row);
+        for (auto col = 0; col < image_cols; ++col) {
+            auto binary_image_pix_value = binary_image_row_data[col];
+            if (binary_image_pix_value == 255) {
+                coords.emplace_back(cv::Point(col, row));
+                Feature<float> embedding_features;
+                for (auto index = 0; index < 4; ++index) {
+                    embedding_features.push_back(embedding_image_row_data[col][index]);
+                }
+                DBSCAMSample<float> sample(embedding_features, CLASSIFY_FLAGS::NOT_CALSSIFIED);
+                embedding_samples.push_back(sample);
+            }
+        }
+    }
+}
+
+template <typename T1, typename T2>
+static void simultaneously_random_shuffle(std::vector<T1> src1, std::vector<T2> src2) {
+
+    if (src1.empty() || src2.empty()) {
+        return;
+    }
+
+    // construct index vector of two input src
+    std::vector<uint> indexes;
+    indexes.reserve(src1.size());
+    std::iota(indexes.begin(), indexes.end(), 0);
+    std::random_shuffle(indexes.begin(), indexes.end());
+
+    // make copy of two input vector
+    std::vector<T1> src1_copy(src1);
+    std::vector<T2> src2_copy(src2);
+
+    // random two source input vector via random shuffled index vector
+    for (uint i = 0; i < indexes.size(); ++i) {
+        src1[i] = src1_copy[indexes[i]];
+        src2[i] = src2_copy[indexes[i]];
+    }
+}
+
+static Feature<float> calculate_stddev_feature_vector(
+    const std::vector<DBSCAMSample<float>>& input_samples,
+    const Feature<float>& mean_feature_vec) {
+
+    if (input_samples.empty()) {
+        return Feature<float>();
+    }
+
+    auto feature_dims = input_samples[0].get_feature_vector().size();
+    auto sample_nums = input_samples.size();
+
+    // calculate stddev feature vector
+    Feature<float> stddev_feature_vec;
+    stddev_feature_vec.resize(feature_dims, 0.0);
+    for (const auto& sample : input_samples) {
+        for (auto index = 0; index < feature_dims; ++index) {
+            auto sample_feature = sample.get_feature_vector();
+            auto diff = sample_feature[index] - mean_feature_vec[index];
+            diff = std::pow(diff, 2);
+            stddev_feature_vec[index] += diff;
+        }
+    }
+    for (auto index = 0; index < feature_dims; ++index) {
+        stddev_feature_vec[index] /= sample_nums;
+        stddev_feature_vec[index] = std::sqrt(stddev_feature_vec[index]);
+    }
+
+    return stddev_feature_vec;
+}
+
+static Feature<float> calculate_mean_feature_vector(const std::vector<DBSCAMSample<float>>& input_samples) {
+
+    if (input_samples.empty()) {
+        return Feature<float>();
+    }
+
+    auto feature_dims = input_samples[0].get_feature_vector().size();
+    auto sample_nums = input_samples.size();
+    Feature<float> mean_feature_vec;
+    mean_feature_vec.resize(feature_dims, 0.0);
+    for (const auto& sample : input_samples) {
+        for (auto index = 0; index < feature_dims; ++index) {
+            mean_feature_vec[index] += sample[index];
+        }
+    }
+    for (auto index = 0; index < feature_dims; ++index) {
+        mean_feature_vec[index] /= sample_nums;
+    }
+
+    return mean_feature_vec;
+}
+
+static void normalize_sample_features(const std::vector<DBSCAMSample<float>>& input_samples,
+    std::vector<DBSCAMSample<float>>& output_samples) {
+    // calcualte mean feature vector
+    Feature<float> mean_feature_vector = calculate_mean_feature_vector(input_samples);
+
+    // calculate stddev feature vector
+    Feature<float> stddev_feature_vector = calculate_stddev_feature_vector(input_samples, mean_feature_vector);
+
+    std::vector<DBSCAMSample<float>> input_samples_copy = input_samples;
+    for (auto& sample : input_samples_copy) {
+        auto feature = sample.get_feature_vector();
+        for (auto index = 0; index < feature.size(); ++index) {
+            feature[index] = (feature[index] - mean_feature_vector[index]) / stddev_feature_vector[index];
+        }
+        sample.set_feature_vector(feature);
+    }
+    output_samples = input_samples_copy;
+}
+
+static void cluster_pixem_embedding_features(std::vector<DBSCAMSample<float>>& embedding_samples,
+    std::vector<std::vector<uint> >& cluster_ret, std::vector<uint>& noise) {
+
+    if (embedding_samples.empty()) {
+        PRINT_E("Pixel embedding samples empty")
+            return;
+    }
+
+    // dbscan cluster
+    auto dbscan = DBSCAN<DBSCAMSample<float>, float>();
+    dbscan.Run(&embedding_samples, 4, 0.4, 500);            /* from config.ini */
+    cluster_ret = dbscan.Clusters;
+    noise = dbscan.Noise;
+}
+
+static void visualize_instance_segmentation_result(
+    const std::vector<std::vector<uint> >& cluster_ret,
+    const std::vector<cv::Point>& coords,
+    cv::Mat& intance_segmentation_result) {
+
+    std::map<int, cv::Scalar> color_map = {
+        {0, cv::Scalar(0, 0, 255)},
+        {1, cv::Scalar(0, 255, 0)},
+        {2, cv::Scalar(255, 0, 0)},
+        {3, cv::Scalar(255, 0, 255)},
+        {4, cv::Scalar(0, 255, 255)},
+        {5, cv::Scalar(255, 255, 0)},
+        {6, cv::Scalar(125, 0, 125)},
+        {7, cv::Scalar(0, 125, 125)}
+    };
+
+    for (int class_id = 0; class_id < cluster_ret.size(); ++class_id) {
+        auto class_color = color_map[class_id];
+#pragma omp parallel for
+        for (auto index = 0; index < cluster_ret[class_id].size(); ++index) {
+            auto coord = coords[cluster_ret[class_id][index]];
+            auto image_col_data = intance_segmentation_result.ptr<cv::Vec3b>(coord.y);
+            image_col_data[coord.x][0] = class_color[0];
+            image_col_data[coord.x][1] = class_color[1];
+            image_col_data[coord.x][2] = class_color[2];
+        }
+    }
 }

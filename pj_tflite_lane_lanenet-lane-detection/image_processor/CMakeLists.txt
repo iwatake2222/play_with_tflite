@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.0)
 set(LibraryName "ImageProcessor")
 
 # Create library
-add_library (${LibraryName} image_processor.cpp image_processor.h lane_engine.cpp lane_engine.h)
+add_library (${LibraryName} image_processor.cpp image_processor.h lane_engine.cpp lane_engine.h
+    kdtree.h kdtree.cpp  dbscan.hpp
+)
 
 # For OpenCV
 find_package(OpenCV REQUIRED)

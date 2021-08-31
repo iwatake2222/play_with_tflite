@@ -41,6 +41,7 @@ public:
 
     typedef struct Result_ {
         cv::Mat image_binary_seg;
+        cv::Mat image_instance_seg;
         struct crop_ {
             int32_t x;
             int32_t y;
