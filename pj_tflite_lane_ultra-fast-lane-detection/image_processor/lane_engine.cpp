@@ -289,9 +289,7 @@ int32_t LaneEngine::Process(const cv::Mat& original_mat, Result& result)
                 line.push_back({ x, y });
             }
         }
-        if (line.size() > 2) {
-            result.line_list.push_back(line);
-        }
+        result.line_list.push_back(line);
     }
     const auto& t_post_process1 = std::chrono::steady_clock::now();
 

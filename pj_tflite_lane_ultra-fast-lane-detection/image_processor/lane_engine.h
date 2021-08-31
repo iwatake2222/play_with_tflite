@@ -56,10 +56,7 @@ public:
     } Result;
 
 public:
-    LaneEngine(float threshold_confidence = 0.3f, float threshold_nms_iou = 0.5f) {
-        threshold_confidence_ = threshold_confidence;
-        threshold_nms_iou_ = threshold_nms_iou;
-    }
+    LaneEngine() {}
     ~LaneEngine() {}
     int32_t Initialize(const std::string& work_dir, const int32_t num_threads);
     int32_t Finalize(void);
@@ -69,9 +66,6 @@ private:
     std::unique_ptr<InferenceHelper> inference_helper_;
     std::vector<InputTensorInfo> input_tensor_info_list_;
     std::vector<OutputTensorInfo> output_tensor_info_list_;
-
-    float threshold_confidence_;
-    float threshold_nms_iou_;
 };
 
 #endif
