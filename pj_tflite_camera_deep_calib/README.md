@@ -7,9 +7,10 @@ Click the image to open in YouTube. https://youtu.be/RJdSW22dzwM
 ## Target Environment, How to Build, How to Run
 1. Please follow the instruction: https://github.com/iwatake2222/play_with_tflite/blob/master/README.md
 2. Additional steps:
-    - Download the model using the following script
-        - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/128_DeepCalib/download_regression.sh
-        - copy `saved_model/model_float32.tflite` to `resource/model/deep_calib_regresion.tflite`
+    - ~~Download the model using the following script~~
+        - ~~https://github.com/PINTO0309/PINTO_model_zoo/blob/main/128_DeepCalib/download_regression.sh~~
+        - ~~copy `saved_model/model_float32.tflite` to `resource/model/deep_calib_regresion.tflite`~~
+    - Convert the model following the script here https://github.com/alexvbogdan/DeepCalib
     - Build  `pj_tflite_camera_deep_calib` project (this directory)
 
 ## About App
