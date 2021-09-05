@@ -43,7 +43,7 @@ limitations under the License.
 /* Model parameters */
 #define USE_TFLITE
 #ifdef USE_TFLITE
-#define MODEL_NAME  "ultra_falst_lane_detection_culane_288x800.tflite"
+#define MODEL_NAME  "ultra_fast_lane_detection_culane_288x800.tflite"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #define INPUT_NAME  "input_1"
 #define INPUT_DIMS  { 1, 288, 800, 3}
@@ -51,7 +51,7 @@ limitations under the License.
 #define IS_RGB      true
 #define OUTPUT_NAME "Identity"
 #else
-#define MODEL_NAME  "ultra_falst_lane_detection_culane_288x800.onnx"
+#define MODEL_NAME  "ultra_fast_lane_detection_culane_288x800.onnx"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #define INPUT_NAME  "input.1"
 #define INPUT_DIMS  { 1, 3, 288, 800}
