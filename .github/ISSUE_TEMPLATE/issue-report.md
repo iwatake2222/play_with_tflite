@@ -7,10 +7,16 @@ assignees: ''
 
 ---
 
+Issue report
+issue, bug, question
+
 ## Environment (Hardware)
 - Hardware: Device, CPU, GPU, etc.
 - Software: OS, Compiler, etc.
 (Please include version information)
+
+## Project Name
+pj_xxx
 
 ## Issue Details
 A clear and concise description of what the issue is.
