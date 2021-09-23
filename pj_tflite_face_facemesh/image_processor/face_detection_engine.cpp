@@ -284,7 +284,7 @@ void FaceDetectionEngine::CreateAnchor(int32_t width, int32_t height, std::vecto
 /* reference: https://github.com/tensorflow/tfjs-models/blob/master/blazeface/src/face.ts#L86 */
 void FaceDetectionEngine::GetBoundingBox(const std::vector<float>& score_list, const std::vector<float>& regressor_list, const std::vector<std::pair<float, float>>& anchor_list, float threshold_score_logit, float scale_x, float  scale_y, std::vector<BoundingBox>& bbox_list)
 {
-    for (size_t i = 0; i < anchor_list.size(); i++) {
+    for (int32_t i = 0; i < static_cast<int32_t>(anchor_list.size()); i++) {
         if (score_list[i] > threshold_score_logit) {
             int32_t index_regressor = i * kElementNumOfAnchor;
             float cx = regressor_list[index_regressor + 0] + anchor_list[i].first;
