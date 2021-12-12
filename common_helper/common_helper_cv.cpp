@@ -23,6 +23,7 @@ limitations under the License.
 #include <array>
 #include <algorithm>
 #include <chrono>
+#include <numeric>
 
 /* for OpenCV */
 #include <opencv2/opencv.hpp>
@@ -191,4 +192,29 @@ bool CommonHelper::InputKeyCommand(cv::VideoCapture& cap)
     } while (is_pause && !is_process_one_frame);
 
     return ret_to_quit;
+}
+
+CommonHelper::NiceColorGenerator::NiceColorGenerator(int32_t num)
+{
+    num_ = num;
+    gap_ = 256 / num_;
+
+    std::vector<uint8_t> seq_num(256);
+    std::iota(seq_num.begin(), seq_num.end(), 0);
+    cv::Mat mat_seq = cv::Mat(256, 1, CV_8UC1, seq_num.data());
+    cv::Mat mat_colormap;
+    cv::applyColorMap(mat_seq, mat_colormap, cv::COLORMAP_JET);
+    for (int32_t i = 0; i < 256; i++) {
+        const auto& bgr = mat_colormap.at<cv::Vec3b>(i);
+        color_list_.push_back(CommonHelper::CreateCvColor(bgr[0], bgr[1], bgr[2]));
+    }
+
+    for (int32_t i = 0; i < 256; i++) {
+        indices_.push_back((i % num_) * gap_ + i / gap_);
+    }
+}
+
+cv::Scalar CommonHelper::NiceColorGenerator::Get(int32_t id)
+{
+    return color_list_[indices_[id % 255]];
 }

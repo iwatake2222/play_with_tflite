@@ -41,6 +41,21 @@ std::string CreateGStreamerPipeline(int capture_width, int capture_height, int d
 bool FindSourceImage(const std::string& input_name, cv::VideoCapture& cap, int32_t width = 640, int32_t height = 480);
 bool InputKeyCommand(cv::VideoCapture& cap);
 
+
+class NiceColorGenerator
+{
+public:
+    NiceColorGenerator(int32_t num = 16);
+    cv::Scalar Get(int32_t id);
+
+private:
+    int32_t num_;
+    int32_t gap_;
+    std::vector<int32_t> indices_;
+    std::vector<cv::Scalar> color_list_;
+};
+
+
 }
 
 #endif
