@@ -113,7 +113,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
         return -1;
     }
 
-    cv::resize(mat, mat, cv::Size(), 0.5, 0.5);
+    cv::resize(mat, mat, cv::Size(640, 640 * mat.rows / mat.cols));
 
     SegmentationEngine::Result segmentation_result;
     if (s_engine->Process(mat, segmentation_result) != SegmentationEngine::kRetOk) {
@@ -144,13 +144,14 @@ int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
     cv::applyColorMap(mat_max, mat_max, cv::COLORMAP_JET);
 
     /* Create result image */
-    double scale = static_cast<double>(mat.rows) / mat_max.rows;
-    cv::resize(mat_max, mat_max, cv::Size(), scale, scale);
+    const double scale_col = static_cast<double>(mat.cols) / mat_max.cols;
+    const double scale_row = static_cast<double>(mat.rows) / mat_max.rows;
+    cv::resize(mat_max, mat_max, cv::Size(), scale_col, scale_row);
     cv::Mat mat_masked;
     cv::add(mat_max * kResultMixRatio, mat * (1.0f - kResultMixRatio), mat_masked);
     cv::hconcat(mat, mat_masked, mat);
     if (kIsDrawAllResult) {
-        cv::resize(mat_all_class, mat_all_class, cv::Size(), scale, scale);
+        cv::resize(mat_all_class, mat_all_class, cv::Size(), scale_col, scale_row);
         cv::hconcat(mat_all_class, mat_max, mat_all_class);
         cv::vconcat(mat, mat_all_class, mat);
     }
