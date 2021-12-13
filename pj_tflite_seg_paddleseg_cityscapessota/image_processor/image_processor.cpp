@@ -144,14 +144,12 @@ int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
     cv::applyColorMap(mat_max, mat_max, cv::COLORMAP_JET);
 
     /* Create result image */
-    const double scale_col = static_cast<double>(mat.cols) / mat_max.cols;
-    const double scale_row = static_cast<double>(mat.rows) / mat_max.rows;
-    cv::resize(mat_max, mat_max, cv::Size(), scale_col, scale_row);
+    cv::resize(mat_max, mat_max, mat.size());
     cv::Mat mat_masked;
     cv::add(mat_max * kResultMixRatio, mat * (1.0f - kResultMixRatio), mat_masked);
     cv::hconcat(mat, mat_masked, mat);
     if (kIsDrawAllResult) {
-        cv::resize(mat_all_class, mat_all_class, cv::Size(), scale_col, scale_row);
+        cv::resize(mat_all_class, mat_all_class, mat_max.size());
         cv::hconcat(mat_all_class, mat_max, mat_all_class);
         cv::vconcat(mat, mat_all_class, mat);
     }

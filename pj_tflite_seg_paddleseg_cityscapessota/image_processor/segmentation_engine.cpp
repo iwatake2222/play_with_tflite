@@ -124,7 +124,7 @@ int32_t SegmentationEngine::Process(const cv::Mat& original_mat, Result& result)
     int32_t crop_w = original_mat.cols;
     int32_t crop_h = original_mat.rows;
     cv::Mat img_src = cv::Mat::zeros(input_tensor_info.GetHeight(), input_tensor_info.GetWidth(), CV_8UC3);
-    CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeCut);
+    CommonHelper::CropResizeCvt(original_mat, img_src, crop_x, crop_y, crop_w, crop_h, IS_RGB, CommonHelper::kCropTypeStretch);
 
     input_tensor_info.data = img_src.data;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
