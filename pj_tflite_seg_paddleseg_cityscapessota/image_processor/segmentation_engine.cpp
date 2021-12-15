@@ -154,22 +154,33 @@ int32_t SegmentationEngine::Process(const cv::Mat& original_mat, Result& result)
     /* Retrieve the result */
     const int32_t output_height = input_tensor_info.image_info.height;
     const int32_t output_width = input_tensor_info.image_info.width;
-    const float* values = output_tensor_info_list_[0].GetDataAsFloat();
-    //printf("%f, %f, %f\n", values[0], values[100], values[400]);
+    const std::vector<float> value_list(output_tensor_info_list_[0].GetDataAsFloat(), output_tensor_info_list_[0].GetDataAsFloat() + output_height * output_width * OUTPUT_CHANNEL);
+    //printf("%f, %f, %f\n", value_list[0], value_list[100], value_list[400]);
 
-    /* Score for all the classes */
+    /* Scores for all the classes */
     std::vector<cv::Mat> mat_separated_list(OUTPUT_CHANNEL);
-#pragma omp parallel for
     for (int32_t c = 0; c < OUTPUT_CHANNEL; c++) {
-        cv::Mat& mat = mat_separated_list[c];
-        mat = cv::Mat::zeros(output_height, output_width, CV_32FC1);
-        for (int32_t y = 0; y < output_height; y++) {
-            for (int32_t x = 0; x < output_width; x++) {
-                float val = values[y * output_width * OUTPUT_CHANNEL + x * OUTPUT_CHANNEL + c];
-                val /= 20;  /* todo */
-                val = (std::min)(1.0f, (std::max)(0.0f, val));
-                mat.at<float>(cv::Point(x, y)) = val;
+        mat_separated_list[c] = cv::Mat::zeros(output_height, output_width, CV_32FC1);
+    }
+ #pragma omp parallel for
+    for (int32_t y = 0; y < output_height; y++) {
+        for (int32_t x = 0; x < output_width; x++) {
+#if 1
+            /* Use Score [0.0, 1.0] */
+            size_t offset = (size_t)y * output_width * OUTPUT_CHANNEL + (size_t)x * OUTPUT_CHANNEL;
+            std::vector<float> score_list(OUTPUT_CHANNEL, 0);
+            CommonHelper::SoftMaxFast(value_list.data() + offset, score_list.data(), OUTPUT_CHANNEL);
+            for (int32_t c = 0; c < OUTPUT_CHANNEL; c++) {
+                mat_separated_list[c].at<float>(cv::Point(x, y)) = score_list[c];
             }
+#else
+            /* Use Logit */
+            size_t offset = (size_t)y * output_width * OUTPUT_CHANNEL + (size_t)x * OUTPUT_CHANNEL;
+            for (int32_t c = 0; c < OUTPUT_CHANNEL; c++) {
+                float val = value_list[offset + c] / 20;    // experimentally determined
+                mat_separated_list[c].at<float>(cv::Point(x, y)) = (std::min)(1.0f, (std::max)(0.0f, val));
+            }
+#endif
         }
     }
 
@@ -179,18 +190,11 @@ int32_t SegmentationEngine::Process(const cv::Mat& original_mat, Result& result)
 #pragma omp parallel for
     for (int32_t y = 0; y < output_height; y++) {
         for (int32_t x = 0; x < output_width; x++) {
-            float max_score = 0;
-            int32_t max_c = 0;
-            for (int32_t c = 0; c < OUTPUT_CHANNEL; c++) {
-                float val = values[y * output_width * OUTPUT_CHANNEL + x * OUTPUT_CHANNEL + c];
-                if (val > max_score) {
-                    max_score = val;
-                    max_c = c;
-                }
-            }
-            //if (CommonHelper::Sigmoid(max_score) > 0.3) {
-                mat_max.at<uint8_t>(cv::Point(x, y)) = max_c;
-            //}
+            const auto& current_iter = value_list.begin() + y * output_width * OUTPUT_CHANNEL + x * OUTPUT_CHANNEL;
+            const auto& max_iter = std::max_element(current_iter, current_iter + OUTPUT_CHANNEL);
+            float max_score = *max_iter;
+            auto max_c = std::distance(current_iter, max_iter);
+            mat_max.at<uint8_t>(cv::Point(x, y)) = static_cast<uint8_t>(max_c);
         }
     }
     const auto& t_post_process1 = std::chrono::steady_clock::now();

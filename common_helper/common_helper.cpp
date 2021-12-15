@@ -51,6 +51,33 @@ float CommonHelper::Logit(float x)
     }
 }
 
+static inline float fast_exp(float x)
+{
+    union {
+        uint32_t i;
+        float f;
+    } v{};
+    v.i = static_cast<int32_t>((1 << 23) * (1.4426950409 * x + 126.93490512f));
+    return v.f;
+}
+
+float CommonHelper::SoftMaxFast(const float* src, float* dst, int32_t length)
+{
+    const float alpha = *std::max_element(src, src + length);
+    float denominator{ 0 };
+
+    for (int32_t i = 0; i < length; ++i) {
+        dst[i] = fast_exp(src[i] - alpha);
+        denominator += dst[i];
+    }
+
+    for (int32_t i = 0; i < length; ++i) {
+        dst[i] /= denominator;
+    }
+
+    return 0;
+}
+
 template<typename T>
 T& CommonHelper::GetValue(std::vector<T>& val_list, std::vector<int32_t> shape, std::vector<int32_t> pos)
 {
