@@ -115,8 +115,9 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     }
 
     /* Convert to colored image */
-    cv::Mat mat_edge;
-    cv::cvtColor(engine_result.mat_out, mat_edge, cv::COLOR_GRAY2BGR);
+    cv::Mat mat_edge = engine_result.mat_out;
+    //cv::threshold(engine_result.mat_out, mat_edge, 128, 255, cv::THRESH_BINARY);
+    cv::cvtColor(mat_edge, mat_edge, cv::COLOR_GRAY2BGR);
     
     /* Create result image */
     cv::resize(mat_edge, mat_edge, mat.size());

@@ -3,6 +3,8 @@ Sample project to run DexiNed
 
 ![00_doc/edge.jpg](00_doc/edge.jpg)
 
+![00_doc/edge_2.jpg](00_doc/edge_2.jpg)
+
 ## How to Run
 1. Please follow the instruction: https://github.com/iwatake2222/play_with_tflite/blob/master/README.md
 2. Additional steps:
@@ -14,3 +16,4 @@ Sample project to run DexiNed
 ## Acknowledgements
 - https://github.com/xavysp/DexiNed
 - https://github.com/PINTO0309/PINTO_model_zoo
+- https://www2.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/resources.html
