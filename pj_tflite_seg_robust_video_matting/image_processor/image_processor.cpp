@@ -106,7 +106,7 @@ int32_t ImageProcessor::Command(int32_t cmd)
 
 static void UpdateMaskArea()
 {
-    static float delta = 0.05f;
+    static float delta = 0.01f;
     s_mask_area_border_x_ratio += delta;
     if (s_mask_area_border_x_ratio > 1.0) {
         s_mask_area_border_x_ratio = 1.0;

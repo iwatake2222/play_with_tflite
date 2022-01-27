@@ -57,7 +57,7 @@ limitations under the License.
 #endif
 
 #ifdef USE_TFLITE
-#if 0
+#if 1
 #define MODEL_NAME  "rvm_resnet50_720x1280.tflite"
 #define INPUT_DIMS  { 1, 720, 1280, 3 }
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
@@ -72,7 +72,9 @@ limitations under the License.
 #define INPUT_DIMS  { 1, 3, 720, 1280 }
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #elif 1
-
+#define MODEL_NAME  "rvm_resnet50_1088x1920.onnx"
+#define INPUT_DIMS  { 1, 3, 1088, 1920 }
+#define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #endif
 #endif
 
@@ -125,8 +127,8 @@ int32_t SegmentationEngine::Initialize(const std::string& work_dir, const int32_
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
 #else
-    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kOpencv));
-    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorrt));
+    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kOpencv));  // not supporrted
+    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorrt));
 #endif
 
     if (!inference_helper_) {

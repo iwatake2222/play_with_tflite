@@ -30,8 +30,8 @@ limitations under the License.
 /*** Macro ***/
 static constexpr char kOutputVideoFilename[] = "";
 #define WORK_DIR                      RESOURCE_DIR
-#define DEFAULT_INPUT_IMAGE           RESOURCE_DIR"/body_03.jpg"
-#define LOOP_NUM_FOR_TIME_MEASUREMENT 3
+#define DEFAULT_INPUT_IMAGE           RESOURCE_DIR"/body_02.jpg"
+#define LOOP_NUM_FOR_TIME_MEASUREMENT 10
 
 /*** Function ***/
 int32_t main(int argc, char* argv[])
