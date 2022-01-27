@@ -40,7 +40,10 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-std::unique_ptr<SegmentationEngine> s_engine;
+static std::unique_ptr<SegmentationEngine> s_engine;
+
+static cv::Scalar s_bg_color;
+static float  s_mask_area_border_x_ratio;
 
 /*** Function ***/
 static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
@@ -68,6 +71,10 @@ int32_t ImageProcessor::Initialize(const InputParam& input_param)
         s_engine.reset();
         return -1;
     }
+
+    s_bg_color = cv::Vec<float, 3>(255.0f, 0.0f, 0.0f);
+    s_mask_area_border_x_ratio = 1.0f;
+
     return 0;
 }
 
@@ -93,14 +100,23 @@ int32_t ImageProcessor::Command(int32_t cmd)
         return -1;
     }
 
-    switch (cmd) {
-    case 0:
-    default:
-        PRINT_E("command(%d) is not supported\n", cmd);
-        return -1;
-    }
+    //s_mask_area_border_x_ratio = cmd / 100.0f;
+    return 0;
 }
 
+static void UpdateMaskArea()
+{
+    static float delta = 0.05f;
+    s_mask_area_border_x_ratio += delta;
+    if (s_mask_area_border_x_ratio > 1.0) {
+        s_mask_area_border_x_ratio = 1.0;
+        delta *= -1;
+    }
+    if (s_mask_area_border_x_ratio < 0.0) {
+        s_mask_area_border_x_ratio = 0.0;
+        delta *= -1;
+    }
+}
 
 int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
 {
@@ -126,17 +142,24 @@ int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
     cv::imshow("mat_pha", mat_pha);
     cv::waitKey(1);
 #else
-    /* Create result image */
-    cv::resize(mat_pha, mat_pha, mat.size());
-    mat_pha.convertTo(mat_pha, CV_8UC1, 255);
-    //cv::threshold(mat_pha, mat_pha, 50, 255, cv::THRESH_BINARY);
-    cv::cvtColor(mat_pha, mat_pha, cv::COLOR_GRAY2BGR);
-    mat_pha.convertTo(mat_pha, CV_32FC3, 1.0 / 255.0);
+    /*** Create result image ***/
+    /* binalization */
+    //cv::threshold(mat_pha, mat_pha, 0.5, 1.0, cv::THRESH_BINARY);
+
+    /* Select masking area (just to show a nice demo) */
+    UpdateMaskArea();
+    cv::rectangle(mat_pha, cv::Rect(static_cast<int32_t>(s_mask_area_border_x_ratio * mat_pha.cols), 0, static_cast<int32_t>((1.0f - s_mask_area_border_x_ratio) * mat_pha.cols), mat_pha.rows), cv::Vec<float, 1>(1.0f), -1);
+
+    /* Extact masked area */
     cv::Mat mat_composit;
+    cv::resize(mat_pha, mat_pha, mat.size());
+    mat_pha = CommonHelper::CombineMat1to3(mat_pha, mat_pha, mat_pha);  /* 1 channel to 3 channel for masking */
     mat.convertTo(mat_composit, CV_32FC3);
     cv::multiply(mat_composit, mat_pha, mat_composit);
     mat_composit.convertTo(mat_composit, CV_8UC3);
-    cv::multiply(1.0f - mat_pha, cv::Scalar(cv::Vec<float, 3>(255.0f, 0.0f, 0.0f)), mat_pha);
+
+    /* draw background */
+    cv::multiply(1.0f - mat_pha, s_bg_color, mat_pha);
     mat_pha.convertTo(mat_pha, CV_8UC3);
     mat_composit = mat_composit + mat_pha;
 
