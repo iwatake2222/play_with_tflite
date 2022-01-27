@@ -38,8 +38,8 @@ public:
     };
 
     typedef struct Result_ {
-        std::vector<cv::Mat> mat_out_list;      // [height, width, 1]. value is 0 - 1.0 (float)
-        cv::Mat           mat_out_max;          // [height, width, 1]. value is 0 - 18  (uint8_t)
+        cv::Mat           mat_fgr;             // [height, width, 3], float (0.0 - 1.0)
+        cv::Mat           mat_pha;             // [height, width, 1], float (0.0 - 1.0)
         double            time_pre_process;		// [msec]
         double            time_inference;		// [msec]
         double            time_post_process;	// [msec]

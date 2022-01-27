@@ -40,16 +40,42 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
-#define MODEL_NAME  "paddleseg_cityscapessota_180x320.tflite"
-#define INPUT_DIMS  { 1, 180, 320, 3 }
-// #define MODEL_NAME  "paddleseg_cityscapessota_360x640.onnx"
-// #define INPUT_DIMS  { 1, 3, 360, 640 }
-#define INPUT_NAME  "serving_default_x:0"
+#define USE_TFLITE
+
+#ifdef USE_TFLITE
+#define INPUT_NAME  "serving_default_src:0"
 #define IS_NCHW     false
 #define IS_RGB      true
-#define OUTPUT_NAME "StatefulPartitionedCall:0"
+#define OUTPUT_NAME_FGR "StatefulPartitionedCall:1"
+#define OUTPUT_NAME_PHA "StatefulPartitionedCall:0"
+#else  // ONNX
+#define INPUT_NAME  "src"
+#define IS_NCHW     true
+#define IS_RGB      true
+#define OUTPUT_NAME_FGR "fgr"
+#define OUTPUT_NAME_PHA "pha"
+#endif
+
+#ifdef USE_TFLITE
+#if 0
+#define MODEL_NAME  "rvm_resnet50_720x1280.tflite"
+#define INPUT_DIMS  { 1, 720, 1280, 3 }
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
-#define OUTPUT_CHANNEL 19
+#elif 1
+#define MODEL_NAME  "rvm_resnet50_1088x1920.tflite"
+#define INPUT_DIMS  { 1, 1088, 1920, 3 }
+#define TENSORTYPE  TensorInfo::kTensorTypeFp32
+#endif
+#else  // ONNX
+#if 1
+#define MODEL_NAME  "rvm_resnet50_720x1280.onnx"
+#define INPUT_DIMS  { 1, 3, 720, 1280 }
+#define TENSORTYPE  TensorInfo::kTensorTypeFp32
+#elif 1
+
+#endif
+#endif
+
 
 /*** Function ***/
 int32_t SegmentationEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
@@ -62,24 +88,46 @@ int32_t SegmentationEngine::Initialize(const std::string& work_dir, const int32_
     InputTensorInfo input_tensor_info(INPUT_NAME, TENSORTYPE, IS_NCHW);
     input_tensor_info.tensor_dims = INPUT_DIMS;
     input_tensor_info.data_type = InputTensorInfo::kDataTypeImage;
-    input_tensor_info.normalize.mean[0] = 0.485f;
+#if 0
+    input_tensor_info.normalize.mean[0] = 0.485f;   // imagenet
     input_tensor_info.normalize.mean[1] = 0.456f;
     input_tensor_info.normalize.mean[2] = 0.406f;
     input_tensor_info.normalize.norm[0] = 0.229f;
     input_tensor_info.normalize.norm[1] = 0.224f;
     input_tensor_info.normalize.norm[2] = 0.225f;
+#elif 1
+    input_tensor_info.normalize.mean[0] = 0.0f; // 0.0 - 1.0
+    input_tensor_info.normalize.mean[1] = 0.0f;
+    input_tensor_info.normalize.mean[2] = 0.0f;
+    input_tensor_info.normalize.norm[0] = 1.0f;
+    input_tensor_info.normalize.norm[1] = 1.0f;
+    input_tensor_info.normalize.norm[2] = 1.0f;
+#else
+    input_tensor_info.normalize.mean[0] = 0.0f; // 0.0 - 255.0
+    input_tensor_info.normalize.mean[1] = 0.0f;
+    input_tensor_info.normalize.mean[2] = 0.0f;
+    input_tensor_info.normalize.norm[0] = 1.0f / 255.0f;
+    input_tensor_info.normalize.norm[1] = 1.0f / 255.0f;
+    input_tensor_info.normalize.norm[2] = 1.0f / 255.0f;
+#endif
     input_tensor_info_list_.push_back(input_tensor_info);
 
     /* Set output tensor info */
     output_tensor_info_list_.clear();
-    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME, TENSORTYPE, IS_NCHW));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_FGR, TENSORTYPE, IS_NCHW));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_PHA, TENSORTYPE, IS_NCHW));
 
     /* Create and Initialize Inference Helper */
+#ifdef USE_TFLITE
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
     inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
+#else
+    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kOpencv));
+    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorrt));
+#endif
 
     if (!inference_helper_) {
         return kRetErr;
@@ -154,54 +202,17 @@ int32_t SegmentationEngine::Process(const cv::Mat& original_mat, Result& result)
     /* Retrieve the result */
     const int32_t output_height = input_tensor_info.image_info.height;
     const int32_t output_width = input_tensor_info.image_info.width;
-    const std::vector<float> value_list(output_tensor_info_list_[0].GetDataAsFloat(), output_tensor_info_list_[0].GetDataAsFloat() + output_height * output_width * OUTPUT_CHANNEL);
-    //printf("%f, %f, %f\n", value_list[0], value_list[100], value_list[400]);
-
-    /* Scores for all the classes */
-    std::vector<cv::Mat> mat_separated_list(OUTPUT_CHANNEL);
-    for (int32_t c = 0; c < OUTPUT_CHANNEL; c++) {
-        mat_separated_list[c] = cv::Mat::zeros(output_height, output_width, CV_32FC1);
-    }
- #pragma omp parallel for
-    for (int32_t y = 0; y < output_height; y++) {
-        for (int32_t x = 0; x < output_width; x++) {
-#if 1
-            /* Use Score [0.0, 1.0] */
-            size_t offset = (size_t)y * output_width * OUTPUT_CHANNEL + (size_t)x * OUTPUT_CHANNEL;
-            std::vector<float> score_list(OUTPUT_CHANNEL, 0);
-            CommonHelper::SoftMaxFast(value_list.data() + offset, score_list.data(), OUTPUT_CHANNEL);
-            for (int32_t c = 0; c < OUTPUT_CHANNEL; c++) {
-                mat_separated_list[c].at<float>(cv::Point(x, y)) = score_list[c];
-            }
-#else
-            /* Use Logit */
-            size_t offset = (size_t)y * output_width * OUTPUT_CHANNEL + (size_t)x * OUTPUT_CHANNEL;
-            for (int32_t c = 0; c < OUTPUT_CHANNEL; c++) {
-                float val = value_list[offset + c] / 20;    // experimentally determined
-                mat_separated_list[c].at<float>(cv::Point(x, y)) = (std::min)(1.0f, (std::max)(0.0f, val));
-            }
-#endif
-        }
-    }
-
-    /* Argmax */
-    /* ref: https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.3/paddleseg/core/infer.py#L244 */
-    cv::Mat mat_max = cv::Mat::zeros(output_height, output_width, CV_8UC1);
-#pragma omp parallel for
-    for (int32_t y = 0; y < output_height; y++) {
-        for (int32_t x = 0; x < output_width; x++) {
-            const auto& current_iter = value_list.begin() + y * output_width * OUTPUT_CHANNEL + x * OUTPUT_CHANNEL;
-            const auto& max_iter = std::max_element(current_iter, current_iter + OUTPUT_CHANNEL);
-            float max_score = *max_iter;
-            auto max_c = std::distance(current_iter, max_iter);
-            mat_max.at<uint8_t>(cv::Point(x, y)) = static_cast<uint8_t>(max_c);
-        }
-    }
+    //std::vector<float> fgr_list(output_tensor_info_list_[0].GetDataAsFloat(), output_tensor_info_list_[0].GetDataAsFloat() + output_height * output_width * 3);
+    //std::vector<float> pha_list(output_tensor_info_list_[1].GetDataAsFloat(), output_tensor_info_list_[1].GetDataAsFloat() + output_height * output_width * 1);
+    //printf("FGR: [%f, %f], %f, %f, %f\n", *std::min_element(fgr_list.begin(), fgr_list.end()), *std::max_element(fgr_list.begin(), fgr_list.end()), fgr_list[0], fgr_list[100], fgr_list[400]);
+    //printf("PHA: [%f, %f], %f, %f, %f\n", *std::min_element(pha_list.begin(), pha_list.end()), *std::max_element(pha_list.begin(), pha_list.end()), pha_list[0], pha_list[100], pha_list[400]);
+    cv::Mat mat_fgr = cv::Mat(output_height, output_width, CV_32FC3, output_tensor_info_list_[0].GetDataAsFloat()).clone();  // need to clone because the data itself is on tensor and will be deleted
+    cv::Mat mat_pha = cv::Mat(output_height, output_width, CV_32FC1, output_tensor_info_list_[1].GetDataAsFloat()).clone();
     const auto& t_post_process1 = std::chrono::steady_clock::now();
 
     /* Return the results */
-    result.mat_out_list = mat_separated_list;
-    result.mat_out_max = mat_max;
+    result.mat_fgr = mat_fgr;
+    result.mat_pha = mat_pha;
     result.time_pre_process = static_cast<std::chrono::duration<double>>(t_pre_process1 - t_pre_process0).count() * 1000.0;
     result.time_inference = static_cast<std::chrono::duration<double>>(t_inference1 - t_inference0).count() * 1000.0;
     result.time_post_process = static_cast<std::chrono::duration<double>>(t_post_process1 - t_post_process0).count() * 1000.0;;

@@ -35,16 +35,12 @@ limitations under the License.
 #include "image_processor.h"
 
 /*** Macro ***/
-static constexpr float kResultMixRatio = 0.5f;
-static constexpr bool  kIsDrawAllResult = true;
-
 #define TAG "ImageProcessor"
 #define PRINT(...)   COMMON_HELPER_PRINT(TAG, __VA_ARGS__)
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
 std::unique_ptr<SegmentationEngine> s_engine;
-CommonHelper::NiceColorGenerator s_nice_color_generator(16);
 
 /*** Function ***/
 static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
@@ -113,46 +109,39 @@ int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
         return -1;
     }
 
-    cv::resize(mat, mat, cv::Size(640, 640 * mat.rows / mat.cols));
+    //cv::resize(mat, mat, cv::Size(640, 640 * mat.rows / mat.cols));
 
     SegmentationEngine::Result segmentation_result;
     if (s_engine->Process(mat, segmentation_result) != SegmentationEngine::kRetOk) {
         return -1;
     }
 
-    /* Draw segmentation image for all the classes weighted by score */
-    cv::Mat mat_all_class = cv::Mat::zeros(segmentation_result.mat_out_list[0].size(), CV_8UC3);
-    if (kIsDrawAllResult) {
-        /* Pile all class */
-#pragma omp parallel for
-        for (int32_t i = 0; i < segmentation_result.mat_out_list.size(); i++) {
-            auto& mat_out = segmentation_result.mat_out_list[i];
-            cv::cvtColor(mat_out, mat_out, cv::COLOR_GRAY2BGR); /* 1channel -> 3 channel */
-            cv::multiply(mat_out, s_nice_color_generator.Get(i), mat_out);
-            mat_out.convertTo(mat_out, CV_8UC1);
-        }
-
-        // don't use parallel
-        for (int32_t i = 0; i < segmentation_result.mat_out_list.size(); i++) {
-            cv::add(mat_all_class, segmentation_result.mat_out_list[i], mat_all_class);
-        }
-    }
-
-    /* Draw segmentation image for the class of the highest score */
-    cv::Mat& mat_max = segmentation_result.mat_out_max;
-    mat_max *= 255 / 19;    // to get nice color
-    cv::applyColorMap(mat_max, mat_max, cv::COLORMAP_JET);
-
+    
+    cv::Mat mat_fgr = segmentation_result.mat_fgr;
+    cv::Mat mat_pha = segmentation_result.mat_pha;
+#if 0
+    mat_fgr.convertTo(mat_fgr, CV_8UC3, 255);
+    mat_pha.convertTo(mat_pha, CV_8UC1, 255);
+    cv::imshow("mat_fgr", mat_fgr);
+    cv::imshow("mat_pha", mat_pha);
+    cv::waitKey(1);
+#else
     /* Create result image */
-    cv::resize(mat_max, mat_max, mat.size());
-    cv::Mat mat_masked;
-    cv::add(mat_max * kResultMixRatio, mat * (1.0f - kResultMixRatio), mat_masked);
-    cv::hconcat(mat, mat_masked, mat);
-    if (kIsDrawAllResult) {
-        cv::resize(mat_all_class, mat_all_class, mat_max.size());
-        cv::hconcat(mat_all_class, mat_max, mat_all_class);
-        cv::vconcat(mat, mat_all_class, mat);
-    }
+    cv::resize(mat_pha, mat_pha, mat.size());
+    mat_pha.convertTo(mat_pha, CV_8UC1, 255);
+    //cv::threshold(mat_pha, mat_pha, 50, 255, cv::THRESH_BINARY);
+    cv::cvtColor(mat_pha, mat_pha, cv::COLOR_GRAY2BGR);
+    mat_pha.convertTo(mat_pha, CV_32FC3, 1.0 / 255.0);
+    cv::Mat mat_composit;
+    mat.convertTo(mat_composit, CV_32FC3);
+    cv::multiply(mat_composit, mat_pha, mat_composit);
+    mat_composit.convertTo(mat_composit, CV_8UC3);
+    cv::multiply(1.0f - mat_pha, cv::Scalar(cv::Vec<float, 3>(255.0f, 0.0f, 0.0f)), mat_pha);
+    mat_pha.convertTo(mat_pha, CV_8UC3);
+    mat_composit = mat_composit + mat_pha;
+
+    cv::hconcat(mat, mat_composit, mat);
+#endif
     DrawFps(mat, segmentation_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     /* Return the results */
