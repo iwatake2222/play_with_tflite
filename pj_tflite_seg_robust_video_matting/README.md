@@ -5,6 +5,7 @@
 
 https://user-images.githubusercontent.com/11009876/151349607-788f6b2f-df87-42ac-a953-9d27a21d7f06.mp4
 
+https://user-images.githubusercontent.com/11009876/151362277-7a32fe9f-6d91-4f0d-bd81-19b7c006c8f4.mp4
 
 * Demo Video is created with TensorRT
 
@@ -21,6 +22,9 @@ https://user-images.githubusercontent.com/11009876/151349607-788f6b2f-df87-42ac-
 ## Acknowledgements
 - https://github.com/PeterL1n/RobustVideoMatting
 - https://github.com/PINTO0309/PINTO_model_zoo
-- Test image
+- Test image 1
     - Dj Allu Arjun Dance On Nagpuri Dj Song 2017 Latest by entertainment poker (Creative Commons)
     - https://www.youtube.com/watch?v=wlU2wDiP0ak
+- Test image 2
+    - [SPECIAL VIDEO] SEVENTEEN(세븐틴) - Anyone by  SEVENTEEN (Creative Commons)
+    - https://www.youtube.com/watch?v=jjCBYlzwaY8
