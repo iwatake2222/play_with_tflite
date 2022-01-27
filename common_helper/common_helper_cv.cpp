@@ -218,3 +218,22 @@ cv::Scalar CommonHelper::NiceColorGenerator::Get(int32_t id)
 {
     return color_list_[indices_[id % 255]];
 }
+
+
+cv::Mat CommonHelper::CombineMat1to3(const cv::Mat& mat0, const cv::Mat& mat1, const cv::Mat& mat2)
+{
+    std::vector<cv::Mat> mat_vec = { mat0, mat1, mat2 };
+    cv::Mat mat;
+    cv::merge(mat_vec, mat);
+    return mat;
+}
+
+
+cv::Mat CommonHelper::CombineMat1to3(int32_t rows, int32_t cols, float* data0, float* data1, float* data2)
+{
+    const cv::Mat mat0 = cv::Mat(rows, cols, CV_32FC1, data0);
+    const cv::Mat mat1 = cv::Mat(rows, cols, CV_32FC1, data1);
+    const cv::Mat mat2 = cv::Mat(rows, cols, CV_32FC1, data2);
+    return CombineMat1to3(mat0, mat1, mat2);
+
+}
