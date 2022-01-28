@@ -72,7 +72,7 @@ int32_t ImageProcessor::Initialize(const InputParam& input_param)
         return -1;
     }
 
-    s_bg_color = cv::Vec<float, 3>(255.0f, 0.0f, 0.0f);
+    s_bg_color = cv::Vec<float, 3>(0.0f, 255.0f, 0.0f);
     s_mask_area_border_x_ratio = 1.0f;
 
     return 0;
@@ -132,7 +132,6 @@ int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
         return -1;
     }
 
-    
     cv::Mat mat_fgr = segmentation_result.mat_fgr;
     cv::Mat mat_pha = segmentation_result.mat_pha;
 #if 0
@@ -159,7 +158,8 @@ int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
     mat_composit.convertTo(mat_composit, CV_8UC3);
 
     /* draw background */
-    cv::multiply(1.0f - mat_pha, s_bg_color, mat_pha);
+    static const cv::Mat kMatOnes = cv::Mat(mat_pha.size(), CV_32FC3, { 1.0f, 1.0f, 1.0f });
+    cv::multiply(kMatOnes - mat_pha, s_bg_color, mat_pha);
     mat_pha.convertTo(mat_pha, CV_8UC3);
     mat_composit = mat_composit + mat_pha;
 
