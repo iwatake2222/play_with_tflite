@@ -11,7 +11,7 @@ Original video image is https://www.youtube.com/watch?v=tTuUjnISt9s (Copyright D
 2. Additional steps:
     - Download the model using the following script
         - https://github.com/PINTO0309/PINTO_model_zoo/blob/main/140_Ultra-Fast-Lane-Detection/download_culane.sh
-        - copy `saved_model_culane/model_float32.tflite` to `resource/model/ultra_falst_lane_detection_culane_288x800.tflite`
+        - copy `saved_model_culane/model_float32.tflite` to `resource/model/ultra_fast_lane_detection_culane_288x800.tflite`
     - Build  `pj_tflite_lane_ultra-fast-lane-detection` project (this directory)
 
 ## Acknowledgements
