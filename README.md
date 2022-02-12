@@ -38,7 +38,7 @@
 ### 0. Requirements
 - OpenCV 4.x
 
-### 1. Common 
+### 1. Download 
 - Download source code and pre-built libraries
     ```sh
     git clone https://github.com/iwatake2222/play_with_tflite.git
@@ -51,7 +51,7 @@
     sh ./download_resource.sh
     ```
 
-### 2-a. Linux
+### 2-a. Build in Linux
 ```sh
 cd pj_tflite_cls_mobilenet_v2   # for example
 mkdir -p build && cd build
@@ -60,14 +60,14 @@ make
 ./main
 ```
 
-### 2-b. Windows (Visual Studio)
+### 2-b. Build in Windows (Visual Studio)
 - Configure and Generate a new project using cmake-gui for Visual Studio 2019 64-bit
     - `Where is the source code` : path-to-play_with_tflite/pj_tflite_cls_mobilenet_v2	(for example)
     - `Where to build the binaries` : path-to-build	(any)
 - Open `main.sln`
 - Set `main` project as a startup project, then build and run!
 
-### 2-c. Android
+### 2-c. Build in Android
 - Requirements
     - Android Studio
         - Compile Sdk Version
