@@ -35,10 +35,10 @@
 ```
 
 ## How to build a project
-### Requirements
+### 0. Requirements
 - OpenCV 4.x
 
-### Common 
+### 1. Common 
 - Download source code and pre-built libraries
     ```sh
     git clone https://github.com/iwatake2222/play_with_tflite.git
@@ -51,57 +51,23 @@
     sh ./download_resource.sh
     ```
 
-### Windows (Visual Studio)
+### 2-a. Linux
+```sh
+cd pj_tflite_cls_mobilenet_v2   # for example
+mkdir -p build && cd build
+cmake ..
+make
+./main
+```
+
+### 2-b. Windows (Visual Studio)
 - Configure and Generate a new project using cmake-gui for Visual Studio 2019 64-bit
     - `Where is the source code` : path-to-play_with_tflite/pj_tflite_cls_mobilenet_v2	(for example)
     - `Where to build the binaries` : path-to-build	(any)
 - Open `main.sln`
 - Set `main` project as a startup project, then build and run!
 
-### Linux (PC Ubuntu, Raspberry Pi, Jetson Nano, etc.)
-```sh
-cd pj_tflite_cls_mobilenet_v2   # for example
-mkdir build && cd build
-cmake ..
-make
-./main
-```
-
-### Note: EdgeTPU
-- Install the following library
-    - Linux: https://github.com/google-coral/libedgetpu/releases/download/release-grouper/edgetpu_runtime_20210726.zip
-    - Windows: https://github.com/google-coral/libedgetpu/releases/download/release-frogfish/edgetpu_runtime_20210119.zip
-        - the latest version doesn't work. If you have already installed `edgetpu_runtime_20210726.zip` , uninstall it. Also uninstall `UsbDk Runtime Libraries` from Windows. Then install `edgetpu_runtime_20210119.zip`
-        - it may be better to delete `C:\Windows\System32\edgetpu.dll` to ensure the program uses our pre-built library
-- You may need something like the following commands to run the app
-    ```sh
-    cp libedgetpu.so.1.0 libedgetpu.so.1
-    sudo LD_LIBRARY_PATH=./ ./main
-    ```
-
-### Options (Delegate)
-```sh
-# Edge TPU
-cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=on  -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=off
-cp libedgetpu.so.1.0 libedgetpu.so.1
-#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`
-sudo LD_LIBRARY_PATH=./ ./main
-# you may get "Segmentation fault (core dumped)" without sudo
-
-# GPU
-cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=on  -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=off
-# you may need `sudo apt install ocl-icd-opencl-dev` or `sudo apt install libgles2-mesa-dev`
-
-# XNNPACK
-cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=on
-
-# NNAPI (Note: You use Android for NNAPI. Therefore, you will modify CMakeLists.txt in Android Studio rather than the following command)
-cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_NNAPI=on
-```
-
-You also need to select framework when calling `InferenceHelper::create` .
-
-### Android
+### 2-c. Android
 - Requirements
     - Android Studio
         - Compile Sdk Version
@@ -139,6 +105,41 @@ You also need to select framework when calling `InferenceHelper::create` .
 
 - *Note* : By default, `InferenceHelper::TENSORFLOW_LITE` is used. You can modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to select which delegate to use. It's better to use `InferenceHelper::TENSORFLOW_LITE_GPU` to get high performance.
 
+
+## Note
+### Options (Delegate)
+```sh
+# Edge TPU
+cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=on  -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=off
+cp libedgetpu.so.1.0 libedgetpu.so.1
+#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`
+sudo LD_LIBRARY_PATH=./ ./main
+# you may get "Segmentation fault (core dumped)" without sudo
+
+# GPU
+cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=on  -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=off
+# you may need `sudo apt install ocl-icd-opencl-dev` or `sudo apt install libgles2-mesa-dev`
+
+# XNNPACK
+cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=on
+
+# NNAPI (Note: You use Android for NNAPI. Therefore, you will modify CMakeLists.txt in Android Studio rather than the following command)
+cmake .. -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_EDGETPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_GPU=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_XNNPACK=off -DINFERENCE_HELPER_ENABLE_TFLITE_DELEGATE_NNAPI=on
+```
+
+You also need to select framework when calling `InferenceHelper::create` .
+
+### EdgeTPU
+- Install the following library
+    - Linux: https://github.com/google-coral/libedgetpu/releases/download/release-grouper/edgetpu_runtime_20210726.zip
+    - Windows: https://github.com/google-coral/libedgetpu/releases/download/release-frogfish/edgetpu_runtime_20210119.zip
+        - the latest version doesn't work. If you have already installed `edgetpu_runtime_20210726.zip` , uninstall it. Also uninstall `UsbDk Runtime Libraries` from Windows. Then install `edgetpu_runtime_20210119.zip`
+        - it may be better to delete `C:\Windows\System32\edgetpu.dll` to ensure the program uses our pre-built library
+- You may need something like the following commands to run the app
+    ```sh
+    cp libedgetpu.so.1.0 libedgetpu.so.1
+    sudo LD_LIBRARY_PATH=./ ./main
+    ```
 
 ### NNAPI
 By default, NNAPI will select the most appropreate accelerator for the model. You can specify which accelerator to use by yourself. Modify the following code in `InferenceHelperTensorflowLite.cpp`
