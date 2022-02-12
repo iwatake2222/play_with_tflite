@@ -3,28 +3,18 @@
 - Typical project structure is like the following diagram
     - ![00_doc/design.jpg](00_doc/design.jpg)
 
-## Target Environment
+## Target
 - Platform
     - Linux (x64)
-        - Tested in Xubuntu 18 in VirtualBox in Windows 10
     - Linux (armv7)
-        - Tested in Raspberry Pi4 (Raspbian 32-bit)
     - Linux (aarch64)
-        - Tested in Jetson Nano (JetPack 4.3) and Jetson NX (JetPack 4.4)
     - Android (aarch64)
-        - Tested in Pixel 4a
-    - Windows (x64). Visual Studio 2017, 2019
-        - Tested in Windows10 64-bit
-
+    - Windows (x64). Visual Studio 2019
 - Delegate
     - Edge TPU
-        - Tested in Windows, Raspberry Pi (armv7) and Jetson NX (aarch64)
     - XNNPACK
-        - Tested in Windows, Raspberry Pi (armv7) and Jetson NX (aarch64)
     - GPU
-        - Tested in Jetson NX and Android
     - NNAPI(CPU, GPU, DSP)
-        - Tested in Android (Pixel 4a)
 
 ## Usage
 ```
@@ -44,47 +34,29 @@
     - e.g. ./main 0
 ```
 
-## How to build application
+## How to build a project
 ### Requirements
 - OpenCV 4.x
 
 ### Common 
-- Get source code
+- Download source code and pre-built libraries
     ```sh
     git clone https://github.com/iwatake2222/play_with_tflite.git
     cd play_with_tflite
-
-    git submodule update --init --recursive --recommend-shallow --depth 1
-    cd InferenceHelper/third_party/tensorflow
-    chmod +x tensorflow/lite/tools/make/download_dependencies.sh
-    tensorflow/lite/tools/make/download_dependencies.sh
+    git submodule update --init
+    sh InferenceHelper/third_party/download_prebuilt_libraries.sh
+    ```
+- Download models
+    ```sh
+    sh ./download_resource.sh
     ```
 
-- Download prebuilt libraries
-    - Download prebuilt libraries (third_party.zip) from https://github.com/iwatake2222/InferenceHelper/releases/  (<- Not in this repository)
-    - Extract it to `InferenceHelper/third_party/`
-- Download models
-    - Download models (resource.zip) from https://github.com/iwatake2222/play_with_tflite/releases/ 
-    - Extract it to `resource/`
-
 ### Windows (Visual Studio)
-- Configure and Generate a new project using cmake-gui for Visual Studio 2017 64-bit
+- Configure and Generate a new project using cmake-gui for Visual Studio 2019 64-bit
     - `Where is the source code` : path-to-play_with_tflite/pj_tflite_cls_mobilenet_v2	(for example)
     - `Where to build the binaries` : path-to-build	(any)
 - Open `main.sln`
 - Set `main` project as a startup project, then build and run!
-
-**Note for debug**
-
-Running with `Debug` causes exception, so use `Release` or `RelWithDebInfo` in Visual Studio.
-
-**Note for EdgeTPU in Windows**
-
-- Install `edgetpu_runtime_20210119.zip`
-    - Execution failed with `edgetpu_runtime_20210726.zip` for some reasons in my environment
-    - If you have already installed `edgetpu_runtime_20210726.zip` , uninstall it. Also uninstall `UsbDk Runtime Libraries` from Windows. Then isntall `edgetpu_runtime_20210119.zip`
-- Delete `C:\Windows\System32\edgetpu.dll` so that your project uses the created edgetpu.dll
-    - or copy the created edgetpu.dll to `C:\Windows\System32\edgetpu.dll`
 
 ### Linux (PC Ubuntu, Raspberry Pi, Jetson Nano, etc.)
 ```sh
@@ -95,12 +67,17 @@ make
 ./main
 ```
 
-**Note for EdgeTPU**
-
-```sh
-cp libedgetpu.so.1.0 libedgetpu.so.1
-sudo LD_LIBRARY_PATH=./ ./main
-```
+### Note: EdgeTPU
+- Install the following library
+    - Linux: https://github.com/google-coral/libedgetpu/releases/download/release-grouper/edgetpu_runtime_20210726.zip
+    - Windows: https://github.com/google-coral/libedgetpu/releases/download/release-frogfish/edgetpu_runtime_20210119.zip
+        - the latest version doesn't work. If you have already installed `edgetpu_runtime_20210726.zip` , uninstall it. Also uninstall `UsbDk Runtime Libraries` from Windows. Then install `edgetpu_runtime_20210119.zip`
+        - it may be better to delete `C:\Windows\System32\edgetpu.dll` to ensure the program uses our pre-built library
+- You may need something like the following commands to run the app
+    ```sh
+    cp libedgetpu.so.1.0 libedgetpu.so.1
+    sudo LD_LIBRARY_PATH=./ ./main
+    ```
 
 ### Options (Delegate)
 ```sh
@@ -171,18 +148,6 @@ By default, NNAPI will select the most appropreate accelerator for the model. Yo
 // options.accelerator_name = "qti-dsp";
 // options.accelerator_name = "qti-gpu";
 ```
-
-
-## How to create pre-built library (Tensorflow Lite & EdgeTPU)
-Pre-built libraries are stored in `InferenceHelper/ThirdParty/tensorflow_prebuilt` and `InferenceHelper/ThirdParty/edgetpu_prebuilt` .
-If you want to build them by yourself, please use the following instruction:
-- v2.4.0
-    - [00_doc/how_to_create_prebuilt_tensorflow_lite_library_v2.4.0.md](00_doc/how_to_create_prebuilt_tensorflow_lite_library_v2.4.0.md)
-    - [00_doc/how_to_create_prebuilt_edgetpu_library_v2.4.0.md](00_doc/how_to_create_prebuilt_edgetpu_library_v2.4.0.md)
-- v2.6.0
-    - [00_doc/how_to_create_prebuilt_library_v2.6_linux.md](00_doc/how_to_create_prebuilt_library_v2.6_linux.md)
-    - [00_doc/how_to_create_prebuilt_library_v2.6_windows.md](00_doc/how_to_create_prebuilt_library_v2.6_windows.md)
-
 
 # License
 - play_with_tflite
