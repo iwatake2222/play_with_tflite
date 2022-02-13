@@ -67,44 +67,16 @@ make
 - Open `main.sln`
 - Set `main` project as a startup project, then build and run!
 
-### 2-c. Build in Android
-- Requirements
-    - Android Studio
-        - Compile Sdk Version
-            - 30
-        - Build Tools version
-            - 30.0.0
-        - Target SDK Version
-            - 30
-        - Min SDK Version
-            - 24
-            - With 23, I got the following error
-                - `bionic/libc/include/bits/fortify/unistd.h:174: undefined reference to `__write_chk'`
-                - https://github.com/android/ndk/issues/1179
-    - Android NDK
-        - 21.3.6528147
-    - OpenCV
-        - opencv-4.4.0-android-sdk.zip
-    - *The version is just the version I used
-
-
-- Configure NDK
-    - File -> Project Structure -> SDK Location -> Android NDK location
-        - C:\Users\abc\AppData\Local\Android\Sdk\ndk\21.3.6528147
-- Import OpenCV
-    - Download and extract OpenCV android-sdk (https://github.com/opencv/opencv/releases )
-    - File -> New -> Import Module
-        - path-to-opencv\opencv-4.3.0-android-sdk\OpenCV-android-sdk\sdk
-    - FIle -> Project Structure -> Dependencies -> app -> Declared Dependencies -> + -> Module Dependencies
-        - select sdk
-    - In case you cannot import OpenCV module, remove sdk module and dependency of app to sdk in Project Structure
-        - Do `git update-index --skip-worktree ViewAndroid/app/build.gradle ViewAndroid/settings.gradle ViewAndroid/.idea/gradle.xml` not to save modified settings including opencv sdk
-- Modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to call image processor function you want to use.
-    - `set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_arprobe/ImageProcessor")`
-- Copy `resource` directory to `/storage/emulated/0/Android/data/com.iwatake.viewandroidtflite/files/Documents/resource` (<- e.g.) . The directory will be created after running the app (so the first run should fail because model files cannot be read)
-
-- *Note* : By default, `InferenceHelper::TENSORFLOW_LITE` is used. You can modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to select which delegate to use. It's better to use `InferenceHelper::TENSORFLOW_LITE_GPU` to get high performance.
-
+### 2-c. Build in Android Studio
+- Please refer to
+    - https://github.com/iwatake2222/InferenceHelper_Sample#2-d-build-in-android-studio
+- Copy `resource` directory to `/storage/emulated/0/Android/data/com.iwatake.viewandroidtflite/files/Documents/resource`
+    - the directory will be created after running the app (so the first run should fail because model files cannot be read)
+- Modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to select a image processor you want to use
+    - `set(ImageProcessor_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../pj_tflite_cls_mobilenet_v2/image_processor")`
+    - replace `pj_tflite_cls_mobilenet_v2` to another
+- By default, `InferenceHelper::TENSORFLOW_LITE_DELEGATE_XNNPACK` is used. You can modify `ViewAndroid\app\src\main\cpp\CMakeLists.txt` to select which delegate to use. It's better to use `InferenceHelper::TENSORFLOW_LITE_GPU` to get high performance.
+    - You also need to select framework when calling `InferenceHelper::create` .
 
 ## Note
 ### Options (Delegate)
