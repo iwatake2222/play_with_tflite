@@ -40,7 +40,7 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
-//#define USE_TFLITE
+#define USE_TFLITE
 #ifdef USE_TFLITE
 #define MODEL_NAME   "film_net_VGG_480x640.tflite"
 //#define MODEL_NAME   "film_net_L1_480x640.tflite"
