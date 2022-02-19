@@ -15,7 +15,7 @@ Sample project for FILM (Frame Interpolation for Large Scene Motion)
     - Build  `pj_tflite_other_film` project (this directory)
 
 - Note: this model is very heavy, so using TensorRT is recommended
-    - https://github.com/iwatake2222/play_with_tensorrt/tree/master/pj_tflite_other_film
+    - https://github.com/iwatake2222/play_with_tensorrt/tree/master/pj_tensorrt_other_film
 
 
 ## Acknowledgements
