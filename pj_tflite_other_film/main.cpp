@@ -30,9 +30,9 @@ limitations under the License.
 /*** Macro ***/
 static constexpr char kOutputVideoFilename[] = "";
 #define WORK_DIR                      RESOURCE_DIR
-#define DEFAULT_INPUT_IMAGE_0         RESOURCE_DIR"/one.png"
-#define DEFAULT_INPUT_IMAGE_1         RESOURCE_DIR"/two.png"
-#define LOOP_NUM_FOR_TIME_MEASUREMENT 1
+#define DEFAULT_INPUT_IMAGE_0         RESOURCE_DIR"/frame_interpolation_0.jpg"
+#define DEFAULT_INPUT_IMAGE_1         RESOURCE_DIR"/frame_interpolation_1.jpg"
+#define LOOP_NUM_FOR_TIME_MEASUREMENT -1
 
 /*** Function ***/
 int32_t main(int argc, char* argv[])
@@ -46,9 +46,20 @@ int32_t main(int argc, char* argv[])
     double total_time_inference = 0;
     double total_time_post_process = 0;
 
+    /* Create trackbar for interpolation time*/
+    cv::namedWindow("image_result");
+    int32_t trackbar_time = 50; /* 50 % */
+    cv::createTrackbar("time", "image_result", &trackbar_time, 100);
+
     /* Find source image */
     std::string input_name_0 = (argc > 2) ? argv[1] : DEFAULT_INPUT_IMAGE_0;
     std::string input_name_1 = (argc > 2) ? argv[2] : DEFAULT_INPUT_IMAGE_1;
+    cv::Mat image_0 = cv::imread(input_name_0);
+    cv::Mat image_1 = cv::imread(input_name_1);
+    if (image_0.rows > 480) {
+        cv::resize(image_0, image_0, cv::Size(), 480.0 / image_0.rows, 480.0 / image_0.rows);
+        cv::resize(image_1, image_1, cv::Size(), 480.0 / image_1.rows, 480.0 / image_1.rows);
+    }
 
     /* Create video writer to save output video */
     cv::VideoWriter writer;
@@ -62,19 +73,17 @@ int32_t main(int argc, char* argv[])
 
     /*** Process for each frame ***/
     int32_t frame_cnt = 0;
-    for (frame_cnt = 0; frame_cnt < LOOP_NUM_FOR_TIME_MEASUREMENT; frame_cnt++) {
+    for (frame_cnt = 0; LOOP_NUM_FOR_TIME_MEASUREMENT < 0 || frame_cnt < LOOP_NUM_FOR_TIME_MEASUREMENT; frame_cnt++) {
         const auto& time_all0 = std::chrono::steady_clock::now();
         /* Read image */
         const auto& time_cap0 = std::chrono::steady_clock::now();
-        cv::Mat image_0 = cv::imread(input_name_0);
-        cv::Mat image_1 = cv::imread(input_name_1);
         const auto& time_cap1 = std::chrono::steady_clock::now();
 
         /* Call image processor library */
         const auto& time_image_process0 = std::chrono::steady_clock::now();
         cv::Mat image_result;
         ImageProcessor::Result result;
-        ImageProcessor::Process(image_0, image_1, 0.5f, result, image_result);
+        ImageProcessor::Process(image_0, image_1, trackbar_time / 100.0f, result, image_result);
         const auto& time_image_process1 = std::chrono::steady_clock::now();
 
         /* Display result */
@@ -89,7 +98,7 @@ int32_t main(int argc, char* argv[])
 
         /* Input key command */
         int32_t key = cv::waitKey(1) & 0xff;
-        if (key == 'q' || key == 23) break;
+        if (key == 'q' || key == 27) break;
 
         /* Print processing time */
         const auto& time_all1 = std::chrono::steady_clock::now();

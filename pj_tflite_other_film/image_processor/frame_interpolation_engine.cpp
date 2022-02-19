@@ -43,6 +43,7 @@ limitations under the License.
 #define USE_TFLITE
 #ifdef USE_TFLITE
 #define MODEL_NAME   "film_net_VGG_480x640.tflite"
+//#define MODEL_NAME   "film_net_L1_480x640.tflite"
 #define INPUT_DIMS   { 1, 480, 640, 3 }
 #define INPUT_NAME0  "x0"
 #define INPUT_NAME1  "x1"
@@ -51,6 +52,7 @@ limitations under the License.
 #define OUTPUT_NAME  "Identity"
 #else
 #define MODEL_NAME   "film_net_VGG_480x640.onnx"
+//#define MODEL_NAME   "film_net_L1_480x640.onnx"
 #define INPUT_DIMS   { 1, 3, 480, 640 }
 #define INPUT_NAME0  "x0:0"
 #define INPUT_NAME1  "x1:0"

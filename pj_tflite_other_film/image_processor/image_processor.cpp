@@ -120,6 +120,7 @@ int32_t ImageProcessor::Process(cv::Mat& image_0, cv::Mat& image_1, float time, 
     }
 
     image_result = engine_result.mat_out;
+    cv::resize(image_result, image_result, image_0.size());
     DrawFps(image_result, engine_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     /* Return the results */
