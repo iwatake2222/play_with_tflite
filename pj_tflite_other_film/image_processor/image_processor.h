@@ -41,7 +41,7 @@ typedef struct {
 } Result;
 
 int32_t Initialize(const InputParam& input_param);
-int32_t Process(cv::Mat& mat, Result& result);
+int32_t Process(cv::Mat& image_0, cv::Mat& image_1, float time, Result& result, cv::Mat& image_result);
 int32_t Finalize(void);
 int32_t Command(int32_t cmd);
 

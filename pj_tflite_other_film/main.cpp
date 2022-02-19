@@ -1,4 +1,4 @@
-/* Copyright 2021 iwatake2222
+/* Copyright 2022 iwatake2222
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,8 +30,9 @@ limitations under the License.
 /*** Macro ***/
 static constexpr char kOutputVideoFilename[] = "";
 #define WORK_DIR                      RESOURCE_DIR
-#define DEFAULT_INPUT_IMAGE           RESOURCE_DIR"/dashcam_01.jpg"
-#define LOOP_NUM_FOR_TIME_MEASUREMENT 10
+#define DEFAULT_INPUT_IMAGE_0         RESOURCE_DIR"/one.png"
+#define DEFAULT_INPUT_IMAGE_1         RESOURCE_DIR"/two.png"
+#define LOOP_NUM_FOR_TIME_MEASUREMENT 1
 
 /*** Function ***/
 int32_t main(int argc, char* argv[])
@@ -46,11 +47,8 @@ int32_t main(int argc, char* argv[])
     double total_time_post_process = 0;
 
     /* Find source image */
-    std::string input_name = (argc > 1) ? argv[1] : DEFAULT_INPUT_IMAGE;
-    cv::VideoCapture cap;   /* if cap is not opened, src is still image */
-    if (!CommonHelper::FindSourceImage(input_name, cap)) {
-        return -1;
-    }
+    std::string input_name_0 = (argc > 2) ? argv[1] : DEFAULT_INPUT_IMAGE_0;
+    std::string input_name_1 = (argc > 2) ? argv[2] : DEFAULT_INPUT_IMAGE_1;
 
     /* Create video writer to save output video */
     cv::VideoWriter writer;
@@ -64,38 +62,34 @@ int32_t main(int argc, char* argv[])
 
     /*** Process for each frame ***/
     int32_t frame_cnt = 0;
-    for (frame_cnt = 0; cap.isOpened() || frame_cnt < LOOP_NUM_FOR_TIME_MEASUREMENT; frame_cnt++) {
+    for (frame_cnt = 0; frame_cnt < LOOP_NUM_FOR_TIME_MEASUREMENT; frame_cnt++) {
         const auto& time_all0 = std::chrono::steady_clock::now();
         /* Read image */
         const auto& time_cap0 = std::chrono::steady_clock::now();
-        cv::Mat image;
-        if (cap.isOpened()) {
-            cap.read(image);
-        } else {
-            image = cv::imread(input_name);
-        }
-        if (image.empty()) break;
+        cv::Mat image_0 = cv::imread(input_name_0);
+        cv::Mat image_1 = cv::imread(input_name_1);
         const auto& time_cap1 = std::chrono::steady_clock::now();
 
         /* Call image processor library */
         const auto& time_image_process0 = std::chrono::steady_clock::now();
+        cv::Mat image_result;
         ImageProcessor::Result result;
-        ImageProcessor::Process(image, result);
+        ImageProcessor::Process(image_0, image_1, 0.5f, result, image_result);
         const auto& time_image_process1 = std::chrono::steady_clock::now();
 
         /* Display result */
+        cv::imshow("image_0", image_0);
+        cv::imshow("image_1", image_1);
+        cv::imshow("image_result", image_result);
+
         if (frame_cnt == 0 && kOutputVideoFilename[0] != '\0') {
-            writer = cv::VideoWriter(kOutputVideoFilename, cv::VideoWriter::fourcc('M', 'P', '4', 'V'), (std::max)(10.0, cap.get(cv::CAP_PROP_FPS)), cv::Size(image.cols, image.rows));
+            writer = cv::VideoWriter(kOutputVideoFilename, cv::VideoWriter::fourcc('M', 'P', '4', 'V'), 5.0f, image_result.size());
         }
-        if (writer.isOpened()) writer.write(image);
-        cv::imshow("test", image);
+        if (writer.isOpened()) writer.write(image_result);
 
         /* Input key command */
-        if (cap.isOpened()) {
-            /* this code needs to be before calculating processing time because cv::waitKey includes image output */
-            /* however, when 'q' key is pressed (cap.released()), processing time significantly incraeases. So escape from the loop before calculating time */
-            if (CommonHelper::InputKeyCommand(cap)) break;
-        };
+        int32_t key = cv::waitKey(1) & 0xff;
+        if (key == 'q' || key == 23) break;
 
         /* Print processing time */
         const auto& time_all1 = std::chrono::steady_clock::now();
@@ -135,7 +129,6 @@ int32_t main(int argc, char* argv[])
 
     /* Fianlize image processor library */
     ImageProcessor::Finalize();
-    if (writer.isOpened()) writer.release();
     cv::waitKey(-1);
 
     return 0;

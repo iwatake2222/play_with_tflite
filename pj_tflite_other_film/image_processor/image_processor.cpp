@@ -31,7 +31,7 @@ limitations under the License.
 /* for My modules */
 #include "common_helper.h"
 #include "common_helper_cv.h"
-#include "segmentation_engine.h"
+#include "frame_interpolation_engine.h"
 #include "image_processor.h"
 
 /*** Macro ***/
@@ -43,7 +43,7 @@ static constexpr bool  kIsDrawAllResult = true;
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /*** Global variable ***/
-std::unique_ptr<SegmentationEngine> s_engine;
+std::unique_ptr<FrameInterpolationEngine> s_engine;
 CommonHelper::NiceColorGenerator s_nice_color_generator(16);
 
 /*** Function ***/
@@ -66,8 +66,8 @@ int32_t ImageProcessor::Initialize(const InputParam& input_param)
         return -1;
     }
 
-    s_engine.reset(new SegmentationEngine());
-    if (s_engine->Initialize(input_param.work_dir, input_param.num_threads) != SegmentationEngine::kRetOk) {
+    s_engine.reset(new FrameInterpolationEngine());
+    if (s_engine->Initialize(input_param.work_dir, input_param.num_threads) != FrameInterpolationEngine::kRetOk) {
         s_engine->Finalize();
         s_engine.reset();
         return -1;
@@ -82,7 +82,7 @@ int32_t ImageProcessor::Finalize(void)
         return -1;
     }
 
-    if (s_engine->Finalize() != SegmentationEngine::kRetOk) {
+    if (s_engine->Finalize() != FrameInterpolationEngine::kRetOk) {
         return -1;
     }
 
@@ -106,59 +106,26 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
-int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
+int32_t ImageProcessor::Process(cv::Mat& image_0, cv::Mat& image_1, float time, Result& result, cv::Mat& image_result)
 {
     if (!s_engine) {
         PRINT_E("Not initialized\n");
         return -1;
     }
 
-    cv::resize(mat, mat, cv::Size(640, 640 * mat.rows / mat.cols));
 
-    SegmentationEngine::Result segmentation_result;
-    if (s_engine->Process(mat, segmentation_result) != SegmentationEngine::kRetOk) {
+    FrameInterpolationEngine::Result engine_result;
+    if (s_engine->Process(image_0, image_1, time, engine_result) != FrameInterpolationEngine::kRetOk) {
         return -1;
     }
 
-    /* Draw segmentation image for all the classes weighted by score */
-    cv::Mat mat_all_class = cv::Mat::zeros(segmentation_result.mat_out_list[0].size(), CV_8UC3);
-    if (kIsDrawAllResult) {
-        /* Pile all class */
-#pragma omp parallel for
-        for (int32_t i = 0; i < segmentation_result.mat_out_list.size(); i++) {
-            auto& mat_out = segmentation_result.mat_out_list[i];
-            cv::cvtColor(mat_out, mat_out, cv::COLOR_GRAY2BGR); /* 1channel -> 3 channel */
-            cv::multiply(mat_out, s_nice_color_generator.Get(i), mat_out);
-            mat_out.convertTo(mat_out, CV_8UC1);
-        }
-
-        // don't use parallel
-        for (int32_t i = 0; i < segmentation_result.mat_out_list.size(); i++) {
-            cv::add(mat_all_class, segmentation_result.mat_out_list[i], mat_all_class);
-        }
-    }
-
-    /* Draw segmentation image for the class of the highest score */
-    cv::Mat& mat_max = segmentation_result.mat_out_max;
-    mat_max *= 255 / 19;    // to get nice color
-    cv::applyColorMap(mat_max, mat_max, cv::COLORMAP_JET);
-
-    /* Create result image */
-    cv::resize(mat_max, mat_max, mat.size());
-    cv::Mat mat_masked;
-    cv::add(mat_max * kResultMixRatio, mat * (1.0f - kResultMixRatio), mat_masked);
-    cv::hconcat(mat, mat_masked, mat);
-    if (kIsDrawAllResult) {
-        cv::resize(mat_all_class, mat_all_class, mat_max.size());
-        cv::hconcat(mat_all_class, mat_max, mat_all_class);
-        cv::vconcat(mat, mat_all_class, mat);
-    }
-    DrawFps(mat, segmentation_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
+    image_result = engine_result.mat_out;
+    DrawFps(image_result, engine_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
     /* Return the results */
-    result.time_pre_process = segmentation_result.time_pre_process;
-    result.time_inference = segmentation_result.time_inference;
-    result.time_post_process = segmentation_result.time_post_process;
+    result.time_pre_process = engine_result.time_pre_process;
+    result.time_inference = engine_result.time_inference;
+    result.time_post_process = engine_result.time_post_process;
 
     return 0;
 }
