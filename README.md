@@ -111,6 +111,11 @@ You also need to select framework when calling `InferenceHelper::create` .
     ```sh
     cp libedgetpu.so.1.0 libedgetpu.so.1
     sudo LD_LIBRARY_PATH=./ ./main
+
+    # You may also need the followings beforehand so that you can run X app with sudo via SSH
+    touch ~/.Xauthority
+    xauth generate :0 . trusted 
+    xauth nlist $DISPLAY | sudo xauth nmerge -
     ```
 
 ### NNAPI
