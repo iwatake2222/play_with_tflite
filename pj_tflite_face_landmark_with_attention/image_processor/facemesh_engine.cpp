@@ -40,14 +40,19 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
-#define MODEL_NAME  "face_landmark.tflite"
+#define MODEL_NAME  "face_landmark_with_attention.tflite"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
-#define INPUT_NAME  "input_1"
+#define INPUT_NAME  "input_1:0"
 #define INPUT_DIMS  { 1, 192, 192, 3 }
 #define IS_NCHW     false
 #define IS_RGB      true
-#define OUTPUT_NAME_0 "conv2d_20"
-#define OUTPUT_NAME_1 "conv2d_30"
+#define OUTPUT_NAME_0 "conv_faceflag:0"
+#define OUTPUT_NAME_1 "output_mesh_identity:0"
+#define OUTPUT_NAME_2 "output_left_eye:0"
+#define OUTPUT_NAME_3 "output_right_eye:0"
+#define OUTPUT_NAME_4 "output_left_iris:0"
+#define OUTPUT_NAME_5 "output_right_iris:0"
+#define OUTPUT_NAME_6 "output_lips:0"
 
 /*** Function ***/
 int32_t FacemeshEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
@@ -72,6 +77,11 @@ int32_t FacemeshEngine::Initialize(const std::string& work_dir, const int32_t nu
     output_tensor_info_list_.clear();
     output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_0, TENSORTYPE));
     output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_1, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_2, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_3, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_4, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_5, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_6, TENSORTYPE));
 
     /* Create and Initialize Inference Helper */
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
@@ -156,20 +166,44 @@ int32_t FacemeshEngine::Process(const cv::Mat& original_mat, const std::vector<B
 
         /*** PostProcess ***/
         const auto& t_post_process0 = std::chrono::steady_clock::now();
-        std::vector<float> landmark_list(output_tensor_info_list_[0].GetDataAsFloat(), output_tensor_info_list_[0].GetDataAsFloat() + output_tensor_info_list_[0].GetElementNum());
-        std::vector<float> score_list(output_tensor_info_list_[1].GetDataAsFloat(), output_tensor_info_list_[1].GetDataAsFloat() + output_tensor_info_list_[1].GetElementNum());
+        std::vector<float> faceflag_list(output_tensor_info_list_[0].GetDataAsFloat(), output_tensor_info_list_[0].GetDataAsFloat() + output_tensor_info_list_[0].GetElementNum());
+        std::vector<float> mesh_list(output_tensor_info_list_[1].GetDataAsFloat(), output_tensor_info_list_[1].GetDataAsFloat() + output_tensor_info_list_[1].GetElementNum());
+        std::vector<float> left_eye_list(output_tensor_info_list_[2].GetDataAsFloat(), output_tensor_info_list_[2].GetDataAsFloat() + output_tensor_info_list_[2].GetElementNum());
+        std::vector<float> right_eye_list(output_tensor_info_list_[3].GetDataAsFloat(), output_tensor_info_list_[3].GetDataAsFloat() + output_tensor_info_list_[3].GetElementNum());
+        std::vector<float> left_iris_list(output_tensor_info_list_[4].GetDataAsFloat(), output_tensor_info_list_[4].GetDataAsFloat() + output_tensor_info_list_[4].GetElementNum());
+        std::vector<float> right_iris_list(output_tensor_info_list_[5].GetDataAsFloat(), output_tensor_info_list_[5].GetDataAsFloat() + output_tensor_info_list_[5].GetElementNum());
+        std::vector<float> lip_list(output_tensor_info_list_[6].GetDataAsFloat(), output_tensor_info_list_[6].GetDataAsFloat() + output_tensor_info_list_[6].GetElementNum());
 
         float scale_w = static_cast<float>(crop_w) / input_tensor_info.GetWidth();
         float scale_h = static_cast<float>(crop_h) / input_tensor_info.GetHeight();
 
         /* reference : https://github.com/google/mediapipe/blob/master/docs/solutions/face_mesh.md#output */
         Result result;
-        result.score = score_list[0];
+        result.score = faceflag_list[0];
         for (size_t i = 0; i < result.keypoint_list.size(); i++) {
-            result.keypoint_list[i].first = static_cast<int32_t>(landmark_list[3 * i + 0] * scale_w + 0.5f + crop_x);
-            result.keypoint_list[i].second = static_cast<int32_t>(landmark_list[3 * i + 1] * scale_h + 0.5f + crop_y);
+            result.keypoint_list[i].first = static_cast<int32_t>(mesh_list[3 * i + 0] * scale_w + 0.5f + crop_x);
+            result.keypoint_list[i].second = static_cast<int32_t>(mesh_list[3 * i + 1] * scale_h + 0.5f + crop_y);
         }
-
+        for (size_t i = 0; i < result.left_eye_list.size(); i++) {
+            result.left_eye_list[i].first = static_cast<int32_t>(left_eye_list[2 * i + 0] * scale_w + 0.5f + crop_x);
+            result.left_eye_list[i].second = static_cast<int32_t>(left_eye_list[2 * i + 1] * scale_h + 0.5f + crop_y);
+        }
+        for (size_t i = 0; i < result.right_eye_list.size(); i++) {
+            result.right_eye_list[i].first = static_cast<int32_t>(right_eye_list[2 * i + 0] * scale_w + 0.5f + crop_x);
+            result.right_eye_list[i].second = static_cast<int32_t>(right_eye_list[2 * i + 1] * scale_h + 0.5f + crop_y);
+        }
+        for (size_t i = 0; i < result.left_iris_list.size(); i++) {
+            result.left_iris_list[i].first = static_cast<int32_t>(left_iris_list[2 * i + 0] * scale_w + 0.5f + crop_x);
+            result.left_iris_list[i].second = static_cast<int32_t>(left_iris_list[2 * i + 1] * scale_h + 0.5f + crop_y);
+        }
+        for (size_t i = 0; i < result.right_iris_list.size(); i++) {
+            result.right_iris_list[i].first = static_cast<int32_t>(right_iris_list[2 * i + 0] * scale_w + 0.5f + crop_x);
+            result.right_iris_list[i].second = static_cast<int32_t>(right_iris_list[2 * i + 1] * scale_h + 0.5f + crop_y);
+        }
+        for (size_t i = 0; i < result.lip_list.size(); i++) {
+            result.lip_list[i].first = static_cast<int32_t>(lip_list[2 * i + 0] * scale_w + 0.5f + crop_x);
+            result.lip_list[i].second = static_cast<int32_t>(lip_list[2 * i + 1] * scale_h + 0.5f + crop_y);
+        }
         const auto& t_post_process1 = std::chrono::steady_clock::now();
 
         result.time_pre_process = static_cast<std::chrono::duration<double>>(t_pre_process1 - t_pre_process0).count() * 1000.0;

@@ -328,19 +328,12 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     const auto& connection_list = FacemeshEngine::GetConnectionList();
     for (const auto& facemesh_result : facemesh_result_list) {
         /* Display wire */
-        for (const auto& connection : connection_list) {
-            cv::Point p1(facemesh_result.keypoint_list[connection.first].first, facemesh_result.keypoint_list[connection.first].second);
-            cv::Point p2(facemesh_result.keypoint_list[connection.second].first, facemesh_result.keypoint_list[connection.second].second);
-            cv::line(mat, p1, p2, CommonHelper::CreateCvColor(0, 255, 0));
-        }
+        //for (const auto& connection : connection_list) {
+        //    cv::Point p1(facemesh_result.keypoint_list[connection.first].first, facemesh_result.keypoint_list[connection.first].second);
+        //    cv::Point p2(facemesh_result.keypoint_list[connection.second].first, facemesh_result.keypoint_list[connection.second].second);
+        //    cv::line(mat, p1, p2, CommonHelper::CreateCvColor(0, 255, 0));
+        //}
     
-        /* Display point */
-        int32_t indices = 0;
-        for (const auto& keypoint : facemesh_result.keypoint_list) {
-            cv::circle(mat, cv::Point(keypoint.first, keypoint.second), 1, CommonHelper::CreateCvColor(0, 255, 255));
-            cv::putText(mat, std::to_string(indices++), cv::Point(keypoint.first, keypoint.second), 1, 0.8, cv::Scalar(255, 0, 0));
-        }
-
         for (int32_t i = 0; i < sizeof(kMeshIndices) / sizeof(kMeshIndices[0]); i += 3) {
             cv::Point p0(facemesh_result.keypoint_list[kMeshIndices[i + 0]].first, facemesh_result.keypoint_list[kMeshIndices[i + 0]].second);
             cv::Point p1(facemesh_result.keypoint_list[kMeshIndices[i + 1]].first, facemesh_result.keypoint_list[kMeshIndices[i + 1]].second);
@@ -348,6 +341,28 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
             cv::line(mat, p0, p1, CommonHelper::CreateCvColor(255, 0, 0));
             cv::line(mat, p1, p2, CommonHelper::CreateCvColor(255, 0, 0));
             cv::line(mat, p2, p0, CommonHelper::CreateCvColor(255, 0, 0));
+        }
+
+        /* Display point */
+        int32_t indices = 0;
+        for (const auto& keypoint : facemesh_result.keypoint_list) {
+            cv::circle(mat, cv::Point(keypoint.first, keypoint.second), 1, CommonHelper::CreateCvColor(0, 255, 255));
+            //cv::putText(mat, std::to_string(indices++), cv::Point(keypoint.first, keypoint.second), 1, 0.8, cv::Scalar(255, 0, 0));
+        }
+        for (const auto& p : facemesh_result.left_eye_list) {
+            cv::circle(mat, cv::Point(p.first, p.second), 2, CommonHelper::CreateCvColor(0, 255, 0));
+        }
+        for (const auto& p : facemesh_result.right_eye_list) {
+            cv::circle(mat, cv::Point(p.first, p.second), 2, CommonHelper::CreateCvColor(0, 255, 0));
+        }
+        for (const auto& p : facemesh_result.left_iris_list) {
+            cv::circle(mat, cv::Point(p.first, p.second), 2, CommonHelper::CreateCvColor(0, 0, 255), -1);
+        }
+        for (const auto& p : facemesh_result.right_iris_list) {
+            cv::circle(mat, cv::Point(p.first, p.second), 2, CommonHelper::CreateCvColor(0, 0, 255), -1);
+        }
+        for (const auto& p : facemesh_result.lip_list) {
+            cv::circle(mat, cv::Point(p.first, p.second), 2, CommonHelper::CreateCvColor(0, 255, 0));
         }
     }
 

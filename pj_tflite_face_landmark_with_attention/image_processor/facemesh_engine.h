@@ -38,7 +38,14 @@ public:
     };
 
     typedef struct Result_ {
-        std::array<std::pair<int32_t, int32_t>, 468> keypoint_list;
+        std::array<std::pair<int32_t, int32_t>, 1404/3> keypoint_list;
+        std::array<std::pair<int32_t, int32_t>, 142/2> left_eye_list;
+        std::array<std::pair<int32_t, int32_t>, 142/2> right_eye_list;
+        std::array<std::pair<int32_t, int32_t>, 10/2> left_iris_list;
+        std::array<std::pair<int32_t, int32_t>, 10/2> right_iris_list;
+        std::array<std::pair<int32_t, int32_t>, 160/2> lip_list;
+
+
         float  score;
         double time_pre_process;    // [msec]
         double time_inference;      // [msec]
