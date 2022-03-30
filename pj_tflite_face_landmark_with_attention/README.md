@@ -13,6 +13,8 @@
 
 ## Note
 - When a face is rotated, accuracy may be decreased. It's because a rotation pre-process for mesh model is not implemented in this project to keep the code simple.
+- I also confirmed it works with ONNX Runtime and MNN
+    - Comment out `#define USE_TFLITE`
 
 ## Acknowledgements
 - https://github.com/google/mediapipe

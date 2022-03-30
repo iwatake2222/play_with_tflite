@@ -40,6 +40,8 @@ limitations under the License.
 #define PRINT_E(...) COMMON_HELPER_PRINT_E(TAG, __VA_ARGS__)
 
 /* Model parameters */
+#define USE_TFLITE
+#ifdef USE_TFLITE
 #define MODEL_NAME  "face_landmark_with_attention.tflite"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
 #define INPUT_NAME  "input_1:0"
@@ -53,6 +55,22 @@ limitations under the License.
 #define OUTPUT_NAME_4 "output_left_iris:0"
 #define OUTPUT_NAME_5 "output_right_iris:0"
 #define OUTPUT_NAME_6 "output_lips:0"
+#else
+#define MODEL_NAME  "face_landmark_with_attention.onnx"
+//#define MODEL_NAME  "face_landmark_with_attention.mnn"
+#define TENSORTYPE  TensorInfo::kTensorTypeFp32
+#define INPUT_NAME  "input_1"
+#define INPUT_DIMS  { 1, 3, 192, 192 }
+#define IS_NCHW     true
+#define IS_RGB      true
+#define OUTPUT_NAME_0 "conv_faceflag"
+#define OUTPUT_NAME_1 "output_mesh_identity"
+#define OUTPUT_NAME_2 "output_left_eye"
+#define OUTPUT_NAME_3 "output_right_eye"
+#define OUTPUT_NAME_4 "output_left_iris"
+#define OUTPUT_NAME_5 "output_right_iris"
+#define OUTPUT_NAME_6 "output_lips"
+#endif
 
 /*** Function ***/
 int32_t FacemeshEngine::Initialize(const std::string& work_dir, const int32_t num_threads)
@@ -84,11 +102,12 @@ int32_t FacemeshEngine::Initialize(const std::string& work_dir, const int32_t nu
     output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_6, TENSORTYPE));
 
     /* Create and Initialize Inference Helper */
-    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLite));
+#ifdef USE_TFLITE
     inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteXnnpack));
-    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteGpu1));
-    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
-    // inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
+#else
+    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kOnnxRuntime));
+    //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kMnn));
+#endif
     
 
     if (!inference_helper_) {
