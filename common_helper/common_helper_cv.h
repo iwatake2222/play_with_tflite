@@ -47,7 +47,7 @@ cv::Mat CombineMat1to3(int32_t rows, int32_t cols, float* data0, float* data1, f
 class NiceColorGenerator
 {
 public:
-    NiceColorGenerator(int32_t num = 16);
+    NiceColorGenerator(int32_t num = 0);
     cv::Scalar Get(int32_t id);
 
 private:
