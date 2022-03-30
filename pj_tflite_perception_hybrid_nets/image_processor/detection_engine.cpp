@@ -54,6 +54,8 @@ limitations under the License.
 #define OUTPUT_NAME_0 "StatefulPartitionedCall:0"
 #define OUTPUT_NAME_1 "StatefulPartitionedCall:1"
 #define OUTPUT_NAME_2 "StatefulPartitionedCall:2"
+// #define MODEL_NAME  "hybridnets_256x384_float16_quant.tflite"
+// #define INPUT_DIMS  { 1, 256, 384, 3 }
 #elif defined(MODEL_TYPE_ONNX)
 #define MODEL_NAME  "hybridnets_384x640.onnx"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
