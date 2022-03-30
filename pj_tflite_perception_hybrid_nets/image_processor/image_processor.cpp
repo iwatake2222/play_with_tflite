@@ -32,6 +32,7 @@ limitations under the License.
 /* for My modules */
 #include "common_helper.h"
 #include "common_helper_cv.h"
+#include "camera_model.h"
 #include "bounding_box.h"
 #include "detection_engine.h"
 #include "tracker.h"
@@ -46,6 +47,13 @@ limitations under the License.
 std::unique_ptr<DetectionEngine> s_engine;
 Tracker s_tracker;
 CommonHelper::NiceColorGenerator s_nice_color_generator;
+
+/* For top view transform */
+static CameraModel s_camera_real;
+static CameraModel s_camera_top;
+static cv::Mat s_mat_transform_topview;
+#define COLOR_BG  CommonHelper::CreateCvColor(70, 70, 70)
+static cv::Size s_size_topview;
 
 /*** Function ***/
 static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
@@ -105,6 +113,65 @@ int32_t ImageProcessor::Command(int32_t cmd)
     }
 }
 
+static void CreateTopViewMat(const cv::Mat& mat_original, cv::Mat& mat_topview)
+{
+    /* Perspective Transform */
+    mat_topview = cv::Mat(cv::Size(s_camera_top.width, s_camera_top.height), CV_8UC3, COLOR_BG);
+    //cv::warpPerspective(mat_original, mat_topview, s_mat_transform_topview, mat_topview.size(), cv::INTER_LINEAR, cv::BORDER_TRANSPARENT);
+    cv::warpPerspective(mat_original, mat_topview, s_mat_transform_topview, mat_topview.size(), cv::INTER_NEAREST);
+
+#if 1
+    /* Display Grid lines */
+    static constexpr int32_t kDepthInterval = 5;
+    static constexpr int32_t kHorizontalRange = 10;
+    std::vector<cv::Point3f> object_point_list;
+    for (float z = 0; z <= 30; z += kDepthInterval) {
+        object_point_list.push_back(cv::Point3f(-kHorizontalRange, 0, z));
+        object_point_list.push_back(cv::Point3f(kHorizontalRange, 0, z));
+    }
+    std::vector<cv::Point2f> image_point_list;
+    cv::projectPoints(object_point_list, s_camera_top.rvec, s_camera_top.tvec, s_camera_top.K, s_camera_top.dist_coeff, image_point_list);
+    for (int32_t i = 0; i < static_cast<int32_t>(image_point_list.size()); i++) {
+        if (i % 2 != 0) {
+            cv::line(mat_topview, image_point_list[i - 1], image_point_list[i], cv::Scalar(255, 255, 255));
+        } else {
+            CommonHelper::DrawText(mat_topview, std::to_string(i / 2 * kDepthInterval) + "[m]", image_point_list[i], 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(255, 255, 255), false);
+        }
+    }
+#endif
+}
+
+static void CreateTransformMat(int32_t width, int32_t height, float fov_deg)
+{
+    /*** Set camera parameters ***/
+    s_size_topview.width = width / 4;
+    s_size_topview.height = height;
+    s_camera_real.SetIntrinsic(width, height, FocalLength(width, fov_deg));
+    s_camera_top.SetIntrinsic(s_size_topview.width, s_size_topview.height, FocalLength(s_size_topview.width, fov_deg));
+    s_camera_real.SetExtrinsic(
+        { 0.0f, 0.0f, 0.0f },    /* rvec [deg] */
+        { 0.0f, -1.5f, 0.0f }, true);   /* tvec (Oc - Ow in world coordinate. X+= Right, Y+ = down, Z+ = far) */
+    s_camera_top.SetExtrinsic(
+        { 90.0f, 0.0f, 0.0f },    /* rvec [deg] */
+        { 0.0f, -8.0f, 17.0f }, true);   /* tvec (Oc - Ow in world coordinate. X+= Right, Y+ = down, Z+ = far) */
+
+    /*** Generate mapping b/w object points (3D: world coordinate) and image points (real camera) */
+    std::vector<cv::Point3f> object_point_list = {   /* Target area (possible road area) */
+        { -1.0f, 0, 10.0f },
+        {  1.0f, 0, 10.0f },
+        { -1.0f, 0,  3.0f },
+        {  1.0f, 0,  3.0f },
+    };
+    std::vector<cv::Point2f> image_point_real_list;
+    cv::projectPoints(object_point_list, s_camera_real.rvec, s_camera_real.tvec, s_camera_real.K, s_camera_real.dist_coeff, image_point_real_list);
+
+    /* Convert to image points (2D) using the top view camera (virtual camera) */
+    std::vector<cv::Point2f> image_point_top_list;
+    cv::projectPoints(object_point_list, s_camera_top.rvec, s_camera_top.tvec, s_camera_top.K, s_camera_top.dist_coeff, image_point_top_list);
+
+    s_mat_transform_topview = cv::getPerspectiveTransform(&image_point_real_list[0], &image_point_top_list[0]);
+}
+
 
 int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
@@ -113,15 +180,23 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         return -1;
     }
 
+    /*** Initialize camera parameters for input image size ***/
+    static bool s_is_initialize_transform_mat = false;
+    if (!s_is_initialize_transform_mat) {
+        s_is_initialize_transform_mat = true;
+        CreateTransformMat(mat.cols, mat.rows, 80);
+    }
+
+    /*** Call inference ***/
     DetectionEngine::Result det_result;
     if (s_engine->Process(mat, det_result) != DetectionEngine::kRetOk) {
         return -1;
     }
 
-    /* Display target area  */
+    /*** Draw target area  ***/
     cv::rectangle(mat, cv::Rect(det_result.crop.x, det_result.crop.y, det_result.crop.w, det_result.crop.h), CommonHelper::CreateCvColor(0, 0, 0), 2);
 
-    /* Draw segmentation image for the class of the highest score */
+    /*** Draw segmentation image for the class of the highest score ***/
     cv::Mat& mat_seg_max = det_result.mat_seg_max;
     cv::Mat mat_seg_max_list[] = { mat_seg_max, mat_seg_max, mat_seg_max };
     cv::merge(mat_seg_max_list, 3, mat_seg_max);
@@ -137,14 +212,14 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
     //cv::hconcat(mat, mat_masked, mat);
     mat = mat_masked;
 
-    /* Display detection result (black rectangle) */
+    /*** Draw detection result (black rectangle) ***/
     int32_t num_det = 0;
     for (const auto& bbox : det_result.bbox_list) {
         cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), CommonHelper::CreateCvColor(0, 0, 0), 1);
         num_det++;
     }
 
-    /* Display tracking result  */
+    /*** Draw tracking result ***/
     s_tracker.Update(det_result.bbox_list);
     int32_t num_track = 0;
     auto& track_list = s_tracker.GetTrackList();
@@ -165,6 +240,29 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         num_track++;
     }
     CommonHelper::DrawText(mat, "DET: " + std::to_string(num_det) + ", TRACK: " + std::to_string(num_track), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
+
+    /*** Draw top view ***/
+    cv::Mat mat_topview;
+    CreateTopViewMat(mat_seg_max, mat_topview);
+    /* Draw object on top view */
+    std::vector<cv::Point2f> normal_points;
+    std::vector<cv::Point2f> topview_points;
+    for (auto& track : track_list) {
+        const auto& bbox = track.GetLatestData().bbox;
+        normal_points.push_back({ bbox.x + bbox.w / 2.0f, bbox.y + bbox.h + 0.0f });
+    }
+    if (normal_points.size() > 0) {
+        cv::perspectiveTransform(normal_points, topview_points, s_mat_transform_topview);
+        for (int32_t i = 0; i < static_cast<int32_t>(track_list.size()); i++) {
+            auto& track = track_list[i];
+            const auto& bbox = track.GetLatestData().bbox;
+            cv::Scalar color = bbox.score == 0 ? CommonHelper::CreateCvColor(255, 255, 255) : s_nice_color_generator.Get(track.GetId());
+            cv::Point p(static_cast<int32_t>(topview_points[i].x), static_cast<int32_t>(topview_points[i].y));
+            cv::circle(mat_topview, p, 10, color, -1);
+            cv::circle(mat_topview, p, 10, cv::Scalar(0, 0, 0), 2);
+        }
+    }
+    cv::hconcat(mat, mat_topview, mat);
 
     DrawFps(mat, det_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
