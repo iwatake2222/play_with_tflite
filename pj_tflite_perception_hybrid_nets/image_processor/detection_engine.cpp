@@ -42,7 +42,7 @@ limitations under the License.
 
 /* Model parameters */
 #define MODEL_TYPE_TFLITE
-//#define MODEL_TYPE_ONNX
+// #define MODEL_TYPE_ONNX
 
 #if defined(MODEL_TYPE_TFLITE)
 #define MODEL_NAME  "hybridnets_384x640.tflite"
@@ -189,7 +189,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
             if (IS_NCHW) {
                 int32_t class_index_max = 0;
                 float class_score_max = 0;
-                for (int32_t class_index = 0; class_index < kLabelListSeg.size(); class_index++) {
+                for (int32_t class_index = 0; class_index < static_cast<int32_t>(kLabelListSeg.size()); class_index++) {
                     float score = output_seg_list[class_index * input_tensor_info.GetHeight() * input_tensor_info.GetWidth() + input_tensor_info.GetWidth() * y + x];
                     if (score > class_score_max) {
                         class_score_max = score;

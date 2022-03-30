@@ -45,6 +45,7 @@ limitations under the License.
 /*** Global variable ***/
 std::unique_ptr<DetectionEngine> s_engine;
 Tracker s_tracker;
+CommonHelper::NiceColorGenerator s_nice_color_generator;
 
 /*** Function ***/
 static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double font_scale, int32_t thickness, cv::Scalar color_front, cv::Scalar color_back, bool is_text_on_rect = true)
@@ -56,19 +57,6 @@ static void DrawFps(cv::Mat& mat, double time_inference, cv::Point pos, double f
     time_previous = time_now;
     snprintf(text, sizeof(text), "FPS: %.1f, Inference: %.1f [ms]", fps, time_inference);
     CommonHelper::DrawText(mat, text, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
-}
-
-static cv::Scalar GetColorForId(int32_t id)
-{
-    static constexpr int32_t kMaxNum = 100;
-    static std::vector<cv::Scalar> color_list;
-    if (color_list.empty()) {
-        std::srand(123);
-        for (int32_t i = 0; i < kMaxNum; i++) {
-            color_list.push_back(CommonHelper::CreateCvColor(std::rand() % 255, std::rand() % 255, std::rand() % 255));
-        }
-    }
-    return color_list[id % kMaxNum];
 }
 
 int32_t ImageProcessor::Initialize(const ImageProcessor::InputParam& input_param)
@@ -164,7 +152,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         if (track.GetDetectedCount() < 2) continue;
         const auto& bbox = track.GetLatestData().bbox;
         /* Use white rectangle for the object which was not detected but just predicted */
-        cv::Scalar color = bbox.score == 0 ? CommonHelper::CreateCvColor(255, 255, 255) : GetColorForId(track.GetId());
+        cv::Scalar color = bbox.score == 0 ? CommonHelper::CreateCvColor(255, 255, 255) : s_nice_color_generator.Get(track.GetId());
         cv::rectangle(mat, cv::Rect(bbox.x, bbox.y, bbox.w, bbox.h), color, 2);
         CommonHelper::DrawText(mat, std::to_string(track.GetId()) + ": " + bbox.label, cv::Point(bbox.x, bbox.y - 13), 0.35, 1, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
 
