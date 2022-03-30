@@ -39,6 +39,7 @@ public:
     };
 
     typedef struct Result_ {
+        cv::Mat                  mat_seg_max;          // [height, width, 1]. value is 0 - 2  (uint8_t)
         std::vector<BoundingBox> bbox_list;
         struct crop_ {
             int32_t x;
@@ -55,8 +56,7 @@ public:
     } Result;
 
 public:
-    DetectionEngine(float threshold_box_confidence = 0.4f, float threshold_class_confidence = 0.2f, float threshold_nms_iou = 0.5f) {
-        threshold_box_confidence_ = threshold_box_confidence;
+    DetectionEngine(float threshold_class_confidence = 0.3f, float threshold_nms_iou = 0.5f) {
         threshold_class_confidence_ = threshold_class_confidence;
         threshold_nms_iou_ = threshold_nms_iou;
     }
@@ -66,16 +66,10 @@ public:
     int32_t Process(const cv::Mat& original_mat, Result& result);
 
 private:
-    int32_t ReadLabel(const std::string& filename, std::vector<std::string>& label_list);
-    void GetBoundingBox(const float* data, float scale_x, float  scale_y, int32_t grid_w, int32_t grid_h, std::vector<BoundingBox>& bbox_list);
-
-private:
     std::unique_ptr<InferenceHelper> inference_helper_;
     std::vector<InputTensorInfo> input_tensor_info_list_;
     std::vector<OutputTensorInfo> output_tensor_info_list_;
-    std::vector<std::string> label_list_;
 
-    float threshold_box_confidence_;
     float threshold_class_confidence_;
     float threshold_nms_iou_;
 };

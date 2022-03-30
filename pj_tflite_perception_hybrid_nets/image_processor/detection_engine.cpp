@@ -32,6 +32,7 @@ limitations under the License.
 #include "common_helper.h"
 #include "common_helper_cv.h"
 #include "inference_helper.h"
+#include "prior_bbox.h"
 #include "detection_engine.h"
 
 /*** Macro ***/
@@ -44,13 +45,15 @@ limitations under the License.
 //#define MODEL_TYPE_ONNX
 
 #if defined(MODEL_TYPE_TFLITE)
-#define MODEL_NAME  "yolox_nano_480x640.tflite"
+#define MODEL_NAME  "hybridnets_384x640.tflite"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
-#define INPUT_NAME  "images"
-#define INPUT_DIMS  { 1, 480, 640, 3 }
+#define INPUT_NAME  "serving_default_input:0"
+#define INPUT_DIMS  { 1, 384, 640, 3 }
 #define IS_NCHW     false
 #define IS_RGB      true
-#define OUTPUT_NAME "Identity"
+#define OUTPUT_NAME_0 "StatefulPartitionedCall:0"
+#define OUTPUT_NAME_1 "StatefulPartitionedCall:1"
+#define OUTPUT_NAME_2 "StatefulPartitionedCall:2"
 #elif defined(MODEL_TYPE_ONNX)
 #define MODEL_NAME  "yolox_nano_480x640.onnx"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
@@ -61,12 +64,8 @@ limitations under the License.
 #define OUTPUT_NAME "output"
 #endif
 
-static constexpr int32_t kGridScaleList[] = { 8, 16, 32 };
-static constexpr int32_t kGridChannel = 1;
-static constexpr int32_t kNumberOfClass = 80;
-static constexpr int32_t kElementNumOfAnchor = kNumberOfClass + 5;    // x, y, w, h, bbox confidence, [class confidence]
-
-#define LABEL_NAME   "label_coco_80.txt"
+static const std::vector<std::string> kLabelListDet{ "Car" };
+static const std::vector<std::string> kLabelListSeg{ "Background", "Lane", "Line" };
 
 
 /*** Function ***/
@@ -74,7 +73,6 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
 {
     /* Set model information */
     std::string model_filename = work_dir + "/model/" + MODEL_NAME;
-    std::string labelFilename = work_dir + "/model/" + LABEL_NAME;
 
     /* Set input tensor info */
     input_tensor_info_list_.clear();
@@ -91,7 +89,9 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
 
     /* Set output tensor info */
     output_tensor_info_list_.clear();
-    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_0, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_1, TENSORTYPE));
+    output_tensor_info_list_.push_back(OutputTensorInfo(OUTPUT_NAME_2, TENSORTYPE));
 
     /* Create and Initialize Inference Helper */
 #if defined(MODEL_TYPE_TFLITE)
@@ -116,11 +116,6 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
         return kRetErr;
     }
 
-    /* read label */
-    if (ReadLabel(labelFilename, label_list_) != kRetOk) {
-        return kRetErr;
-    }
-
     return kRetOk;
 }
 
@@ -132,41 +127,6 @@ int32_t DetectionEngine::Finalize()
     }
     inference_helper_->Finalize();
     return kRetOk;
-}
-
-
-void DetectionEngine::GetBoundingBox(const float* data, float scale_x, float  scale_y, int32_t grid_w, int32_t grid_h, std::vector<BoundingBox>& bbox_list)
-{
-    int32_t index = 0;
-    for (int32_t grid_y = 0; grid_y < grid_h; grid_y++) {
-        for (int32_t grid_x = 0; grid_x < grid_w; grid_x++) {
-            for (int32_t grid_c = 0; grid_c < kGridChannel; grid_c++) {
-                float box_confidence = data[index + 4];
-                if (box_confidence >= threshold_box_confidence_) {
-                    int32_t class_id = 0;
-                    float confidence = 0;
-                    for (int32_t class_index = 0; class_index < kNumberOfClass; class_index++) {
-                        float confidence_of_class = data[index + 5 + class_index];
-                        if (confidence_of_class > confidence) {
-                            confidence = confidence_of_class;
-                            class_id = class_index;
-                        }
-                    }
-
-                    if (confidence >= threshold_class_confidence_) {
-                        int32_t cx = static_cast<int32_t>((data[index + 0] + grid_x) * scale_x);
-                        int32_t cy = static_cast<int32_t>((data[index + 1] + grid_y) * scale_y);
-                        int32_t w = static_cast<int32_t>(std::exp(data[index + 2]) * scale_x);
-                        int32_t h = static_cast<int32_t>(std::exp(data[index + 3]) * scale_y);
-                        int32_t x = cx - w / 2;
-                        int32_t y = cy - h / 2;
-                        bbox_list.push_back(BoundingBox(class_id, "", confidence, x, y, w, h));
-                    }
-                }
-                index += kElementNumOfAnchor;
-            }
-        }
-    }
 }
 
 
@@ -214,16 +174,68 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 
     /*** PostProcess ***/
     const auto& t_post_process0 = std::chrono::steady_clock::now();
+    /* Retrieve the result */
+    std::vector<float> output_seg_list(output_tensor_info_list_[0].GetDataAsFloat(), output_tensor_info_list_[0].GetDataAsFloat() + output_tensor_info_list_[0].GetElementNum());
+    std::vector<float> output_confidence_list(output_tensor_info_list_[1].GetDataAsFloat(), output_tensor_info_list_[1].GetDataAsFloat() + output_tensor_info_list_[1].GetElementNum());
+    std::vector<float> output_bbox_list(output_tensor_info_list_[2].GetDataAsFloat(), output_tensor_info_list_[2].GetDataAsFloat() + output_tensor_info_list_[2].GetElementNum());
+
+    /* Get Segmentation result. ArgMax */
+    cv::Mat mat_seg_max = cv::Mat::zeros(input_tensor_info.GetHeight(), input_tensor_info.GetWidth(), CV_8UC1);
+#pragma omp parallel for
+    for (int32_t y = 0; y < input_tensor_info.GetHeight(); y++) {
+        for (int32_t x = 0; x < input_tensor_info.GetWidth(); x++) {
+            const auto& current_iter = output_seg_list.begin() + y * input_tensor_info.GetWidth() * kLabelListSeg.size() + x * kLabelListSeg.size();
+            const auto& max_iter = std::max_element(current_iter, current_iter + kLabelListSeg.size());
+            auto max_c = std::distance(current_iter, max_iter);
+            mat_seg_max.at<uint8_t>(cv::Point(x, y)) = static_cast<uint8_t>(max_c);
+        }
+    }
+
     /* Get boundig box */
+    /* reference: https://github.dev/datvuthanh/HybridNets/blob/c626bb89beb1b52440bacdbcc90ac60f9814c9a2/utils/utils.py#L615-L616 */
+    float scale_w = static_cast<float>(crop_w) / input_tensor_info.GetWidth();
+    float scale_h = static_cast<float>(crop_h) / input_tensor_info.GetHeight();
+    static const size_t kNumPrior = output_bbox_list.size() / 4 / kLabelListDet.size();
     std::vector<BoundingBox> bbox_list;
-    float* output_data = output_tensor_info_list_[0].GetDataAsFloat();
-    for (const auto& grid_scale : kGridScaleList) {
-        int32_t grid_w = input_tensor_info.GetWidth() / grid_scale;
-        int32_t grid_h = input_tensor_info.GetHeight() / grid_scale;
-        float scale_x = static_cast<float>(grid_scale) * crop_w / input_tensor_info.GetWidth();      /* scale to original image */
-        float scale_y = static_cast<float>(grid_scale) * crop_h / input_tensor_info.GetHeight();
-        GetBoundingBox(output_data, scale_x, scale_y, grid_w, grid_h, bbox_list);
-        output_data += grid_w * grid_h * kGridChannel * kElementNumOfAnchor;
+    for (size_t i = 0; i < kNumPrior; i++) {
+        size_t class_index = 0;
+        float class_score = output_confidence_list[i];
+        size_t prior_index = i * 4;
+        if (class_score >= threshold_class_confidence_) {
+            /* Prior Box: [0.0, MODEL_SIZE], y0, x0, y1, x1 */
+            const float prior_x0 = PRIOR_BBOX::BBOX[prior_index + 1];
+            const float prior_y0 = PRIOR_BBOX::BBOX[prior_index + 0];
+            const float prior_x1 = PRIOR_BBOX::BBOX[prior_index + 3];
+            const float prior_y1 = PRIOR_BBOX::BBOX[prior_index + 2];
+            const float prior_cx = (prior_x0 + prior_x1) / 2.0f;
+            const float prior_cy = (prior_y0 + prior_y1) / 2.0f;
+            const float prior_w = prior_x1 - prior_x0;
+            const float prior_h = prior_y1 - prior_y0;
+
+            /* Detected Box */
+            float box_cx = output_bbox_list[prior_index + 1];
+            float box_cy = output_bbox_list[prior_index + 0];
+            float box_w = output_bbox_list[prior_index + 3];
+            float box_h = output_bbox_list[prior_index + 2];
+
+            /* Adjust box [0.0, 1.0] */
+            float cx = PRIOR_BBOX::VARIANCE[1] * box_cx * prior_w + prior_cx;
+            float cy = PRIOR_BBOX::VARIANCE[0] * box_cy * prior_h + prior_cy;
+            float w = std::exp(box_w * PRIOR_BBOX::VARIANCE[3]) * prior_w;
+            float h = std::exp(box_h * PRIOR_BBOX::VARIANCE[2]) * prior_h;
+
+            /* Store the detected box */
+            auto bbox = BoundingBox{
+                static_cast<int32_t>(class_index),
+                kLabelListDet[class_index],
+                class_score,
+                static_cast<int32_t>((cx - w / 2.0) * scale_w),
+                static_cast<int32_t>((cy - h / 2.0) * scale_h),
+                static_cast<int32_t>(w * scale_w),
+                static_cast<int32_t>(h * scale_h)
+            };
+            bbox_list.push_back(bbox);
+        }
     }
 
 
@@ -231,7 +243,6 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     for (auto& bbox : bbox_list) {
         bbox.x += crop_x;  
         bbox.y += crop_y;
-        bbox.label = label_list_[bbox.class_id];
     }
 
     /* NMS */
@@ -241,6 +252,7 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
     const auto& t_post_process1 = std::chrono::steady_clock::now();
 
     /* Return the results */
+    result.mat_seg_max = mat_seg_max;
     result.bbox_list = bbox_nms_list;
     result.crop.x = (std::max)(0, crop_x);
     result.crop.y = (std::max)(0, crop_y);
@@ -252,20 +264,3 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 
     return kRetOk;
 }
-
-
-int32_t DetectionEngine::ReadLabel(const std::string& filename, std::vector<std::string>& label_list)
-{
-    std::ifstream ifs(filename);
-    if (ifs.fail()) {
-        PRINT_E("Failed to read %s\n", filename.c_str());
-        return kRetErr;
-    }
-    label_list.clear();
-    std::string str;
-    while (getline(ifs, str)) {
-        label_list.push_back(str);
-    }
-    return kRetOk;
-}
-

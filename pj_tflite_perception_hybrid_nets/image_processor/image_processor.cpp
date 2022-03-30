@@ -118,7 +118,6 @@ int32_t ImageProcessor::Command(int32_t cmd)
 }
 
 
-
 int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
 {
     if (!s_engine) {
@@ -161,6 +160,24 @@ int32_t ImageProcessor::Process(cv::Mat& mat, ImageProcessor::Result& result)
         }
         num_track++;
     }
+    
+
+    /* Draw segmentation image for the class of the highest score */
+    cv::Mat& mat_seg_max = det_result.mat_seg_max;
+    cv::Mat mat_seg_max_list[] = { mat_seg_max, mat_seg_max, mat_seg_max };
+    cv::merge(mat_seg_max_list, 3, mat_seg_max);
+    cv::Mat mat_lut = cv::Mat::zeros(256, 1, CV_8UC3);
+    mat_lut.at<cv::Vec3b>(0) = cv::Vec3b(0, 0, 0);
+    mat_lut.at<cv::Vec3b>(1) = cv::Vec3b(0, 255, 0);
+    mat_lut.at<cv::Vec3b>(2) = cv::Vec3b(0, 0, 255);
+    cv::LUT(mat_seg_max, mat_lut, mat_seg_max);
+    cv::resize(mat_seg_max, mat_seg_max, mat.size(), 0.0, 0.0, cv::INTER_NEAREST);
+    cv::Mat mat_masked;
+    cv::addWeighted(mat, 0.8, mat_seg_max, 0.5, 0, mat_masked);
+    //cv::add(mat_seg_max * kResultMixRatio, mat * (1.0f - kResultMixRatio), mat_masked);
+    //cv::hconcat(mat, mat_masked, mat);
+    mat = mat_masked;
+
     CommonHelper::DrawText(mat, "DET: " + std::to_string(num_det) + ", TRACK: " + std::to_string(num_track), cv::Point(0, 20), 0.7, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(220, 220, 220));
     DrawFps(mat, det_result.time_inference, cv::Point(0, 0), 0.5, 2, CommonHelper::CreateCvColor(0, 0, 0), CommonHelper::CreateCvColor(180, 180, 180), true);
 
