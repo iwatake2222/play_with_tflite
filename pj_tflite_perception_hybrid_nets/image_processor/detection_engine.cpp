@@ -55,13 +55,15 @@ limitations under the License.
 #define OUTPUT_NAME_1 "StatefulPartitionedCall:1"
 #define OUTPUT_NAME_2 "StatefulPartitionedCall:2"
 #elif defined(MODEL_TYPE_ONNX)
-#define MODEL_NAME  "yolox_nano_480x640.onnx"
+#define MODEL_NAME  "hybridnets_384x640.onnx"
 #define TENSORTYPE  TensorInfo::kTensorTypeFp32
-#define INPUT_NAME  "images"
-#define INPUT_DIMS  { 1, 3, 480, 640 }
+#define INPUT_NAME  "input"
+#define INPUT_DIMS  { 1, 3, 384, 640 }
 #define IS_NCHW     true
 #define IS_RGB      true
-#define OUTPUT_NAME "output"
+#define OUTPUT_NAME_0 "segmentation"
+#define OUTPUT_NAME_1 "classification"
+#define OUTPUT_NAME_2 "regression"
 #endif
 
 static const std::vector<std::string> kLabelListDet{ "Car" };
@@ -101,7 +103,7 @@ int32_t DetectionEngine::Initialize(const std::string& work_dir, const int32_t n
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteEdgetpu));
     //inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kTensorflowLiteNnapi));
 #elif defined(MODEL_TYPE_ONNX)
-    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kOpencv));
+    inference_helper_.reset(InferenceHelper::Create(InferenceHelper::kOnnxRuntime));
 #endif
 
     if (!inference_helper_) {
@@ -184,10 +186,23 @@ int32_t DetectionEngine::Process(const cv::Mat& original_mat, Result& result)
 #pragma omp parallel for
     for (int32_t y = 0; y < input_tensor_info.GetHeight(); y++) {
         for (int32_t x = 0; x < input_tensor_info.GetWidth(); x++) {
-            const auto& current_iter = output_seg_list.begin() + y * input_tensor_info.GetWidth() * kLabelListSeg.size() + x * kLabelListSeg.size();
-            const auto& max_iter = std::max_element(current_iter, current_iter + kLabelListSeg.size());
-            auto max_c = std::distance(current_iter, max_iter);
-            mat_seg_max.at<uint8_t>(cv::Point(x, y)) = static_cast<uint8_t>(max_c);
+            if (IS_NCHW) {
+                int32_t class_index_max = 0;
+                float class_score_max = 0;
+                for (int32_t class_index = 0; class_index < kLabelListSeg.size(); class_index++) {
+                    float score = output_seg_list[class_index * input_tensor_info.GetHeight() * input_tensor_info.GetWidth() + input_tensor_info.GetWidth() * y + x];
+                    if (score > class_score_max) {
+                        class_score_max = score;
+                        class_index_max = class_index;
+                    }
+                }
+                mat_seg_max.at<uint8_t>(cv::Point(x, y)) = static_cast<uint8_t>(class_index_max);
+            } else {
+                const auto& current_iter = output_seg_list.begin() + y * input_tensor_info.GetWidth() * kLabelListSeg.size() + x * kLabelListSeg.size();
+                const auto& max_iter = std::max_element(current_iter, current_iter + kLabelListSeg.size());
+                auto max_c = std::distance(current_iter, max_iter);
+                mat_seg_max.at<uint8_t>(cv::Point(x, y)) = static_cast<uint8_t>(max_c);
+            }
         }
     }
 
