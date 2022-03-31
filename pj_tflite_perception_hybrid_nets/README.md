@@ -1,6 +1,6 @@
 # HybridNets with TensorFlow Lite / ONNX Runtime in C++
 
-https://user-images.githubusercontent.com/11009876/161028698-0011d920-1257-4203-95ba-ef3ab5a00b85.mp4
+https://user-images.githubusercontent.com/11009876/161038748-4affc89b-d26f-4a00-9842-b21c454a3d30.mp4
 
 https://user-images.githubusercontent.com/11009876/161028473-014ed73c-b0d9-46fd-bf85-4ced71a00a74.mp4
 
