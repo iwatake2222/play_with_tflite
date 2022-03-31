@@ -1,5 +1,7 @@
 # HybridNets with TensorFlow Lite / ONNX Runtime in C++
 
+https://user-images.githubusercontent.com/11009876/161028698-0011d920-1257-4203-95ba-ef3ab5a00b85.mp4
+
 https://user-images.githubusercontent.com/11009876/161028473-014ed73c-b0d9-46fd-bf85-4ced71a00a74.mp4
 
 ![00_doc/demo.jpg](00_doc/demo.jpg)
@@ -18,7 +20,7 @@ https://user-images.githubusercontent.com/11009876/161028473-014ed73c-b0d9-46fd-
 - By default it uses tflite model. If you want to use onnx model please change ifdef switch in `detection_engine.cpp`
     - `#define MODEL_TYPE_TFLITE`
     - `#define MODEL_TYPE_ONNX`
-- The processed video is created 
+- The processed videos are created with RTX 3060Ti(ONNX Runtime + CUDA) and with Pixel 4a(tflite + GPU + FP16)
 
 ## Acknowledgements
 - https://github.com/datvuthanh/HybridNets
