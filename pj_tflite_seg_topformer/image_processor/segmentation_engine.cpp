@@ -117,7 +117,7 @@ int32_t SegmentationEngine::Process(const cv::Mat& original_mat, Result& result)
     const auto& t_pre_process0 = std::chrono::steady_clock::now();
     InputTensorInfo& input_tensor_info = input_tensor_info_list_[0];
     /* do resize and color conversion here because some inference engine doesn't support these operations */
-    float ratio = static_cast<float>(input_tensor_info.GetWidth()) / input_tensor_info.GetHeight();
+    // float ratio = static_cast<float>(input_tensor_info.GetWidth()) / input_tensor_info.GetHeight();
     int32_t crop_x = 0;
     int32_t crop_y = 0;
     int32_t crop_w = original_mat.cols;

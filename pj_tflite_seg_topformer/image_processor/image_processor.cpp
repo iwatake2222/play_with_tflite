@@ -82,14 +82,14 @@ int32_t ImageProcessor::Initialize(const InputParam& input_param)
     std::shuffle(seq_num.begin(), seq_num.end(), get_rand_mt);
     cv::Mat mat_seq = cv::Mat(256, 1, CV_8UC1, seq_num.data());
     cv::Mat mat_colormap;
-    cv::applyColorMap(mat_seq, mat_colormap, cv::COLORMAP_JET);
+    cv::applyColorMap(mat_seq, mat_colormap, cv::COLORMAP_RAINBOW);
     s_mat_lut = cv::Mat::zeros(256, 1, CV_8UC3);
     for (int32_t i = 0; i < 256; i++) {
         s_mat_lut.at<cv::Vec3b>(i) = mat_colormap.at<cv::Vec3b>(i);
     }
 
-#if 1
-    for (int32_t i = 0; i < s_palette.size(); i++) {
+#if 0
+    for (size_t i = 0; i < s_palette.size(); i++) {
         s_mat_lut.at<cv::Vec3b>(i)[0] = s_palette[i][0];
         s_mat_lut.at<cv::Vec3b>(i)[1] = s_palette[i][1];
         s_mat_lut.at<cv::Vec3b>(i)[2] = s_palette[i][2];
@@ -172,7 +172,7 @@ int32_t ImageProcessor::Process(cv::Mat& mat, Result& result)
     return 0;
 }
 
-static std::vector<std::array<uint8_t,3>> s_palette = 
+std::vector<std::array<uint8_t,3>> s_palette = 
 {
     {120, 120, 120}, { 180, 120, 120 }, { 6, 230, 230 }, { 80, 50, 50 },
     { 4, 200, 3 }, { 120, 120, 80 }, { 140, 140, 140 }, { 204, 5, 255 },
