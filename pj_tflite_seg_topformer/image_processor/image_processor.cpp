@@ -88,7 +88,7 @@ int32_t ImageProcessor::Initialize(const InputParam& input_param)
         s_mat_lut.at<cv::Vec3b>(i) = mat_colormap.at<cv::Vec3b>(i);
     }
 
-#if 0
+#if 1
     for (size_t i = 0; i < s_palette.size(); i++) {
         s_mat_lut.at<cv::Vec3b>(i)[0] = s_palette[i][0];
         s_mat_lut.at<cv::Vec3b>(i)[1] = s_palette[i][1];
