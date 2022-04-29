@@ -1,5 +1,7 @@
 # Semantic Segmentation using TopFormer with TensorFlow Lite in C++
 
+https://user-images.githubusercontent.com/11009876/165880134-42903385-6d41-48ef-916c-f4c33a9a8279.mp4
+
 
 ## How to Run
 1. Please follow the instruction: https://github.com/iwatake2222/play_with_tflite/blob/master/README.md
@@ -14,7 +16,7 @@
     - Core i7-11700 @ 2.5GHz x 8 cores (16 processors)
     - Visual Studio 2019
 - Raspberry Pi 4
-    - 8.8 FPS (less than 100msec inference time) with Camera input
+    - 8.8 FPS (less than 100msec inference time) with Camera input, 2 Cores
 
 ## Acknowledgements
 - https://github.com/hustvl/TopFormer
