@@ -3,6 +3,9 @@ Sample project to run FastestDet + SORT
 
 ![00_doc/demo.jpg](00_doc/demo.jpg)
 
+https://user-images.githubusercontent.com/11009876/179514632-769158f7-d9b3-4ac8-b17b-f9693732f0a7.mp4
+
+*FastestDet + TensorFlow Lite + Android (Pixel 4a)*
 
 ## How to Run
 1. Please follow the instruction: https://github.com/iwatake2222/play_with_tflite/blob/master/README.md
